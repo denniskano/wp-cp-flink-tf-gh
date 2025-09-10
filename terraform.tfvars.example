@@ -1,13 +1,28 @@
+# =============================================================================
+# CONFLUENT CLOUD CONFIGURATION
+# =============================================================================
 confluent_environment_id   = "env-xxxxx"
-confluent_cloud            = "AWS"
-confluent_region           = "us-east-1"
+confluent_organization_id  = "your-org-id"
+confluent_principal_id     = "sa-xxxxx"
+confluent_cloud            = "AZURE"
+confluent_region           = "westus2"
+
+# =============================================================================
+# COMPUTE POOL CONFIGURATION
+# =============================================================================
 compute_pool_name          = "cp-flink-ejemplo"
 compute_pool_config_path   = "external/compute_pool-config.yaml"
+
+# =============================================================================
+# FLINK STATEMENTS CONFIGURATION
+# =============================================================================
 statements_dir             = "external/statements"
-statements_glob            = "*.sql"
-statement_name_prefix      = "stmt_demo_"
-vault_addr                 = "https://vault.example.com"
+statement_name_prefix      = "stmt-demo-"
+flink_rest_endpoint        = "https://flink.westus2.azure.confluent.cloud"
+
+# =============================================================================
+# VAULT CONFIGURATION
+# =============================================================================
+vault_addr                 = "http://127.0.0.1:8200"
 vault_kv_mount             = "kv"
 vault_secret_path          = "confluent/cloud/creds"
-
-

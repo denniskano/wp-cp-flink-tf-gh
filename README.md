@@ -120,12 +120,45 @@ terraform apply
 terraform destroy
 ```
 
-### GitHub Actions
+### GitHub Actions CI/CD
 
-El workflow se ejecuta automáticamente en:
-- **Push a main**: Plan de Terraform
+#### Configuración Inicial
+
+1. **Configurar Vault para GitHub Actions**:
+```bash
+# Editar variables en el script
+export GITHUB_ORG="tu-organizacion"
+export GITHUB_REPO="tu-repositorio"
+
+# Ejecutar configuración
+./scripts/setup-vault.sh
+```
+
+2. **Configurar credenciales en Vault**:
+```bash
+./scripts/setup-credentials.sh
+```
+
+3. **Configurar variables en GitHub**:
+   - Ve a **Settings → Secrets and variables → Actions**
+   - Agrega las variables de repositorio:
+     - `VAULT_ADDR`: URL de tu servidor Vault
+     - `VAULT_JWT_PATH`: `auth/jwt`
+     - `VAULT_JWT_ROLE`: `github-actions`
+
+#### Workflows Disponibles
+
+- **Push a main/develop**: Validación automática de Terraform
 - **Pull Request**: Plan de Terraform
-- **Release**: Apply de Terraform
+- **Manual Dispatch**: Plan, Apply o Destroy
+
+#### Despliegue Manual
+
+1. Ve a **Actions** en tu repositorio
+2. Selecciona **Confluent Cloud Flink Infrastructure**
+3. Haz clic en **Run workflow**
+4. Selecciona la acción (`plan`, `apply`, o `destroy`)
+5. Haz clic en **Run workflow**
 
 ## 📊 Recursos Creados
 
