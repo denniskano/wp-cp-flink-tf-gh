@@ -1,0 +1,17 @@
+# Ejemplo de configuración para crear service account y API key
+# Copia este archivo a terraform.tfvars y ajusta los valores
+
+# Credenciales de tu usuario principal de Confluent Cloud
+confluent_cloud_api_key    = "FVNKXPWM7H6YRP6G"
+confluent_cloud_api_secret = "cfltJ93gzPBZKIU44FzXWjVAc/n5P5eQotoK2UVgVzEfTHcv070hUKXpo0+syYrg"
+
+# ID del Environment donde vas a crear el compute pool
+confluent_environment_id = "env-0311g9"
+
+# Configuración del service account
+service_account_name        = "sa-flink-compute-pool"
+service_account_description = "Service account para gestionar Flink compute pools"
+
+# Configuración de la API key
+api_key_name        = "ak-flink-compute-pool"
+api_key_description = "API key para operaciones de Flink compute pool"

@@ -1,0 +1,9 @@
+cloud: "AZURE"
+region: "westus2"
+min_cfu: 1
+max_cfu: 5
+cku: 1
+flink_version: "1.20"
+description: "Compute pool de ejemplo para Azure"
+
+

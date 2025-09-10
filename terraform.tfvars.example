@@ -1,0 +1,13 @@
+confluent_environment_id   = "env-xxxxx"
+confluent_cloud            = "AWS"
+confluent_region           = "us-east-1"
+compute_pool_name          = "cp-flink-ejemplo"
+compute_pool_config_path   = "external/compute_pool-config.yaml"
+statements_dir             = "external/statements"
+statements_glob            = "*.sql"
+statement_name_prefix      = "stmt_demo_"
+vault_addr                 = "https://vault.example.com"
+vault_kv_mount             = "kv"
+vault_secret_path          = "confluent/cloud/creds"
+
+
