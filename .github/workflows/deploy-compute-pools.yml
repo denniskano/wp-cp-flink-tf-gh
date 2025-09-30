@@ -59,9 +59,15 @@ jobs:
       - name: Extract Environment ID from CC_PROPERTIES
         id: extract-env
         run: |
+          echo "CC_PROPERTIES content:"
+          echo '${{ vars.CC_PROPERTIES }}'
           ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_karka01.environment_id')
+          echo "Extracted ENVIRONMENT_ID: $ENVIRONMENT_ID"
+          if [ "$ENVIRONMENT_ID" == "null" ] || [ -z "$ENVIRONMENT_ID" ]; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
           echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
-          echo "Environment ID: $ENVIRONMENT_ID"
 
       - name: Terraform Plan - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
