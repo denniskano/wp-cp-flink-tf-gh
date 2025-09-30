@@ -52,3 +52,9 @@ variable "confluent_flink_api_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "principal_id" {
+  description = "Service Account ID de Confluent Cloud"
+  type        = string
+  sensitive   = true
+}

@@ -106,6 +106,10 @@ resource "confluent_flink_statement" "ddl_statements" {
     id = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
   }
   
+  principal {
+    id = var.principal_id
+  }
+  
   rest_endpoint = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint
 }
 
@@ -127,6 +131,10 @@ resource "confluent_flink_statement" "dml_statements" {
   
   compute_pool {
     id = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
+  }
+  
+  principal {
+    id = var.principal_id
   }
   
   rest_endpoint = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint

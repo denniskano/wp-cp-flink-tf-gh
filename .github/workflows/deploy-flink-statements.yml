@@ -144,6 +144,7 @@ jobs:
             peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
             peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} username | CONFLUENT_FLINK_API_KEY ;
             peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} password | CONFLUENT_FLINK_API_SECRET ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }} principal_id | PRINCIPAL_ID ;
 
       - name: Configure Confluent CLI
         run: |
@@ -220,6 +221,7 @@ jobs:
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
           TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PRINCIPAL_ID }}
 
       - name: Terraform Apply - Statements
         working-directory: terraform/ccloud-flink-statements
@@ -233,6 +235,7 @@ jobs:
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
           TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PRINCIPAL_ID }}
 
       - name: Terraform Destroy - Statements
         working-directory: terraform/ccloud-flink-statements
@@ -246,6 +249,7 @@ jobs:
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
           TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PRINCIPAL_ID }}
 
       - name: Output Statements
         working-directory: terraform/ccloud-flink-statements
