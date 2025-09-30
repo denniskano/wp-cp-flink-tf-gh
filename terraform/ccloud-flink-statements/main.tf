@@ -112,8 +112,7 @@ resource "null_resource" "ddl_statements" {
         echo "Creando statement DDL: ${local.ddl_data[count.index]["statement-name"]}"
         confluent flink statement create "${local.ddl_data[count.index]["statement-name"]}" \
           --sql "${replace(local.ddl_data[count.index].statement, "\n", " ")}" \
-          --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id} \
-          --service-account ${local.principal_id}
+          --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id}
       fi
     EOT
   }
@@ -144,8 +143,7 @@ resource "null_resource" "dml_statements" {
         echo "Creando statement DML: ${local.dml_data[count.index]["statement-name"]}"
         confluent flink statement create "${local.dml_data[count.index]["statement-name"]}" \
           --sql "${replace(local.dml_data[count.index].statement, "\n", " ")}" \
-          --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} \
-          --service-account ${local.principal_id}
+          --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id}
         
         # Si el statement debe estar pausado, pausarlo
         if [ "${local.dml_data[count.index].stopped}" = "true" ]; then
