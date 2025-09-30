@@ -32,7 +32,7 @@ jobs:
       - name: Checkout PEVE resources
         uses: actions/checkout@v4
         with:
-          repository: denniskano/peve-event-driven-resources
+          repository: denniskano/test-event-driven-resources
           path: ${{ github.event.inputs.CODAPP }}
           ref: develop
 
