@@ -14,7 +14,7 @@ on:
           - plan
 
 env:
-  VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c0851.d71fe7f2.z1.hashicorp.cloud:8200"
+  VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
 
 jobs:
   deploy-compute-pools:
