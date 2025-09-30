@@ -81,8 +81,8 @@ jobs:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
-          TF_VAR_confluent_cloud_api_key: "UFTVSK6ZBSFJMLHV"
-          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET_SA }}
+          TF_VAR_confluent_cloud_api_key: "INUB4IL4UBG3V2WY"
+          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: "O3GGBWSDX3KX624A"
           TF_VAR_confluent_flink_api_secret: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
           TF_VAR_principal_id: "sa-k8jnkv6"
@@ -95,8 +95,8 @@ jobs:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
-          TF_VAR_confluent_cloud_api_key: "UFTVSK6ZBSFJMLHV"
-          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET_SA }}
+          TF_VAR_confluent_cloud_api_key: "INUB4IL4UBG3V2WY"
+          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: "O3GGBWSDX3KX624A"
           TF_VAR_confluent_flink_api_secret: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
           TF_VAR_principal_id: "sa-k8jnkv6"
@@ -109,8 +109,8 @@ jobs:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
-          TF_VAR_confluent_cloud_api_key: "UFTVSK6ZBSFJMLHV"
-          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET_SA }}
+          TF_VAR_confluent_cloud_api_key: "INUB4IL4UBG3V2WY"
+          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: "O3GGBWSDX3KX624A"
           TF_VAR_confluent_flink_api_secret: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
           TF_VAR_principal_id: "sa-k8jnkv6"
