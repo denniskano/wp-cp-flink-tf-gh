@@ -89,6 +89,25 @@ jobs:
           
           echo "✅ Secrets extracted successfully"
 
+      - name: Extract Environment ID from CC_PROPERTIES
+        id: extract-env
+        run: |
+          echo "CC_PROPERTIES raw content:"
+          echo '${{ vars.CC_PROPERTIES }}'
+          
+          # Extraer environment_id del JSON
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          
+          echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
+          
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "✅ Environment ID configured: $ENVIRONMENT_ID"
+
       - name: Setup Confluent CLI
         run: |
           curl -sL --http1.1 https://cnfl.io/cli | sh -s -- latest
@@ -137,6 +156,7 @@ jobs:
         run: terraform plan
         if: github.event.inputs.action != 'destroy'
         env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
@@ -148,6 +168,7 @@ jobs:
         run: terraform apply -auto-approve
         if: github.event.inputs.action == 'apply'
         env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
@@ -159,6 +180,7 @@ jobs:
         run: terraform destroy -auto-approve
         if: github.event.inputs.action == 'destroy'
         env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
