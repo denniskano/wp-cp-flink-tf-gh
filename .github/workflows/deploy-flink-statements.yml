@@ -191,12 +191,12 @@ jobs:
       - name: Output Statements
         working-directory: terraform/ccloud-flink-statements
         run: |
-          if [ "${{ github.event.inputs.action }}" != "destroy" ]; then
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
             echo "=== DDL Statements ==="
-            terraform output -json ddl_statements
+            terraform output -json ddl_statements || echo "No DDL statements found"
             echo "=== DML Statements ==="
-            terraform output -json dml_statements
+            terraform output -json dml_statements || echo "No DML statements found"
             echo "=== All Statements ==="
-            terraform output -json all_statements
+            terraform output -json all_statements || echo "No statements found"
           fi
 
