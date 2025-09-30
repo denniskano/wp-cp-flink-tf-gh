@@ -115,7 +115,6 @@ resource "confluent_flink_statement" "ddl_statements" {
     secret = var.confluent_cloud_api_secret
   }
   
-  rest_endpoint = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint
 }
 
 # -----------------------------------------------------------------------------
