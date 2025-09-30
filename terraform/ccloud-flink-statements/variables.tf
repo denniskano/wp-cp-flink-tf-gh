@@ -15,7 +15,6 @@ variable "environment_id" {
 variable "statements_dir" {
   description = "Directorio con archivos .yaml de DDL/DML"
   type        = string
-  default     = "PEVE/ccloud-flink-statements"
 }
 
 # =============================================================================

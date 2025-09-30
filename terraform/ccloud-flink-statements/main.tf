@@ -9,10 +9,6 @@ terraform {
       source  = "confluentinc/confluent"
       version = ">= 2.7.0"
     }
-    vault = {
-      source  = "hashicorp/vault"
-      version = ">= 3.20.0"
-    }
     null = {
       source  = "hashicorp/null"
       version = ">= 3.0.0"
@@ -28,10 +24,11 @@ provider "confluent" {
   cloud_api_secret = var.confluent_cloud_api_secret
 }
 
-# Data source para obtener la organización
+# =============================================================================
+# DATA SOURCES
+# =============================================================================
 data "confluent_organization" "current" {}
 
-# Data source para obtener compute pools por nombre
 data "confluent_flink_compute_pool" "by_name" {
   for_each = toset(local.all_compute_pools)
   
@@ -42,13 +39,12 @@ data "confluent_flink_compute_pool" "by_name" {
   }
 }
 
-# Data source para obtener regiones de Flink
 data "confluent_flink_region" "by_region" {
   for_each = toset([
     for pool in data.confluent_flink_compute_pool.by_name : pool.region
   ])
   
-  cloud  = "AZURE"  # Asumiendo Azure basado en tu configuración
+  cloud  = "AZURE"
   region = each.value
 }
 

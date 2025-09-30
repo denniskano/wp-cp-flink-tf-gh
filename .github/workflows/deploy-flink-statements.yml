@@ -12,6 +12,15 @@ on:
           - apply
           - destroy
           - plan
+      CODAPP:
+        description: 'codigo de applicación de 4 letras'
+        required: true
+        type: string
+
+env:
+  VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  TF_VAR_statements_dir: "${{ github.event.inputs.CODAPP }}/ccloud-flink-statements"
 
 jobs:
   deploy-flink-statements:
@@ -21,18 +30,64 @@ jobs:
       - name: Checkout main repository
         uses: actions/checkout@v4
 
-      - name: Checkout PEVE resources
+      - name: Checkout ${{ env.CODAPP }} resources
         uses: actions/checkout@v4
         with:
           repository: denniskano/test-event-driven-resources
           ref: develop
-          path: PEVE
+          path: resources
           token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Move ${{ env.CODAPP }} to correct location
+        run: |
+          mv resources/${{ env.CODAPP }} ./${{ env.CODAPP }}
+          rm -rf resources
+          echo "✅ ${{ env.CODAPP }} folder moved to workspace root"
+
+      - name: Verify ${{ env.CODAPP }} folder structure
+        run: |
+          echo "=== Listing workspace root ==="
+          ls -la
+          echo ""
+          echo "=== Listing ${{ env.CODAPP }} folder ==="
+          ls -la ${{ env.CODAPP }}/ || echo "${{ env.CODAPP }} folder not found!"
+          echo ""
+          echo "=== Listing ${{ env.CODAPP }}/ccloud-flink-statements ==="
+          ls -la ${{ env.CODAPP }}/ccloud-flink-statements/ || echo "ccloud-flink-statements folder not found!"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.5.0"
+
+      - name: Install yq
+        run: |
+          echo "=== Installing yq ==="
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+          echo "✅ yq installed successfully"
+
+      - name: Extract secrets from dev-vars.yaml
+        id: extract-secrets
+        run: |
+          echo "=== Extracting secrets from ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml ==="
+          
+          # Extract service_account, api_key_terraform, and api_key_flink from dev-vars.yaml using yq
+          SERVICE_ACCOUNT=$(yq eval '.secrets_hv.service_account' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
+          API_KEY_TERRAFORM=$(yq eval '.secrets_hv.api_key_terraform' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
+          API_KEY_FLINK=$(yq eval '.secrets_hv.api_key_flink' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
+          
+          echo "SERVICE_ACCOUNT: $SERVICE_ACCOUNT"
+          echo "API_KEY_TERRAFORM: $API_KEY_TERRAFORM"
+          echo "API_KEY_FLINK: $API_KEY_FLINK"
+          
+          # Set as environment variables for next steps
+          echo "SERVICE_ACCOUNT=$SERVICE_ACCOUNT" >> $GITHUB_ENV
+          echo "API_KEY_TERRAFORM=$API_KEY_TERRAFORM" >> $GITHUB_ENV
+          echo "API_KEY_FLINK=$API_KEY_FLINK" >> $GITHUB_ENV
+          
+          echo "✅ Secrets extracted successfully"
 
       - name: Setup Confluent CLI
         run: |
@@ -43,18 +98,23 @@ jobs:
         id: get-secrets-fs
         uses: hashicorp/vault-action@v2
         with:
-          url: ${{ secrets.VAULT_ADDR }}
+          url: ${{ env.VAULT_ADDR }}
           tlsSkipVerify: true
           method: approle
+          namespace: admin
           roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
           secrets: |
-            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} username | CONFLUENT_FLINK_API_KEY ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} password | CONFLUENT_FLINK_API_SECRET ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }} principal_id | PRINCIPAL_ID ;
 
       - name: Configure Confluent CLI
         run: |
           # Login to Confluent Cloud using secrets from Vault
-          confluent login --api-key "${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}" --api-secret "${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}"
+          confluent login --api-key "${{ env.CONFLUENT_CLOUD_API_KEY }}" --api-secret "${{ env.CONFLUENT_CLOUD_API_SECRET }}"
 
 
       - name: Terraform Init - Statements
@@ -65,34 +125,16 @@ jobs:
         working-directory: terraform/ccloud-flink-statements
         run: terraform plan
         if: github.event.inputs.action != 'destroy'
-        env:
-          TF_VAR_confluent_cloud_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}
-          TF_VAR_confluent_cloud_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}
-          TF_VAR_confluent_flink_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_KEY }}
-          TF_VAR_confluent_flink_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_SECRET }}
-          TF_VAR_principal_id: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_SERVICE_ACCOUNT_ID }}
 
       - name: Terraform Apply - Statements
         working-directory: terraform/ccloud-flink-statements
         run: terraform apply -auto-approve
         if: github.event.inputs.action == 'apply'
-        env:
-          TF_VAR_confluent_cloud_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}
-          TF_VAR_confluent_cloud_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}
-          TF_VAR_confluent_flink_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_KEY }}
-          TF_VAR_confluent_flink_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_SECRET }}
-          TF_VAR_principal_id: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_SERVICE_ACCOUNT_ID }}
 
       - name: Terraform Destroy - Statements
         working-directory: terraform/ccloud-flink-statements
         run: terraform destroy -auto-approve
         if: github.event.inputs.action == 'destroy'
-        env:
-          TF_VAR_confluent_cloud_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}
-          TF_VAR_confluent_cloud_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}
-          TF_VAR_confluent_flink_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_KEY }}
-          TF_VAR_confluent_flink_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_SECRET }}
-          TF_VAR_principal_id: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_SERVICE_ACCOUNT_ID }}
 
       - name: Output Statements
         working-directory: terraform/ccloud-flink-statements

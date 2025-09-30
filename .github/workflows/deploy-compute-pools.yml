@@ -82,9 +82,9 @@ jobs:
         run: |
           echo "=== Extracting secrets from ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml ==="
           
-          # Extract service_account and api_key from dev-vars.yaml using yq
+          # Extract service_account and api_key_terraform from dev-vars.yaml using yq
           SERVICE_ACCOUNT=$(yq eval '.secrets_hv.service_account' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
-          API_KEY=$(yq eval '.secrets_hv.api_key' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
+          API_KEY=$(yq eval '.secrets_hv.api_key_terraform' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
           
           echo "SERVICE_ACCOUNT: $SERVICE_ACCOUNT"
           echo "API_KEY: $API_KEY"
