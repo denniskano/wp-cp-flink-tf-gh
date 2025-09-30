@@ -92,7 +92,7 @@ jobs:
       - name: Setup Confluent CLI
         run: |
           curl -sL --http1.1 https://cnfl.io/cli | sh -s -- latest
-          sudo mv confluent /usr/local/bin/
+          sudo mv ./bin/confluent /usr/local/bin/
 
       - name: Get Secrets for Flink Statements
         id: get-secrets-fs
