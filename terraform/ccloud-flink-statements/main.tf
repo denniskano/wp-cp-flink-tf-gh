@@ -89,39 +89,28 @@ locals {
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# DDL Statements (Data Definition Language) - Usando null_resource con CLI
+# DDL Statements (Data Definition Language) - Usando resource nativo
 # -----------------------------------------------------------------------------
-resource "null_resource" "ddl_statements" {
+resource "confluent_flink_statement" "ddl_statements" {
   count = length(local.ddl_data)
-
-  triggers = {
-    statement_name = local.ddl_data[count.index]["statement-name"]
-    statement      = local.ddl_data[count.index].statement
-    compute_pool   = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
-  }
-
-  provisioner "local-exec" {
-    command = "bash -c 'export CONFLUENT_CLOUD_API_KEY=\"${local.confluent_flink_api_key}\" && export CONFLUENT_CLOUD_API_SECRET=\"${local.confluent_flink_api_secret}\" && mkdir -p ~/.confluent && echo \"[api]\" > ~/.confluent/config && echo \"api_key = \\\"${local.confluent_flink_api_key}\\\"\" >> ~/.confluent/config && echo \"api_secret = \\\"${local.confluent_flink_api_secret}\\\"\" >> ~/.confluent/config && echo \"=== DEBUG INFO ===\" && echo \"Environment ID: ${var.environment_id}\" && echo \"Compute Pool ID: ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id}\" && echo \"Statement Name: ${local.ddl_data[count.index]["statement-name"]}\" && echo \"Flink API Key: ${local.confluent_flink_api_key}\" && echo \"Flink API Secret: ${local.confluent_flink_api_secret}\" && echo \"=== TESTING CONNECTION ===\" && confluent environment describe ${var.environment_id} && echo \"=== TESTING COMPUTE POOL ===\" && confluent flink compute-pool describe ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id} --environment ${var.environment_id} && echo \"=== TESTING FLINK STATEMENTS LIST ===\" && confluent flink statement list --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id} && if confluent flink statement list --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id} 2>/dev/null | grep -q \"${local.ddl_data[count.index]["statement-name"]}\"; then echo \"Statement '${local.ddl_data[count.index]["statement-name"]}' ya existe, saltando...\"; else echo \"Creando statement DDL: ${local.ddl_data[count.index]["statement-name"]}\" && echo \"Debug - URL a usar: ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint}\" && confluent flink statement create \"${local.ddl_data[count.index]["statement-name"]}\" --sql \"${replace(local.ddl_data[count.index].statement, "\n", " ")}\" --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id} --url ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint}; fi'"
-  }
+  
+  name         = local.ddl_data[count.index]["statement-name"]
+  sql          = local.ddl_data[count.index].statement
+  environment  = var.environment_id
+  compute_pool = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
 }
 
 # -----------------------------------------------------------------------------
-# DML Statements (Data Manipulation Language) - Usando null_resource con CLI
+# DML Statements (Data Manipulation Language) - Usando resource nativo
 # -----------------------------------------------------------------------------
-resource "null_resource" "dml_statements" {
+resource "confluent_flink_statement" "dml_statements" {
   count = length(local.dml_data)
-
-  triggers = {
-    statement_name = local.dml_data[count.index]["statement-name"]
-    statement      = local.dml_data[count.index].statement
-    compute_pool   = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
-    stopped        = local.dml_data[count.index].stopped
-  }
-
-  provisioner "local-exec" {
-    command = "bash -c 'export CONFLUENT_CLOUD_API_KEY=\"${local.confluent_flink_api_key}\" && export CONFLUENT_CLOUD_API_SECRET=\"${local.confluent_flink_api_secret}\" && mkdir -p ~/.confluent && echo \"[api]\" > ~/.confluent/config && echo \"api_key = \\\"${local.confluent_flink_api_key}\\\"\" >> ~/.confluent/config && echo \"api_secret = \\\"${local.confluent_flink_api_secret}\\\"\" >> ~/.confluent/config && if confluent flink statement list --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} 2>/dev/null | grep -q \"${local.dml_data[count.index]["statement-name"]}\"; then echo \"Statement '${local.dml_data[count.index]["statement-name"]}' ya existe, saltando...\"; else echo \"Creando statement DML: ${local.dml_data[count.index]["statement-name"]}\" && echo \"Debug - URL a usar: ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint}\" && confluent flink statement create \"${local.dml_data[count.index]["statement-name"]}\" --sql \"${replace(local.dml_data[count.index].statement, "\n", " ")}\" --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} --url ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint} && if [ \"${local.dml_data[count.index].stopped}\" = \"true\" ]; then echo \"Pausando statement: ${local.dml_data[count.index]["statement-name"]}\" && confluent flink statement pause \"${local.dml_data[count.index]["statement-name"]}\" --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} --url ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint} || true; fi; fi'"
-  }
-
+  
+  name         = local.dml_data[count.index]["statement-name"]
+  sql          = local.dml_data[count.index].statement
+  environment  = var.environment_id
+  compute_pool = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
+  
   # Dependencia: DML statements se ejecutan después de DDL
-  depends_on = [null_resource.ddl_statements]
+  depends_on = [confluent_flink_statement.ddl_statements]
 }
