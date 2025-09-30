@@ -23,30 +23,3 @@ output "all_statements" {
   sensitive = false
 }
 
-# DEBUG OUTPUTS
-output "debug_ddl_files" {
-  description = "Debug: archivos DDL detectados"
-  value       = local.ddl_files
-}
-
-output "debug_dml_files" {
-  description = "Debug: archivos DML detectados"
-  value       = local.dml_files
-}
-
-output "debug_compute_pools" {
-  description = "Debug: compute pools detectados"
-  value       = local.all_compute_pools
-}
-
-output "debug_flink_credentials" {
-  description = "Debug: credenciales Flink"
-  value       = {
-    flink_key_exists = local.confluent_flink_api_key != ""
-    flink_secret_exists = local.confluent_flink_api_secret != ""
-    flink_key_length = length(local.confluent_flink_api_key)
-    flink_secret_length = length(local.confluent_flink_api_secret)
-    flink_key_start = substr(local.confluent_flink_api_key, 0, 8)
-  }
-  sensitive = true
-}

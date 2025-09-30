@@ -182,57 +182,6 @@ jobs:
         working-directory: terraform/ccloud-flink-statements
         run: terraform init
 
-      - name: Debug Terraform Configuration
-        working-directory: terraform/ccloud-flink-statements
-        run: |
-          echo "=== Debug Terraform Configuration ==="
-          echo "Current working directory: $(pwd)"
-          echo ""
-          echo "=== From terraform directory, check parent ==="
-          ls -la ../ || echo "Parent directory not found"
-          echo ""
-          echo "=== Statements directory ==="
-          echo "TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}"
-          echo "Full path: $(pwd)/${{ env.TF_VAR_statements_dir }}"
-          ls -la ${{ env.TF_VAR_statements_dir }} || echo "Directory not found"
-          echo ""
-          echo "=== DDL files ==="
-          ls -la ${{ env.TF_VAR_statements_dir }}/ddl/ || echo "DDL directory not found"
-          echo ""
-          echo "=== DML files ==="
-          ls -la ${{ env.TF_VAR_statements_dir }}/dml/ || echo "DML directory not found"
-          echo ""
-          echo "=== Debug Principal ID ==="
-          echo "PRINCIPAL_ID from Vault: ${{ env.PRINCIPAL_ID }}"
-          echo "Expected Service Account ID should be: sa-k8jnkv6"
-          echo ""
-          echo "=== Debug Principal ID (unmasked) ==="
-          echo "PRINCIPAL_ID length: ${#PRINCIPAL_ID}"
-          echo "PRINCIPAL_ID starts with: ${PRINCIPAL_ID:0:3}"
-          echo "PRINCIPAL_ID ends with: ${PRINCIPAL_ID: -3}"
-          echo ""
-          echo "=== Debug YAML Files Content ==="
-          echo "DDL files found:"
-          ls -la ${{ env.TF_VAR_statements_dir }}/ddl/ || echo "DDL directory not found"
-          echo ""
-          echo "DML files found:"
-          ls -la ${{ env.TF_VAR_statements_dir }}/dml/ || echo "DML directory not found"
-          echo ""
-          echo "=== Sample DDL file content ==="
-          if [ -f "${{ env.TF_VAR_statements_dir }}/ddl/01_cc-loc-peve-terraform-input-loop.yaml" ]; then
-            echo "First DDL file content:"
-            cat "${{ env.TF_VAR_statements_dir }}/ddl/01_cc-loc-peve-terraform-input-loop.yaml"
-          else
-            echo "First DDL file not found"
-          fi
-          echo ""
-          echo "=== Test fileset function ==="
-          echo "Testing fileset for DDL:"
-          echo "Fileset test completed (skipping interactive console)"
-          echo ""
-          echo "=== Terraform validate ==="
-          terraform validate
-
       - name: Terraform Plan - Statements
         working-directory: terraform/ccloud-flink-statements
         run: terraform plan
