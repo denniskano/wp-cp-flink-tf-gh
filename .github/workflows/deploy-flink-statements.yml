@@ -153,6 +153,21 @@ jobs:
           
           echo "✅ Confluent CLI configured with API credentials"
 
+      - name: Verify Environment Access
+        run: |
+          echo "=== Verifying Environment Access ==="
+          echo "Environment ID: ${{ env.ENVIRONMENT_ID }}"
+          
+          # List all environments to verify access
+          echo "=== Available Environments ==="
+          confluent environment list || echo "Failed to list environments"
+          
+          # Try to get specific environment details
+          echo "=== Environment Details ==="
+          confluent environment describe ${{ env.ENVIRONMENT_ID }} || echo "Failed to describe environment ${{ env.ENVIRONMENT_ID }}"
+          
+          echo "✅ Environment verification completed"
+
 
       - name: Terraform Init - Statements
         working-directory: terraform/ccloud-flink-statements
