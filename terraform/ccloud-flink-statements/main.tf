@@ -43,7 +43,7 @@ data "confluent_flink_region" "by_region" {
     for pool in data.confluent_flink_compute_pool.by_name : pool.region
   ])
   
-  cloud  = "AZURE"
+  cloud  = data.confluent_flink_compute_pool.by_name[keys(data.confluent_flink_compute_pool.by_name)[0]].cloud
   region = each.value
 }
 
