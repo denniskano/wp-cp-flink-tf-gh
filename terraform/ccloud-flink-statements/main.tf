@@ -27,7 +27,6 @@ provider "confluent" {
 # =============================================================================
 # DATA SOURCES
 # =============================================================================
-data "confluent_organization" "current" {}
 
 data "confluent_flink_compute_pool" "by_name" {
   for_each = toset(local.all_compute_pools)
