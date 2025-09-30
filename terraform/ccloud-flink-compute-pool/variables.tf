@@ -15,7 +15,6 @@ variable "environment_id" {
 variable "compute_pool_config_path" {
   description = "Ruta al archivo YAML con configuración del compute pool"
   type        = string
-  default     = "PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
 }
 
 

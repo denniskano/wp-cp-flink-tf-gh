@@ -8,18 +8,18 @@ terraform {
   }
 }
 
-# Configuración de Confluent
+# Confluent Cloud Provider
 provider "confluent" {
   cloud_api_key    = var.confluent_cloud_api_key
   cloud_api_secret = var.confluent_cloud_api_secret
 }
 
-# Configuración local desde archivo PEVE
+# Load configuration from YAML file
 locals {
   config = yamldecode(file(var.compute_pool_config_path))
 }
 
-# Recurso de Flink Compute Pool
+# Flink Compute Pools
 resource "confluent_flink_compute_pool" "this" {
   for_each = {
     for idx, pool in try(local.config.compute_pools, []) : pool.pool_name => pool
