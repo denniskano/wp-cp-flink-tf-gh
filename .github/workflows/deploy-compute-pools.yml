@@ -65,7 +65,7 @@ jobs:
 
       - name: Terraform Plan - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
-        run: terraform plan -var="compute_pool_config_path=../../PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
+        run: terraform plan
         if: github.event.inputs.action != 'destroy'
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
@@ -74,7 +74,7 @@ jobs:
 
       - name: Terraform Apply - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
-        run: terraform apply -auto-approve -var="compute_pool_config_path=../../PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
+        run: terraform apply -auto-approve
         if: github.event.inputs.action == 'apply'
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
