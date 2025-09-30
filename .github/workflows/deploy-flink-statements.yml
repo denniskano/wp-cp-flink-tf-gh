@@ -232,10 +232,6 @@ jobs:
           echo ""
           echo "=== Terraform validate ==="
           terraform validate
-          echo ""
-          echo "=== Debug Terraform locals ==="
-          echo "Testing if Terraform can load the YAML data..."
-          terraform console <<< "local.ddl_data" || echo "Cannot access locals"
 
       - name: Terraform Plan - Statements
         working-directory: terraform/ccloud-flink-statements
