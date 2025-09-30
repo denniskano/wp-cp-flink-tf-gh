@@ -58,8 +58,6 @@ locals {
   confluent_flink_api_key    = var.confluent_flink_api_key
   confluent_flink_api_secret = var.confluent_flink_api_secret
   
-  # Service Account ID
-  principal_id = var.principal_id
   
   # Cargar archivos YAML de DDL y DML
   ddl_files = fileset("${var.statements_dir}/ddl", "*.yaml")
