@@ -113,8 +113,12 @@ jobs:
 
       - name: Configure Confluent CLI
         run: |
-          # Login to Confluent Cloud using secrets from Vault
-          confluent login --api-key "${{ env.CONFLUENT_CLOUD_API_KEY }}" --api-secret "${{ env.CONFLUENT_CLOUD_API_SECRET }}"
+          # Set environment variables for Confluent CLI
+          export CONFLUENT_CLOUD_API_KEY="${{ env.CONFLUENT_CLOUD_API_KEY }}"
+          export CONFLUENT_CLOUD_API_SECRET="${{ env.CONFLUENT_CLOUD_API_SECRET }}"
+          
+          # Login to Confluent Cloud using environment variables
+          confluent login --save
 
 
       - name: Terraform Init - Statements
