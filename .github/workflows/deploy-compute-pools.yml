@@ -12,9 +12,14 @@ on:
           - apply
           - destroy
           - plan
+      CODAPP:
+        description: 'codigo de applicación de 4 letras'
+        required: true
+        type: string
 
 env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
 
 jobs:
   deploy-compute-pools:
@@ -25,35 +30,35 @@ jobs:
       - name: Checkout main repository
         uses: actions/checkout@v4
 
-      - name: Checkout PEVE resources
+      - name: Checkout ${{ env.CODAPP }} resources
         uses: actions/checkout@v4
         with:
           repository: denniskano/test-event-driven-resources
           ref: develop
-          path: peve-resources
+          path: resources
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Move PEVE to correct location
+      - name: Move ${{ env.CODAPP }} to correct location
         run: |
-          mv peve-resources/PEVE ./PEVE
-          rm -rf peve-resources
-          echo "✅ PEVE folder moved to workspace root"
+          mv resources/${{ env.CODAPP }} ./${{ env.CODAPP }}
+          rm -rf resources
+          echo "✅ ${{ env.CODAPP }} folder moved to workspace root"
 
-      - name: Verify PEVE folder structure
+      - name: Verify ${{ env.CODAPP }} folder structure
         run: |
           echo "=== Listing workspace root ==="
           ls -la
           echo ""
-          echo "=== Listing PEVE folder ==="
-          ls -la PEVE/ || echo "PEVE folder not found!"
+          echo "=== Listing ${{ env.CODAPP }} folder ==="
+          ls -la ${{ env.CODAPP }}/ || echo "${{ env.CODAPP }} folder not found!"
           echo ""
-          echo "=== Listing PEVE/ccloud-flink-compute-pool ==="
-          ls -la PEVE/ccloud-flink-compute-pool/ || echo "ccloud-flink-compute-pool folder not found!"
+          echo "=== Listing ${{ env.CODAPP }}/ccloud-flink-compute-pool ==="
+          ls -la ${{ env.CODAPP }}/ccloud-flink-compute-pool/ || echo "ccloud-flink-compute-pool folder not found!"
           echo ""
           echo "=== Checking dev-vars.yaml ==="
-          if [ -f "PEVE/ccloud-flink-compute-pool/dev-vars.yaml" ]; then
+          if [ -f "${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml" ]; then
             echo "✅ dev-vars.yaml exists"
-            cat PEVE/ccloud-flink-compute-pool/dev-vars.yaml
+            cat ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml
           else
             echo "❌ dev-vars.yaml NOT found"
           fi
@@ -62,6 +67,32 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.5.0"
+
+      - name: Install yq
+        run: |
+          echo "=== Installing yq ==="
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+          echo "✅ yq installed successfully"
+
+      - name: Extract secrets from dev-vars.yaml
+        id: extract-secrets
+        run: |
+          echo "=== Extracting secrets from ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml ==="
+          
+          # Extract service_account and api_key from dev-vars.yaml using yq
+          SERVICE_ACCOUNT=$(yq eval '.secrets_hv.service_account' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
+          API_KEY=$(yq eval '.secrets_hv.api_key' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
+          
+          echo "SERVICE_ACCOUNT: $SERVICE_ACCOUNT"
+          echo "API_KEY: $API_KEY"
+          
+          # Set as environment variables for next steps
+          echo "SERVICE_ACCOUNT=$SERVICE_ACCOUNT" >> $GITHUB_ENV
+          echo "API_KEY=$API_KEY" >> $GITHUB_ENV
+          
+          echo "✅ Secrets extracted successfully"
 
       - name: Get Secrets for Compute Pools
         id: get-secrets-cp
@@ -74,8 +105,8 @@ jobs:
           roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
           secrets: |
-            peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 username | CONFLUENT_CLOUD_API_KEY ;
-            peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 password | CONFLUENT_CLOUD_API_SECRET ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY }} password | CONFLUENT_CLOUD_API_SECRET ;
 
       - name: Terraform Init - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
