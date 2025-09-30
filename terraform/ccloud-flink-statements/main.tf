@@ -87,12 +87,42 @@ locals {
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# DDL Statements (Data Definition Language) - Usando resource nativo
+# DDL Statements (Data Definition Language) - TEMPORARILY DISABLED FOR TESTING
 # -----------------------------------------------------------------------------
-resource "confluent_flink_statement" "ddl_statements" {
-  count = length(local.ddl_data)
-  
-  statement = local.ddl_data[count.index].statement
+# resource "confluent_flink_statement" "ddl_statements" {
+#   count = length(local.ddl_data)
+#   
+#   statement = local.ddl_data[count.index].statement
+#   
+#   organization {
+#     id = var.organization_id
+#   }
+#   
+#   environment {
+#     id = var.environment_id
+#   }
+#   
+#   compute_pool {
+#     id = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
+#   }
+#   
+#   principal {
+#     id = var.principal_id
+#   }
+#   
+#   credentials {
+#     key    = var.confluent_flink_api_key
+#     secret = var.confluent_flink_api_secret
+#   }
+#   
+#   rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
+# }
+
+# -----------------------------------------------------------------------------
+# TEST: Hardcoded statement for debugging
+# -----------------------------------------------------------------------------
+resource "confluent_flink_statement" "test_statement" {
+  statement = "SELECT 1 as test_column"
   
   organization {
     id = var.organization_id
@@ -103,7 +133,7 @@ resource "confluent_flink_statement" "ddl_statements" {
   }
   
   compute_pool {
-    id = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
+    id = "lfcp-j169gp"  # Hardcoded compute pool ID
   }
   
   principal {
@@ -119,36 +149,36 @@ resource "confluent_flink_statement" "ddl_statements" {
 }
 
 # -----------------------------------------------------------------------------
-# DML Statements (Data Manipulation Language) - Usando resource nativo
+# DML Statements (Data Manipulation Language) - TEMPORARILY DISABLED FOR TESTING
 # -----------------------------------------------------------------------------
-resource "confluent_flink_statement" "dml_statements" {
-  count = length(local.dml_data)
-  
-  statement = local.dml_data[count.index].statement
-  
-  organization {
-    id = var.organization_id
-  }
-  
-  environment {
-    id = var.environment_id
-  }
-  
-  compute_pool {
-    id = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
-  }
-  
-  principal {
-    id = var.principal_id
-  }
-  
-  credentials {
-    key    = var.confluent_flink_api_key
-    secret = var.confluent_flink_api_secret
-  }
-  
-  rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
-  
-  # Dependencia: DML statements se ejecutan después de DDL
-  depends_on = [confluent_flink_statement.ddl_statements]
-}
+# resource "confluent_flink_statement" "dml_statements" {
+#   count = length(local.dml_data)
+#   
+#   statement = local.dml_data[count.index].statement
+#   
+#   organization {
+#     id = var.organization_id
+#   }
+#   
+#   environment {
+#     id = var.environment_id
+#   }
+#   
+#   compute_pool {
+#     id = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
+#   }
+#   
+#   principal {
+#     id = var.principal_id
+#   }
+#   
+#   credentials {
+#     key    = var.confluent_flink_api_key
+#     secret = var.confluent_flink_api_secret
+#   }
+#   
+#   rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
+#   
+#   # Dependencia: DML statements se ejecutan después de DDL
+#   depends_on = [confluent_flink_statement.ddl_statements]
+# }
