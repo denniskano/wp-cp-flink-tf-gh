@@ -115,6 +115,7 @@ resource "confluent_flink_statement" "ddl_statements" {
     secret = var.confluent_cloud_api_secret
   }
   
+  rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
 }
 
 # -----------------------------------------------------------------------------
@@ -145,6 +146,8 @@ resource "confluent_flink_statement" "dml_statements" {
     key    = var.confluent_cloud_api_key
     secret = var.confluent_cloud_api_secret
   }
+  
+  rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
   
   # Dependencia: DML statements se ejecutan después de DDL
   depends_on = [confluent_flink_statement.ddl_statements]
