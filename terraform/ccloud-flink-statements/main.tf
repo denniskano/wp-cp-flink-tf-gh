@@ -94,10 +94,15 @@ locals {
 resource "confluent_flink_statement" "ddl_statements" {
   count = length(local.ddl_data)
   
-  name         = local.ddl_data[count.index]["statement-name"]
-  sql          = local.ddl_data[count.index].statement
-  environment  = var.environment_id
-  compute_pool = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
+  statement = local.ddl_data[count.index].statement
+  
+  environment {
+    id = var.environment_id
+  }
+  
+  compute_pool {
+    id = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -106,10 +111,15 @@ resource "confluent_flink_statement" "ddl_statements" {
 resource "confluent_flink_statement" "dml_statements" {
   count = length(local.dml_data)
   
-  name         = local.dml_data[count.index]["statement-name"]
-  sql          = local.dml_data[count.index].statement
-  environment  = var.environment_id
-  compute_pool = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
+  statement = local.dml_data[count.index].statement
+  
+  environment {
+    id = var.environment_id
+  }
+  
+  compute_pool {
+    id = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
+  }
   
   # Dependencia: DML statements se ejecutan después de DDL
   depends_on = [confluent_flink_statement.ddl_statements]
