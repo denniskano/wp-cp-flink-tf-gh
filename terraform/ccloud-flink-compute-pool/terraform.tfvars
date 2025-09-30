@@ -1,8 +1,8 @@
 # =============================================================================
 # CONFLUENT CLOUD CONFIGURATION
 # =============================================================================
-environment_id = "env-0311g9"
-# cloud, region y display_name se obtienen del archivo PEVE/ccloud-flink-compute-pool/dev-vars.yaml
+# environment_id se obtiene dinámicamente desde CC_PROPERTIES en GitHub Actions
+# environment_id = "env-0311g9"
 compute_pool_config_path = "PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
 
 # =============================================================================
