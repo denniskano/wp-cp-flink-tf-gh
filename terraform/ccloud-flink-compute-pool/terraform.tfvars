@@ -3,7 +3,7 @@
 # =============================================================================
 # environment_id se obtiene dinámicamente desde CC_PROPERTIES en GitHub Actions
 # environment_id = "env-0311g9"
-compute_pool_config_path = "PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
+compute_pool_config_path = "../../PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
 
 # =============================================================================
 # CONFLUENT CLOUD CREDENTIALS
