@@ -113,7 +113,8 @@ resource "null_resource" "ddl_statements" {
         confluent flink statement create "${local.ddl_data[count.index]["statement-name"]}" \
           --sql "${replace(local.ddl_data[count.index].statement, "\n", " ")}" \
           --environment ${var.environment_id} \
-          --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id}
+          --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id} \
+          --url ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint}
       fi
     EOT
   }
@@ -145,12 +146,13 @@ resource "null_resource" "dml_statements" {
         confluent flink statement create "${local.dml_data[count.index]["statement-name"]}" \
           --sql "${replace(local.dml_data[count.index].statement, "\n", " ")}" \
           --environment ${var.environment_id} \
-          --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id}
+          --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} \
+          --url ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint}
         
         # Si el statement debe estar pausado, pausarlo
         if [ "${local.dml_data[count.index].stopped}" = "true" ]; then
           echo "Pausando statement: ${local.dml_data[count.index]["statement-name"]}"
-          confluent flink statement pause "${local.dml_data[count.index]["statement-name"]}" --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} || true
+          confluent flink statement pause "${local.dml_data[count.index]["statement-name"]}" --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} --url ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint} || true
         fi
       fi
     EOT
