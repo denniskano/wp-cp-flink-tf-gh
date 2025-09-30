@@ -117,8 +117,15 @@ jobs:
           export CONFLUENT_CLOUD_API_KEY="${{ env.CONFLUENT_CLOUD_API_KEY }}"
           export CONFLUENT_CLOUD_API_SECRET="${{ env.CONFLUENT_CLOUD_API_SECRET }}"
           
-          # Login to Confluent Cloud using environment variables
-          confluent login --save
+          # Create config file for Confluent CLI
+          mkdir -p ~/.confluent
+          cat > ~/.confluent/config << EOF
+          [api]
+          api_key = ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          api_secret = ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          EOF
+          
+          echo "✅ Confluent CLI configured with API credentials"
 
 
       - name: Terraform Init - Statements
