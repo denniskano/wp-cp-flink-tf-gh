@@ -55,6 +55,12 @@ jobs:
           echo ""
           echo "=== Listing ${{ env.CODAPP }}/ccloud-flink-statements ==="
           ls -la ${{ env.CODAPP }}/ccloud-flink-statements/ || echo "ccloud-flink-statements folder not found!"
+          echo ""
+          echo "=== Listing ${{ env.CODAPP }}/ccloud-flink-statements/ddl ==="
+          ls -la ${{ env.CODAPP }}/ccloud-flink-statements/ddl/ || echo "ddl folder not found!"
+          echo ""
+          echo "=== Listing ${{ env.CODAPP }}/ccloud-flink-statements/dml ==="
+          ls -la ${{ env.CODAPP }}/ccloud-flink-statements/dml/ || echo "dml folder not found!"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -151,6 +157,25 @@ jobs:
       - name: Terraform Init - Statements
         working-directory: terraform/ccloud-flink-statements
         run: terraform init
+
+      - name: Debug Terraform Configuration
+        working-directory: terraform/ccloud-flink-statements
+        run: |
+          echo "=== Debug Terraform Configuration ==="
+          echo "Current working directory: $(pwd)"
+          echo ""
+          echo "=== Statements directory ==="
+          echo "TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}"
+          ls -la ${{ env.TF_VAR_statements_dir }} || echo "Directory not found"
+          echo ""
+          echo "=== DDL files ==="
+          ls -la ${{ env.TF_VAR_statements_dir }}/ddl/ || echo "DDL directory not found"
+          echo ""
+          echo "=== DML files ==="
+          ls -la ${{ env.TF_VAR_statements_dir }}/dml/ || echo "DML directory not found"
+          echo ""
+          echo "=== Terraform validate ==="
+          terraform validate
 
       - name: Terraform Plan - Statements
         working-directory: terraform/ccloud-flink-statements
