@@ -20,6 +20,7 @@ on:
 env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
+  TF_VAR_compute_pool_config_path: "../../${{ github.event.inputs.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml"
 
 jobs:
   deploy-compute-pools:
