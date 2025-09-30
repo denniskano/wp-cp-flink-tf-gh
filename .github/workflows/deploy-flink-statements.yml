@@ -183,6 +183,7 @@ jobs:
         if: github.event.inputs.action != 'destroy'
         env:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
@@ -195,6 +196,7 @@ jobs:
         if: github.event.inputs.action == 'apply'
         env:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
@@ -207,6 +209,7 @@ jobs:
         if: github.event.inputs.action == 'destroy'
         env:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
