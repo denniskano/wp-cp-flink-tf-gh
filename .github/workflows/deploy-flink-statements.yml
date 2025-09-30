@@ -136,16 +136,34 @@ jobs:
         working-directory: terraform/ccloud-flink-statements
         run: terraform plan
         if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PRINCIPAL_ID }}
 
       - name: Terraform Apply - Statements
         working-directory: terraform/ccloud-flink-statements
         run: terraform apply -auto-approve
         if: github.event.inputs.action == 'apply'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PRINCIPAL_ID }}
 
       - name: Terraform Destroy - Statements
         working-directory: terraform/ccloud-flink-statements
         run: terraform destroy -auto-approve
         if: github.event.inputs.action == 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PRINCIPAL_ID }}
 
       - name: Output Statements
         working-directory: terraform/ccloud-flink-statements
