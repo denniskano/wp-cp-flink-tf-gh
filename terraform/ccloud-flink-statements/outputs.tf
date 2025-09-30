@@ -44,12 +44,9 @@ output "debug_flink_credentials" {
   value       = {
     flink_key_exists = local.confluent_flink_api_key != ""
     flink_secret_exists = local.confluent_flink_api_secret != ""
-    principal_exists = local.principal_id != ""
     flink_key_length = length(local.confluent_flink_api_key)
     flink_secret_length = length(local.confluent_flink_api_secret)
-    principal_length = length(local.principal_id)
     flink_key_start = substr(local.confluent_flink_api_key, 0, 8)
-    principal_start = substr(local.principal_id, 0, 8)
   }
   sensitive = true
 }
