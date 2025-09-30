@@ -110,6 +110,11 @@ resource "confluent_flink_statement" "ddl_statements" {
     id = var.principal_id
   }
   
+  credentials {
+    key    = var.confluent_flink_api_key
+    secret = var.confluent_flink_api_secret
+  }
+  
   rest_endpoint = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint
 }
 
@@ -135,6 +140,11 @@ resource "confluent_flink_statement" "dml_statements" {
   
   principal {
     id = var.principal_id
+  }
+  
+  credentials {
+    key    = var.confluent_flink_api_key
+    secret = var.confluent_flink_api_secret
   }
   
   rest_endpoint = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint
