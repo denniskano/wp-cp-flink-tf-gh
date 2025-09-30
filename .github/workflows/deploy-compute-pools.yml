@@ -47,8 +47,8 @@ jobs:
           roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
           secrets: |
-            peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 username | CONFLUENT_CLOUD_API_KEY ;
-            peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 password | CONFLUENT_CLOUD_API_SECRET ;
+            admin/peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 username | CONFLUENT_CLOUD_API_KEY ;
+            admin/peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 password | CONFLUENT_CLOUD_API_SECRET ;
 
       - name: Terraform Init - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
