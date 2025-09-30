@@ -27,7 +27,7 @@ jobs:
       - name: Checkout PEVE resources
         uses: actions/checkout@v4
         with:
-          repository: jackpaitan/test-event-driven-resources
+          repository: denniskano/test-event-driven-resources
           ref: develop
           path: PEVE
           token: ${{ secrets.GITHUB_TOKEN }}

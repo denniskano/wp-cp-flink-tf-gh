@@ -1,9 +1,0 @@
-statement-name: "cc-loc-peve-terraform-input-loop"
-flink-compute-pool: "CP_AZC_DES_PEVE_01"
-
-statement: |
-  CREATE TABLE \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-input-loop\`(
-    my_field1 int,
-    my_field2 double,
-    my_field3 string
-  );
