@@ -1,0 +1,116 @@
+name: Deploy Flink Statements - TEST
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+      CODAPP:
+        description: 'Application code (e.g., PEVE)'
+        required: true
+        default: 'PEVE'
+        type: string
+
+env:
+  TF_VAR_statements_dir: ../../${{ github.event.inputs.CODAPP }}/ccloud-flink-statements
+
+jobs:
+  deploy-flink-statements:
+    runs-on: ubuntu-latest
+    environment: APP_PEVE_CI_DESA
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout PEVE resources
+        uses: actions/checkout@v4
+        with:
+          repository: denniskano/peve-event-driven-resources
+          path: ${{ github.event.inputs.CODAPP }}
+          ref: develop
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform init
+
+      - name: Extract Environment ID and Organization ID from CC_PROPERTIES
+        id: extract-env
+        run: |
+          echo "CC_PROPERTIES raw content:"
+          echo '${{ vars.CC_PROPERTIES }}'
+          
+          # Extraer environment_id y organization_id del JSON
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          ORGANIZATION_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.organization_id')
+          
+          echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
+          echo "Extracted ORGANIZATION_ID: '$ORGANIZATION_ID'"
+          
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          
+          if [ -z "$ORGANIZATION_ID" ] || [ "$ORGANIZATION_ID" == "null" ]; then
+            echo "Error: Could not extract organization_id from CC_PROPERTIES"
+            exit 1
+          fi
+          
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "ORGANIZATION_ID=$ORGANIZATION_ID" >> $GITHUB_ENV
+          echo "✅ Environment ID configured: $ENVIRONMENT_ID"
+          echo "✅ Organization ID configured: $ORGANIZATION_ID"
+
+      - name: Terraform Plan - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform plan
+        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_confluent_cloud_api_key: "UFTVSK6ZBSFJMLHV"
+          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET_SA }}
+          TF_VAR_confluent_flink_api_key: "O3GGBWSDX3KX624A"
+          TF_VAR_confluent_flink_api_secret: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
+          TF_VAR_principal_id: "sa-k8jnkv6"
+
+      - name: Terraform Apply - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform apply -auto-approve
+        if: github.event.inputs.action == 'apply'
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_confluent_cloud_api_key: "UFTVSK6ZBSFJMLHV"
+          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET_SA }}
+          TF_VAR_confluent_flink_api_key: "O3GGBWSDX3KX624A"
+          TF_VAR_confluent_flink_api_secret: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
+          TF_VAR_principal_id: "sa-k8jnkv6"
+
+      - name: Terraform Destroy - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform destroy -auto-approve
+        if: github.event.inputs.action == 'destroy'
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_confluent_cloud_api_key: "UFTVSK6ZBSFJMLHV"
+          TF_VAR_confluent_cloud_api_secret: ${{ secrets.CONFLUENT_CLOUD_API_SECRET_SA }}
+          TF_VAR_confluent_flink_api_key: "O3GGBWSDX3KX624A"
+          TF_VAR_confluent_flink_api_secret: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
+          TF_VAR_principal_id: "sa-k8jnkv6"
