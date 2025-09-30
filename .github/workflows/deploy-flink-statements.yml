@@ -211,6 +211,21 @@ jobs:
           echo "PRINCIPAL_ID starts with: ${PRINCIPAL_ID:0:3}"
           echo "PRINCIPAL_ID ends with: ${PRINCIPAL_ID: -3}"
           echo ""
+          echo "=== Debug YAML Files Content ==="
+          echo "DDL files found:"
+          ls -la ${{ env.TF_VAR_statements_dir }}/ddl/ || echo "DDL directory not found"
+          echo ""
+          echo "DML files found:"
+          ls -la ${{ env.TF_VAR_statements_dir }}/dml/ || echo "DML directory not found"
+          echo ""
+          echo "=== Sample DDL file content ==="
+          if [ -f "${{ env.TF_VAR_statements_dir }}/ddl/01_cc-loc-peve-terraform-input-loop.yaml" ]; then
+            echo "First DDL file content:"
+            cat "${{ env.TF_VAR_statements_dir }}/ddl/01_cc-loc-peve-terraform-input-loop.yaml"
+          else
+            echo "First DDL file not found"
+          fi
+          echo ""
           echo "=== Test fileset function ==="
           echo "Testing fileset for DDL:"
           echo "Fileset test completed (skipping interactive console)"
