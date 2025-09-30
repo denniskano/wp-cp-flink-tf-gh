@@ -20,7 +20,7 @@ on:
 env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
-  TF_VAR_statements_dir: ".../../${{ github.event.inputs.CODAPP }}/ccloud-flink-statements"
+  TF_VAR_statements_dir: "../../${{ github.event.inputs.CODAPP }}/ccloud-flink-statements"
 
 jobs:
   deploy-flink-statements:
