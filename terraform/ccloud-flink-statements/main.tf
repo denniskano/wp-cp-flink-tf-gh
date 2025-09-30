@@ -96,6 +96,10 @@ resource "confluent_flink_statement" "ddl_statements" {
   
   statement = local.ddl_data[count.index].statement
   
+  organization {
+    id = var.organization_id
+  }
+  
   environment {
     id = var.environment_id
   }
@@ -114,6 +118,10 @@ resource "confluent_flink_statement" "dml_statements" {
   count = length(local.dml_data)
   
   statement = local.dml_data[count.index].statement
+  
+  organization {
+    id = var.organization_id
+  }
   
   environment {
     id = var.environment_id

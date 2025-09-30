@@ -11,6 +11,14 @@ variable "environment_id" {
   }
 }
 
+variable "organization_id" {
+  description = "ID de la Organización en Confluent Cloud"
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.organization_id))
+    error_message = "El organization_id debe tener el formato UUID."
+  }
+}
 
 variable "statements_dir" {
   description = "Directorio con archivos .yaml de DDL/DML"
