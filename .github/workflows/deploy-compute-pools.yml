@@ -1,9 +1,6 @@
 name: Deploy Flink Compute Pools
 
 on:
-  push:
-    paths:
-      - 'terraform/ccloud-flink-compute-pool/**'
   workflow_dispatch:
     inputs:
       action:
@@ -30,7 +27,7 @@ jobs:
       - name: Checkout PEVE resources
         uses: actions/checkout@v4
         with:
-          repository: jackpaitan/peve-event-driven-resources
+          repository: jackpaitan/test-event-driven-resources
           ref: develop
           path: PEVE
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -68,7 +65,7 @@ jobs:
       - name: Terraform Apply - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
         run: terraform apply -auto-approve
-        if: github.event.inputs.action == 'apply' || (github.event_name == 'push' && github.event.inputs.action != 'destroy')
+        if: github.event.inputs.action == 'apply'
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
