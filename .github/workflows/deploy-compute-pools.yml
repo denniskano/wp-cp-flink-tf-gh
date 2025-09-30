@@ -19,6 +19,7 @@ env:
 jobs:
   deploy-compute-pools:
     runs-on: ubuntu-latest
+    environment: APP_PEVE_CI_DESA
     
     steps:
       - name: Checkout main repository
@@ -55,21 +56,30 @@ jobs:
         working-directory: terraform/ccloud-flink-compute-pool
         run: terraform init
 
+      - name: Extract Environment ID from CC_PROPERTIES
+        id: extract-env
+        run: |
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_karka01.environment_id')
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "Environment ID: $ENVIRONMENT_ID"
+
       - name: Terraform Plan - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
-        run: terraform plan
+        run: terraform plan -var="compute_pool_config_path=../../PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
         if: github.event.inputs.action != 'destroy'
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
 
       - name: Terraform Apply - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var="compute_pool_config_path=../../PEVE/ccloud-flink-compute-pool/dev-vars.yaml"
         if: github.event.inputs.action == 'apply'
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
 
       - name: Terraform Destroy - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
@@ -78,6 +88,7 @@ jobs:
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
 
       - name: Output Compute Pool IDs
         working-directory: terraform/ccloud-flink-compute-pool
