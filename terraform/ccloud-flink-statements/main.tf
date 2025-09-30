@@ -114,7 +114,7 @@ resource "confluent_flink_statement" "ddl_statements" {
     secret = var.confluent_flink_api_secret
   }
   
-  rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
+  rest_endpoint = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint
 }
 
 
@@ -147,7 +147,7 @@ resource "confluent_flink_statement" "dml_statements" {
     secret = var.confluent_flink_api_secret
   }
   
-  rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
+  rest_endpoint = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint
   
   # Dependencia: DML statements se ejecutan después de DDL
   depends_on = [confluent_flink_statement.ddl_statements]
