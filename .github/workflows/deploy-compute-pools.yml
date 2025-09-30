@@ -1,0 +1,92 @@
+name: Deploy Flink Compute Pools
+
+on:
+  push:
+    paths:
+      - 'terraform/ccloud-flink-compute-pool/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+          - plan
+
+env:
+  VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c0851.d71fe7f2.z1.hashicorp.cloud:8200"
+
+jobs:
+  deploy-compute-pools:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Checkout PEVE resources
+        uses: actions/checkout@v4
+        with:
+          repository: jackpaitan/peve-event-driven-resources
+          ref: develop
+          path: PEVE
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Get Secrets for Compute Pools
+        id: get-secrets-cp
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 username | CONFLUENT_CLOUD_API_KEY ;
+            peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_TERRA_PAYMENT_01 password | CONFLUENT_CLOUD_API_SECRET ;
+
+      - name: Terraform Init - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: terraform init
+
+      - name: Terraform Plan - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: terraform plan
+        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+
+      - name: Terraform Apply - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: terraform apply -auto-approve
+        if: github.event.inputs.action == 'apply' || (github.event_name == 'push' && github.event.inputs.action != 'destroy')
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+
+      - name: Terraform Destroy - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: terraform destroy -auto-approve
+        if: github.event.inputs.action == 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+
+      - name: Output Compute Pool IDs
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: |
+          if [ "${{ github.event.inputs.action }}" != "destroy" ]; then
+            echo "=== Compute Pool IDs ==="
+            terraform output -json compute_pool_ids
+            echo "=== Compute Pool Configs ==="
+            terraform output -json compute_pool_configs
+          fi

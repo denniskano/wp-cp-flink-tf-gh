@@ -1,0 +1,117 @@
+name: Manual Deploy - On Demand
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'What to deploy'
+        required: true
+        default: 'compute-pools'
+        type: choice
+        options:
+          - compute-pools
+          - statements
+          - all
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+          - plan
+
+jobs:
+  manual-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Checkout PEVE resources
+        uses: actions/checkout@v4
+        with:
+          repository: jackpaitan/peve-event-driven-resources
+          ref: develop
+          path: PEVE
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Setup HashiCorp Vault CLI
+        run: |
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+          sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+          sudo apt-get update && sudo apt-get install vault
+
+      - name: Setup Confluent CLI
+        run: |
+          curl -sL --http1.1 https://cnfl.io/cli | sh -s -- latest
+          sudo mv confluent /usr/local/bin/
+
+      - name: Configure Vault
+        run: |
+          export VAULT_ADDR="${{ secrets.VAULT_ADDR }}"
+          export VAULT_TOKEN="${{ secrets.VAULT_TOKEN }}"
+          
+          # Verify Vault connection
+          vault status
+          
+          # Set environment variables for Terraform
+          echo "VAULT_ADDR=${{ secrets.VAULT_ADDR }}" >> $GITHUB_ENV
+          echo "VAULT_TOKEN=${{ secrets.VAULT_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Configure Confluent CLI
+        run: |
+          # Get credentials from Vault
+          export VAULT_ADDR="${{ secrets.VAULT_ADDR }}"
+          export VAULT_TOKEN="${{ secrets.VAULT_TOKEN }}"
+          
+          # Extract credentials from Vault
+          CLOUD_API_KEY=$(vault kv get -field=cloud_api_key kv/confluent/cloud/creds)
+          CLOUD_API_SECRET=$(vault kv get -field=cloud_api_secret kv/confluent/cloud/creds)
+          
+          # Set environment variables for Confluent CLI
+          echo "CONFLUENT_CLOUD_API_KEY=$CLOUD_API_KEY" >> $GITHUB_ENV
+          echo "CONFLUENT_CLOUD_API_SECRET=$CLOUD_API_SECRET" >> $GITHUB_ENV
+          
+          # Login to Confluent Cloud
+          confluent login --api-key "$CLOUD_API_KEY" --api-secret "$CLOUD_API_SECRET"
+
+      - name: Deploy Compute Pools
+        if: github.event.inputs.target == 'compute-pools' || github.event.inputs.target == 'all'
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: |
+          echo "=== Deploying Compute Pools ==="
+          terraform init
+          terraform plan
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            terraform apply -auto-approve
+          elif [ "${{ github.event.inputs.action }}" == "destroy" ]; then
+            terraform destroy -auto-approve
+          fi
+
+      - name: Deploy Flink Statements
+        if: github.event.inputs.target == 'statements' || github.event.inputs.target == 'all'
+        working-directory: terraform/ccloud-flink-statements
+        run: |
+          echo "=== Deploying Flink Statements ==="
+          terraform init
+          terraform plan
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            terraform apply -auto-approve
+          elif [ "${{ github.event.inputs.action }}" == "destroy" ]; then
+            terraform destroy -auto-approve
+          fi
+
+      - name: Show Results
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "Target: ${{ github.event.inputs.target }}"
+          echo "Action: ${{ github.event.inputs.action }}"
+          echo "Status: Completed"

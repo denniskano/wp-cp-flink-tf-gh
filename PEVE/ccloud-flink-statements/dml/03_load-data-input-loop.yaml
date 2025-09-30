@@ -1,0 +1,6 @@
+statement-name: "load-data-input-loop-v2"
+flink-compute-pool: "CP_AZC_DES_PEVE_01"
+stopped: "false"
+statement: |
+  INSERT INTO \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-input-loop\` VALUES (1, 100.0, 'GENESIS 0');
+###FIN###

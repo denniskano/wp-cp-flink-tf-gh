@@ -1,0 +1,11 @@
+statement-name: "insert-input-loop-from-internal-v1"
+flink-compute-pool: "CP_AZC_DES_PEVE_01"
+stopped: "true" # true to pause, false to resume
+statement: |
+  EXECUTE STATEMENT SET
+  BEGIN
+    insert into \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-input-loop\` SELECT new_field1, new_field2, new_field3 FROM \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-internal\`;
+    insert into \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-input-loop\` SELECT new_field1, new_field2, new_field3 FROM \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-internal\`;
+    insert into \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-input-loop\` SELECT new_field1, new_field2, new_field3 FROM \`default\`.\`denniskano-clu\`.\`cc-loc-peve-terraform-internal\`;
+  END;
+#FIN

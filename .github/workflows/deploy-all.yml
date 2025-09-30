@@ -1,0 +1,57 @@
+name: Deploy All Flink Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+          - plan
+
+jobs:
+  deploy-compute-pools:
+    runs-on: ubuntu-latest
+    outputs:
+      compute-pools-ready: ${{ steps.deploy.outcome == 'success' }}
+    
+    steps:
+      - name: Deploy Compute Pools
+        id: deploy
+        uses: ./.github/workflows/deploy-compute-pools.yml
+        with:
+          action: ${{ github.event.inputs.action }}
+
+  deploy-statements:
+    runs-on: ubuntu-latest
+    needs: deploy-compute-pools
+    if: needs.deploy-compute-pools.outputs.compute-pools-ready == 'true'
+    
+    steps:
+      - name: Deploy Flink Statements
+        uses: ./.github/workflows/deploy-flink-statements.yml
+        with:
+          action: ${{ github.event.inputs.action }}
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [deploy-compute-pools, deploy-statements]
+    if: always()
+    
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "=== Deployment Summary ==="
+          echo "Compute Pools: ${{ needs.deploy-compute-pools.result }}"
+          echo "Statements: ${{ needs.deploy-statements.result }}"
+          
+          if [ "${{ needs.deploy-compute-pools.result }}" == "success" ] && [ "${{ needs.deploy-statements.result }}" == "success" ]; then
+            echo "✅ All deployments completed successfully"
+          else
+            echo "❌ Some deployments failed"
+            exit 1
+          fi

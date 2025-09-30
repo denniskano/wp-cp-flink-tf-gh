@@ -1,0 +1,111 @@
+name: Deploy Flink Statements
+
+on:
+  push:
+    paths:
+      - 'terraform/ccloud-flink-statements/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+          - plan
+
+jobs:
+  deploy-flink-statements:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Checkout PEVE resources
+        uses: actions/checkout@v4
+        with:
+          repository: jackpaitan/peve-event-driven-resources
+          ref: develop
+          path: PEVE
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Setup Confluent CLI
+        run: |
+          curl -sL --http1.1 https://cnfl.io/cli | sh -s -- latest
+          sudo mv confluent /usr/local/bin/
+
+      - name: Get Secrets for Flink Statements
+        id: get-secrets-fs
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ secrets.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+
+      - name: Configure Confluent CLI
+        run: |
+          # Login to Confluent Cloud using secrets from Vault
+          confluent login --api-key "${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}" --api-secret "${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}"
+
+
+      - name: Terraform Init - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform init
+
+      - name: Terraform Plan - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform plan
+        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_SERVICE_ACCOUNT_ID }}
+
+      - name: Terraform Apply - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform apply -auto-approve
+        if: github.event.inputs.action == 'apply' || (github.event_name == 'push' && github.event.inputs.action != 'destroy')
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_SERVICE_ACCOUNT_ID }}
+
+      - name: Terraform Destroy - Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: terraform destroy -auto-approve
+        if: github.event.inputs.action == 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_FLINK_API_SECRET }}
+          TF_VAR_principal_id: ${{ env.PEVE_GHA_CC_CLUSTER_KEY_SECRETS_SERVICE_ACCOUNT_ID }}
+
+      - name: Output Statements
+        working-directory: terraform/ccloud-flink-statements
+        run: |
+          if [ "${{ github.event.inputs.action }}" != "destroy" ]; then
+            echo "=== DDL Statements ==="
+            terraform output -json ddl_statements
+            echo "=== DML Statements ==="
+            terraform output -json dml_statements
+            echo "=== All Statements ==="
+            terraform output -json all_statements
+          fi
+

@@ -18,23 +18,29 @@ El proyecto está diseñado con una arquitectura modular que incluye:
 ├── variables.tf                      # Variables de entrada
 ├── outputs.tf                        # Valores de salida
 ├── terraform.tfvars                  # Valores de variables locales
-├── modules/
-│   ├── compute_pool/                 # Módulo para Flink Compute Pool
+├── terraform/                        # Módulos de Terraform
+│   ├── ccloud-flink-compute-pool/    # Módulo para Flink Compute Pool
 │   │   ├── main.tf
-│   │   └── variables.tf
-│   └── terraform-ccloud-flink-statement/  # Módulo para Flink Statements
+│   │   ├── variables.tf
+│   │   └── compute_pool-config.yaml  # Configuración del compute pool
+│   ├── ccloud-flink-statements/     # Módulo para Flink Statements
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── statements/                # Archivos SQL
+│   │       ├── ddl.sql              # Data Definition Language
+│   │       └── dml.sql              # Data Manipulation Language
+│   └── ccloud-sql-db-sink-connector/ # Módulo para SQL DB Sink Connector
 │       ├── main.tf
 │       └── variables.tf
-├── external/
-│   ├── compute_pool-config.yaml     # Configuración del compute pool
-│   └── statements/                   # Archivos SQL
-│       ├── ddl.sql                   # Data Definition Language
-│       └── dml.sql                   # Data Manipulation Language
+├── PEVE/                            # Metadatos del proyecto
+│   ├── ccloud-connectors/           # Configuración de conectores
+│   ├── ccloud-flink-compute-pool/   # Configuración del compute pool
+│   └── ccloud-flink-statements/     # Statements de Flink
 ├── prerequisites/
-│   └── service_account/              # Módulo para crear service account
+│   └── service_account/            # Módulo para crear service account
 ├── .github/
 │   └── workflows/
-│       └── terraform.yml             # Workflow de GitHub Actions
+│       └── terraform.yml           # Workflow de GitHub Actions
 └── README.md
 ```
 
@@ -89,10 +95,8 @@ confluent_region           = "westus2"
 
 # Compute Pool
 compute_pool_name          = "cp-flink-ejemplo"
-compute_pool_config_path   = "external/compute_pool-config.yaml"
 
 # Flink Statements
-statements_dir             = "external/statements"
 statement_name_prefix      = "stmt-demo-"
 flink_rest_endpoint        = "https://flink.westus2.azure.confluent.cloud"
 
@@ -164,7 +168,7 @@ export GITHUB_REPO="tu-repositorio"
 
 ### Compute Pool
 - **Tipo**: Flink Compute Pool
-- **Configuración**: Definida en `external/compute_pool-config.yaml`
+- **Configuración**: Definida en `PEVE/ccloud-flink-compute-pool/dev-vars.yaml`
 - **Capacidad**: 5 CFU (configurable)
 
 ### Flink Statements

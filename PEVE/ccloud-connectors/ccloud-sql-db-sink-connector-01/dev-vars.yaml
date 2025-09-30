@@ -1,0 +1,10 @@
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"
+topic-name: poc-peve-badi-01
+secrets_hv:
+  sqlCredentials:
+    id: peve_ccloud_sql_bqdi_poc_dev
+    type: usernamePassword
+    varkey: "connection.username,connection.password"

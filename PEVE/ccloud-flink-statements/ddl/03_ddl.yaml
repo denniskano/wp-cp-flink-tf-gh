@@ -1,0 +1,11 @@
+statement-name: "create-table-demo-table"
+flink-compute-pool: "CP_AZC_DES_PEVE_02"
+
+statement: |
+  CREATE TABLE \`default\`.\`denniskano-clu\`.\`demo_table\` (
+    id STRING,
+    name STRING,
+    created_at TIMESTAMP(3)
+  ) WITH (
+    'connector' = 'confluent'
+  );

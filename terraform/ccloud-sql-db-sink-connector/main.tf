@@ -41,48 +41,46 @@ data "vault_kv_secret_v2" "confluent" {
 # LOCAL VALUES
 # =============================================================================
 locals {
-  # Confluent Cloud API credentials (for compute pool management)
+  # Confluent Cloud API credentials
   confluent_cloud_api_key    = try(data.vault_kv_secret_v2.confluent.data["cloud_api_key"], null)
   confluent_cloud_api_secret = try(data.vault_kv_secret_v2.confluent.data["cloud_api_secret"], null)
   
-  # Confluent Flink API credentials (for statement management)
-  confluent_flink_api_key    = try(data.vault_kv_secret_v2.confluent.data["flink_api_key"], null)
-  confluent_flink_api_secret = try(data.vault_kv_secret_v2.confluent.data["flink_api_secret"], null)
-  
   # Service account information
   service_account_id = try(data.vault_kv_secret_v2.confluent.data["service_account_id"], null)
+  
+  # Cargar configuración del conector desde archivo JSON
+  connector_config = try(jsondecode(file(var.connector_config_path)), {})
+  
+  # Combinar configuración base con variables
+  final_config = merge(
+    local.connector_config.config_nonsensitive,
+    {
+      "kafka.service.account.id" = local.service_account_id
+      "topics"                   = var.topic_name
+      "connection.username"      = var.sql_username
+      "connection.password"      = var.sql_password
+    }
+  )
 }
 
 # =============================================================================
-# MODULES
+# RESOURCES
 # =============================================================================
+resource "confluent_connector" "sql_sink" {
+  environment {
+    id = var.environment_id
+  }
 
-# -----------------------------------------------------------------------------
-# Flink Compute Pool Module
-# -----------------------------------------------------------------------------
-module "compute_pool" {
-  source = "./modules/compute_pool"
+  kafka_cluster {
+    id = var.kafka_cluster_id
+  }
 
-  environment_id          = var.confluent_environment_id
-  cloud                   = var.confluent_cloud
-  region                  = var.confluent_region
-  compute_pool_name       = var.compute_pool_name
-  compute_pool_config_path = var.compute_pool_config_path
-}
+  config_sensitive = {
+    "connection.username" = var.sql_username
+    "connection.password" = var.sql_password
+  }
 
-# -----------------------------------------------------------------------------
-# Flink Statements Module
-# -----------------------------------------------------------------------------
-module "flink_statements" {
-  source = "./modules/terraform-ccloud-flink-statement"
+  config_nonsensitive = local.final_config
 
-  environment_id        = var.confluent_environment_id
-  compute_pool_id       = module.compute_pool.compute_pool_id
-  statements_dir        = var.statements_dir
-  statement_name_prefix = var.statement_name_prefix
-  flink_rest_endpoint   = var.flink_rest_endpoint
-  organization_id       = var.confluent_organization_id
-  principal_id          = var.confluent_principal_id
-  api_key               = local.confluent_flink_api_key
-  api_secret            = local.confluent_flink_api_secret
+  status = var.connector_status
 }

@@ -1,0 +1,172 @@
+# =============================================================================
+# TERRAFORM CONFIGURATION
+# =============================================================================
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    confluent = {
+      source  = "confluentinc/confluent"
+      version = ">= 2.7.0"
+    }
+    vault = {
+      source  = "hashicorp/vault"
+      version = ">= 3.20.0"
+    }
+  }
+}
+
+# =============================================================================
+# PROVIDERS CONFIGURATION
+# =============================================================================
+provider "vault" {
+  address = var.vault_addr
+  # VAULT_TOKEN se obtiene via OIDC en GitHub Actions o se exporta localmente
+}
+
+provider "confluent" {
+  cloud_api_key    = data.vault_kv_secret_v2.confluent.data["cloud_api_key"]
+  cloud_api_secret = data.vault_kv_secret_v2.confluent.data["cloud_api_secret"]
+}
+
+# =============================================================================
+# VAULT DATA SOURCES
+# =============================================================================
+data "vault_kv_secret_v2" "confluent" {
+  mount = var.vault_kv_mount
+  name  = var.vault_secret_path
+}
+
+# Data source para obtener la organización
+data "confluent_organization" "current" {}
+
+# Data source para obtener compute pools por nombre
+data "confluent_flink_compute_pool" "by_name" {
+  for_each = toset(local.all_compute_pools)
+  
+  display_name = each.value
+  
+  environment {
+    id = var.environment_id
+  }
+}
+
+# Data source para obtener regiones de Flink
+data "confluent_flink_region" "by_region" {
+  for_each = toset([
+    for pool in data.confluent_flink_compute_pool.by_name : pool.region
+  ])
+  
+  cloud  = each.value
+  region = each.key
+}
+
+# =============================================================================
+# LOCALS
+# =============================================================================
+locals {
+  # Confluent Flink API credentials (for statement management)
+  confluent_cloud_api_key    = try(data.vault_kv_secret_v2.confluent.data.cloud_api_key, "")
+  confluent_cloud_api_secret = try(data.vault_kv_secret_v2.confluent.data.cloud_api_secret, "")
+  confluent_flink_api_key    = try(data.vault_kv_secret_v2.confluent.data.flink_api_key, "")
+  confluent_flink_api_secret = try(data.vault_kv_secret_v2.confluent.data.flink_api_secret, "")
+  
+  # Service Account ID desde Vault
+  principal_id = try(data.vault_kv_secret_v2.confluent.data.service_account_id, "")
+  
+  # Cargar archivos YAML de DDL y DML
+  ddl_files = fileset("${var.statements_dir}/ddl", "*.yaml")
+  ddl_data  = [for f in local.ddl_files : yamldecode(file("${var.statements_dir}/ddl/${f}"))]
+  
+  dml_files = fileset("${var.statements_dir}/dml", "*.yaml")
+  dml_data  = [for f in local.dml_files : yamldecode(file("${var.statements_dir}/dml/${f}"))]
+  
+  # Extraer compute pools únicos de los archivos YAML
+  all_compute_pools = distinct(concat(
+    [for ddl in local.ddl_data : ddl["flink-compute-pool"]],
+    [for dml in local.dml_data : dml["flink-compute-pool"]]
+  ))
+  
+  # Mapear nombres de compute pools a sus IDs y REST endpoints
+  compute_pools_map = {
+    for pool_name in local.all_compute_pools : pool_name => {
+      id          = data.confluent_flink_compute_pool.by_name[pool_name].id
+      rest_endpoint = data.confluent_flink_region.by_region[data.confluent_flink_compute_pool.by_name[pool_name].region].rest_endpoint
+    }
+  }
+}
+
+# =============================================================================
+# RESOURCES
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# DDL Statements (Data Definition Language)
+# -----------------------------------------------------------------------------
+resource "confluent_flink_statement" "ddl" {
+  count = length(local.ddl_data)
+
+  statement_name = local.ddl_data[count.index]["statement-name"]
+  statement      = local.ddl_data[count.index].statement
+  stopped        = "false"  # Default to DDL (always running)
+
+  environment {
+    id = var.environment_id
+  }
+
+  compute_pool {
+    id = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id
+  }
+
+  organization {
+    id = data.confluent_organization.current.id
+  }
+
+  principal {
+    id = local.principal_id
+  }
+
+  credentials {
+    key    = local.confluent_flink_api_key
+    secret = local.confluent_flink_api_secret
+  }
+
+  rest_endpoint = local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint
+}
+
+# -----------------------------------------------------------------------------
+# DML Statements (Data Manipulation Language)
+# -----------------------------------------------------------------------------
+resource "confluent_flink_statement" "dml" {
+  count = length(local.dml_data)
+
+  statement_name = local.dml_data[count.index]["statement-name"]
+  statement      = local.dml_data[count.index].statement
+  stopped        = local.dml_data[count.index].stopped
+
+  environment {
+    id = var.environment_id
+  }
+
+  compute_pool {
+    id = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id
+  }
+
+  organization {
+    id = data.confluent_organization.current.id
+  }
+
+  principal {
+    id = local.principal_id
+  }
+
+  credentials {
+    key    = local.confluent_flink_api_key
+    secret = local.confluent_flink_api_secret
+  }
+
+  rest_endpoint = local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint
+
+  # Dependencia: DML statements se ejecutan después de DDL
+  depends_on = [confluent_flink_statement.ddl]
+}
