@@ -117,35 +117,6 @@ resource "confluent_flink_statement" "ddl_statements" {
   rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
 }
 
-# -----------------------------------------------------------------------------
-# TEST: Hardcoded statement for debugging
-# -----------------------------------------------------------------------------
-resource "confluent_flink_statement" "test_statement" {
-  statement = "SELECT 1 as test_column"
-  
-  organization {
-    id = var.organization_id
-  }
-  
-  environment {
-    id = var.environment_id
-  }
-  
-  compute_pool {
-    id = "lfcp-j169gp"  # Hardcoded compute pool ID
-  }
-  
-  principal {
-    id = var.principal_id
-  }
-  
-  credentials {
-    key    = var.confluent_flink_api_key
-    secret = var.confluent_flink_api_secret
-  }
-  
-  rest_endpoint = "https://flink.westus2.azure.confluent.cloud"
-}
 
 # -----------------------------------------------------------------------------
 # DML Statements (Data Manipulation Language) - Usando resource nativo
