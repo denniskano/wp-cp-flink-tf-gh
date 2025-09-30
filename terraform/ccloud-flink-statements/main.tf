@@ -102,14 +102,14 @@ resource "null_resource" "ddl_statements" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      export CONFLUENT_CLOUD_API_KEY=${local.confluent_flink_api_key}
-      export CONFLUENT_CLOUD_API_SECRET=${local.confluent_flink_api_secret}
+      export CONFLUENT_CLOUD_API_KEY="${local.confluent_flink_api_key}"
+      export CONFLUENT_CLOUD_API_SECRET="${local.confluent_flink_api_secret}"
       
       # Configurar credenciales de Flink en archivo de configuración
       mkdir -p ~/.confluent
       echo "[api]" > ~/.confluent/config
-      echo "api_key = ${local.confluent_flink_api_key}" >> ~/.confluent/config
-      echo "api_secret = ${local.confluent_flink_api_secret}" >> ~/.confluent/config
+      echo "api_key = \"${local.confluent_flink_api_key}\"" >> ~/.confluent/config
+      echo "api_secret = \"${local.confluent_flink_api_secret}\"" >> ~/.confluent/config
       
       # Verificar si el statement ya existe
       if confluent flink statement list --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].id} 2>/dev/null | grep -q "${local.ddl_data[count.index]["statement-name"]}"; then
@@ -142,14 +142,14 @@ resource "null_resource" "dml_statements" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      export CONFLUENT_CLOUD_API_KEY=${local.confluent_flink_api_key}
-      export CONFLUENT_CLOUD_API_SECRET=${local.confluent_flink_api_secret}
+      export CONFLUENT_CLOUD_API_KEY="${local.confluent_flink_api_key}"
+      export CONFLUENT_CLOUD_API_SECRET="${local.confluent_flink_api_secret}"
       
       # Configurar credenciales de Flink en archivo de configuración
       mkdir -p ~/.confluent
       echo "[api]" > ~/.confluent/config
-      echo "api_key = ${local.confluent_flink_api_key}" >> ~/.confluent/config
-      echo "api_secret = ${local.confluent_flink_api_secret}" >> ~/.confluent/config
+      echo "api_key = \"${local.confluent_flink_api_key}\"" >> ~/.confluent/config
+      echo "api_secret = \"${local.confluent_flink_api_secret}\"" >> ~/.confluent/config
       
       # Verificar si el statement ya existe
       if confluent flink statement list --environment ${var.environment_id} --compute-pool ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].id} 2>/dev/null | grep -q "${local.dml_data[count.index]["statement-name"]}"; then
