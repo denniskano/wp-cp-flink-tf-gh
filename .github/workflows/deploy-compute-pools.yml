@@ -62,28 +62,18 @@ jobs:
           echo "CC_PROPERTIES raw content:"
           echo '${{ vars.CC_PROPERTIES }}'
           
-          # Parse JSON (puede venir como string o ya como JSON)
-          CC_PROPS='${{ vars.CC_PROPERTIES }}'
-          
-          # Intentar extraer environment_id
-          ENVIRONMENT_ID=$(echo "$CC_PROPS" | jq -r '.azure_eu2_karka01.environment_id // empty')
+          # Extraer environment_id del JSON
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_karka01.environment_id')
           
           echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
           
           if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
             echo "Error: Could not extract environment_id from CC_PROPERTIES"
-            echo "Trying alternative JSON structure..."
-            # Intentar estructura alternativa
-            ENVIRONMENT_ID=$(echo "$CC_PROPS" | jq -r '.environment_id // empty')
-            echo "Alternative extraction: '$ENVIRONMENT_ID'"
-          fi
-          
-          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
-            echo "Error: environment_id not found in CC_PROPERTIES"
             exit 1
           fi
           
           echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "✅ Environment ID configured: $ENVIRONMENT_ID"
 
       - name: Terraform Plan - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
