@@ -20,7 +20,7 @@ on:
 env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
-  TF_VAR_statements_dir: "${{ github.event.inputs.CODAPP }}/ccloud-flink-statements"
+  TF_VAR_statements_dir: "../${{ github.event.inputs.CODAPP }}/ccloud-flink-statements"
 
 jobs:
   deploy-flink-statements:
@@ -164,8 +164,12 @@ jobs:
           echo "=== Debug Terraform Configuration ==="
           echo "Current working directory: $(pwd)"
           echo ""
+          echo "=== From terraform directory, check parent ==="
+          ls -la ../ || echo "Parent directory not found"
+          echo ""
           echo "=== Statements directory ==="
           echo "TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}"
+          echo "Full path: $(pwd)/${{ env.TF_VAR_statements_dir }}"
           ls -la ${{ env.TF_VAR_statements_dir }} || echo "Directory not found"
           echo ""
           echo "=== DDL files ==="
@@ -173,6 +177,10 @@ jobs:
           echo ""
           echo "=== DML files ==="
           ls -la ${{ env.TF_VAR_statements_dir }}/dml/ || echo "DML directory not found"
+          echo ""
+          echo "=== Test fileset function ==="
+          echo "Testing fileset for DDL:"
+          terraform console <<< "fileset(\"${{ env.TF_VAR_statements_dir }}/ddl\", \"*.yaml\")" || echo "fileset failed"
           echo ""
           echo "=== Terraform validate ==="
           terraform validate
