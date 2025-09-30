@@ -25,6 +25,7 @@ env:
 jobs:
   deploy-flink-statements:
     runs-on: ubuntu-latest
+    environment: APP_PEVE_CI_DESA
     
     steps:
       - name: Checkout main repository
