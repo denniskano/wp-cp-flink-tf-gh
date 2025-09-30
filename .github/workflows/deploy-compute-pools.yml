@@ -130,7 +130,7 @@ jobs:
       - name: Output Compute Pool IDs
         working-directory: terraform/ccloud-flink-compute-pool
         run: |
-          if [ "${{ github.event.inputs.action }}" != "apply" ]; then
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
             echo "=== Compute Pool IDs ==="
             terraform output -json compute_pool_ids
             echo "=== Compute Pool Configs ==="
