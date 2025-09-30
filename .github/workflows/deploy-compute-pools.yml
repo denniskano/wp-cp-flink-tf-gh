@@ -63,7 +63,7 @@ jobs:
           echo '${{ vars.CC_PROPERTIES }}'
           
           # Extraer environment_id del JSON
-          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_karka01.environment_id')
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
           
           echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
           
