@@ -116,6 +116,7 @@ resource "null_resource" "ddl_statements" {
         echo "Statement '${local.ddl_data[count.index]["statement-name"]}' ya existe, saltando..."
       else
         echo "Creando statement DDL: ${local.ddl_data[count.index]["statement-name"]}"
+        echo "Debug - URL a usar: ${local.compute_pools_map[local.ddl_data[count.index]["flink-compute-pool"]].rest_endpoint}"
         confluent flink statement create "${local.ddl_data[count.index]["statement-name"]}" \
           --sql "${replace(local.ddl_data[count.index].statement, "\n", " ")}" \
           --environment ${var.environment_id} \
@@ -155,6 +156,7 @@ resource "null_resource" "dml_statements" {
         echo "Statement '${local.dml_data[count.index]["statement-name"]}' ya existe, saltando..."
       else
         echo "Creando statement DML: ${local.dml_data[count.index]["statement-name"]}"
+        echo "Debug - URL a usar: ${local.compute_pools_map[local.dml_data[count.index]["flink-compute-pool"]].rest_endpoint}"
         confluent flink statement create "${local.dml_data[count.index]["statement-name"]}" \
           --sql "${replace(local.dml_data[count.index].statement, "\n", " ")}" \
           --environment ${var.environment_id} \
