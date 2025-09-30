@@ -33,6 +33,25 @@ jobs:
           path: PEVE
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify PEVE folder structure
+        run: |
+          echo "=== Listing workspace root ==="
+          ls -la
+          echo ""
+          echo "=== Listing PEVE folder ==="
+          ls -la PEVE/ || echo "PEVE folder not found!"
+          echo ""
+          echo "=== Listing PEVE/ccloud-flink-compute-pool ==="
+          ls -la PEVE/ccloud-flink-compute-pool/ || echo "ccloud-flink-compute-pool folder not found!"
+          echo ""
+          echo "=== Checking dev-vars.yaml ==="
+          if [ -f "PEVE/ccloud-flink-compute-pool/dev-vars.yaml" ]; then
+            echo "✅ dev-vars.yaml exists"
+            cat PEVE/ccloud-flink-compute-pool/dev-vars.yaml
+          else
+            echo "❌ dev-vars.yaml NOT found"
+          fi
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
