@@ -72,9 +72,9 @@ resource "confluent_flink_statement" "ddl_statements" {
   statement = replace(
     replace(
       local.ddl_data[count.index].statement,
-      "${catalog_name}", var.catalog_name
+      "$${catalog_name}", var.catalog_name
     ),
-    "${cluster_name}", var.cluster_name
+    "$${cluster_name}", var.cluster_name
   )
   
   organization {
@@ -111,9 +111,9 @@ resource "confluent_flink_statement" "dml_statements" {
   statement = replace(
     replace(
       local.dml_data[count.index].statement,
-      "${catalog_name}", var.catalog_name
+      "$${catalog_name}", var.catalog_name
     ),
-    "${cluster_name}", var.cluster_name
+    "$${cluster_name}", var.cluster_name
   )
   
   organization {
