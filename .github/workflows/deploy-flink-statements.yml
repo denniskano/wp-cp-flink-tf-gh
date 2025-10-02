@@ -21,6 +21,8 @@ env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
   TF_VAR_statements_dir: "../../${{ github.event.inputs.CODAPP }}/ccloud-flink-statements"
+  CATALOG_NAME: "default"
+  CLUSTER_NAME: "denniskano-clu"
 
 jobs:
   deploy-flink-statements:
@@ -160,6 +162,8 @@ jobs:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_catalog_name: ${{ env.CATALOG_NAME }}
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
@@ -174,6 +178,8 @@ jobs:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_catalog_name: ${{ env.CATALOG_NAME }}
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
@@ -188,6 +194,8 @@ jobs:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
           TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_catalog_name: ${{ env.CATALOG_NAME }}
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}

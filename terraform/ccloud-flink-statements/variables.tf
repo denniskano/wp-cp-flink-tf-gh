@@ -58,3 +58,19 @@ variable "principal_id" {
   type        = string
   sensitive   = true
 }
+
+# =============================================================================
+# FLINK STATEMENTS CONFIGURATION
+# =============================================================================
+
+variable "catalog_name" {
+  description = "Nombre del catálogo para Flink statements"
+  type        = string
+  default     = "default"
+}
+
+variable "cluster_name" {
+  description = "Nombre del cluster para Flink statements"
+  type        = string
+  default     = "denniskano-clu"
+}

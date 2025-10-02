@@ -69,7 +69,13 @@ locals {
 resource "confluent_flink_statement" "ddl_statements" {
   count = length(local.ddl_data)
   
-  statement = local.ddl_data[count.index].statement
+  statement = replace(
+    replace(
+      local.ddl_data[count.index].statement,
+      "${catalog_name}", var.catalog_name
+    ),
+    "${cluster_name}", var.cluster_name
+  )
   
   organization {
     id = var.organization_id
@@ -102,7 +108,13 @@ resource "confluent_flink_statement" "ddl_statements" {
 resource "confluent_flink_statement" "dml_statements" {
   count = length(local.dml_data)
   
-  statement = local.dml_data[count.index].statement
+  statement = replace(
+    replace(
+      local.dml_data[count.index].statement,
+      "${catalog_name}", var.catalog_name
+    ),
+    "${cluster_name}", var.cluster_name
+  )
   
   organization {
     id = var.organization_id
