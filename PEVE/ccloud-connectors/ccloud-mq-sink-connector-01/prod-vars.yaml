@@ -1,0 +1,30 @@
+# =============================================================================
+# CONNECTOR VARIABLES - PRODUCTION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Production (PRO)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  mq.queue.manager: "prod-queue-manager"
+  mq.connection.name.list: "prod-host(1414)"
+  mq.queue: "prod-queue-name"
+  mq.channel: "prod-channel-name"
+  topics: "prod-topic-name"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  mq.user.name: ""  # Se obtiene desde Vault/secrets
+  mq.password: ""  # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+

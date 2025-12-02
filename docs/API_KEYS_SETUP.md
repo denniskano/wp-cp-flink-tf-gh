@@ -183,7 +183,54 @@ echo "Flink API Key: O3GGBWSDX3KX624A"
 echo "Flink API Secret: [ya existe]"
 ```
 
+## 🎯 8. Estructura en Vault (SITUACIÓN ACTUAL)
 
+### ⚠️ Problema Identificado:
+El workflow está configurado para usar el **mismo Service Account** para ambos API Keys, pero en realidad:
+- **Cloud API Key**: Pertenece al usuario personal (`u-qgjg1d`)
+- **Flink API Key**: Pertenece al Service Account (`sa-k8jnkv6`)
+
+### 🔧 Estructura Real en Vault:
+```bash
+# DIFERENTES Service Accounts, diferentes API Keys
+peve/data/dev/peve/ccloud/
+
+# Para Cloud API Key (Usuario personal)
+peve/data/dev/peve/ccloud/u-qgjg1d/AK_AZC_DES_PEVE_TERRA_PAYMENT_01/
+├── username: "FVNKXPWM7H6YRP6G" (Cloud API Key)
+└── password: "secret-XXXXX" (Cloud API Secret)
+
+# Para Flink API Key (Service Account)
+peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/AK_AZC_DES_PEVE_FLINK_PAYMENT_01/
+├── username: "O3GGBWSDX3KX624A" (Flink API Key)
+└── password: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
+
+# Service Account ID
+peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/
+└── principal_id: "sa-k8jnkv6"
+```
+
+## 🛠️ 9. Soluciones Posibles
+
+### Opción 1: Crear Cloud API Key para el Service Account
+```bash
+# Crear Cloud API Key para sa-k8jnkv6
+confluent api-key create \
+  --resource cloud \
+  --service-account sa-k8jnkv6 \
+  --description "Cloud API Key para Service Account sa-k8jnkv6 - PEVE"
+```
+
+### Opción 2: Ajustar la estructura en Vault
+```bash
+# Estructura separada en Vault
+peve/data/dev/peve/ccloud/SA_AZC_DES_PEVE_POS_01/
+├── principal_id: "sa-k8jnkv6"
+├── cloud_api_key: "FVNKXPWM7H6YRP6G" (del usuario personal)
+├── cloud_api_secret: "secret-XXXXX"
+├── flink_api_key: "O3GGBWSDX3KX624A"
+└── flink_api_secret: "cfltGVs5yeLak8RzSM1PU9TWmw1us5vC4NVbhtXGeQv9FwmW3QH+L6F4w3L1OPIA"
+```
 
 ## ✅ 10. Verificación Final
 

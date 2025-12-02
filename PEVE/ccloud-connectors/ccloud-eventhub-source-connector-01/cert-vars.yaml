@@ -1,0 +1,29 @@
+# =============================================================================
+# CONNECTOR VARIABLES - CERTIFICATION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Certification (CER)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  azure.eventhubs.namespace: "cert-eventhub-namespace.servicebus.windows.net"
+  azure.eventhubs.hub.name: "cert-eventhub-name"
+  azure.eventhubs.consumer.group: "cert-consumer-group"
+  kafka.topic: "cert-topic-name"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  azure.eventhubs.sas.keyname: ""  # Se obtiene desde Vault/secrets
+  azure.eventhubs.sas.key: ""     # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+

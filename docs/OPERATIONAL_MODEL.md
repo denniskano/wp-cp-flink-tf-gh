@@ -141,7 +141,6 @@ compute_pools:
 statement-name: "create-demo-table"           # Nombre único del statement
 statement-description: "Create demo table for {CODAPP} application"
 flink-compute-pool: "CP_AZC_DES_{CODAPP}_01"  # Compute pool a utilizar
-execution-order: 1                            # Orden de ejecución (1, 2, 3...)
 
 # =============================================================================
 # SQL STATEMENT
@@ -176,7 +175,6 @@ statement: |
 statement-name: "insert-demo-data"            # Nombre único del statement
 statement-description: "Insert demo data for {CODAPP} application"
 flink-compute-pool: "CP_AZC_DES_{CODAPP}_01"  # Compute pool a utilizar
-execution-order: 1                            # Orden de ejecución (1, 2, 3...)
 
 # =============================================================================
 # SQL STATEMENT

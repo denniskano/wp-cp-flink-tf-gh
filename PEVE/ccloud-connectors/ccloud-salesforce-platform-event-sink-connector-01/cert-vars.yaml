@@ -1,0 +1,30 @@
+# =============================================================================
+# CONNECTOR VARIABLES - CERTIFICATION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Certification (CER)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  salesforce.platform.event.name: "cert-platform-event-name"
+  salesforce.instance: "cert-instance.salesforce.com"
+  topics: "cert-topic-name"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  salesforce.username: ""  # Se obtiene desde Vault/secrets
+  salesforce.password: ""  # Se obtiene desde Vault/secrets
+  salesforce.consumer.key: ""  # Se obtiene desde Vault/secrets
+  salesforce.consumer.secret: ""  # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+

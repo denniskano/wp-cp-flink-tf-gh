@@ -1,0 +1,30 @@
+# =============================================================================
+# CONNECTOR VARIABLES - CERTIFICATION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Certification (CER)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  mq.queue.manager: "cert-queue-manager"
+  mq.connection.name.list: "cert-host(1414)"
+  mq.queue: "cert-queue-name"
+  mq.channel: "cert-channel-name"
+  kafka.topic: "cert-topic-name"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  mq.user.name: ""  # Se obtiene desde Vault/secrets
+  mq.password: ""  # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+

@@ -1,0 +1,29 @@
+# =============================================================================
+# CONNECTOR VARIABLES - PRODUCTION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Production (PRO)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  azure.blob.storage.account.name: "prod-storage-account"
+  azure.blob.storage.container.name: "prod-container"
+  azure.blob.storage.directory: "prod-directory"
+  topics: "prod-topic-name"
+  format.output.fields.value.name: "value"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  azure.blob.storage.account.key: ""  # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+

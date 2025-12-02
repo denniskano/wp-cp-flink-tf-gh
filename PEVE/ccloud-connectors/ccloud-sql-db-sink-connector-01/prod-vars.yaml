@@ -1,0 +1,29 @@
+# =============================================================================
+# CONNECTOR VARIABLES - PRODUCTION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Production (PRO)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  connection.host: "prod-peve-badi.database.windows.net"
+  connection.port: "1433"
+  db.name: "prod-peve-badi-01"
+  topics: "prod-peve-badi-01"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  connection.username: ""  # Se obtiene desde Vault/secrets
+  connection.password: ""  # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+

@@ -21,6 +21,8 @@ env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
   TF_VAR_compute_pool_config_path: "../../${{ github.event.inputs.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml"
+  SERVICE_ACCOUNT: "SA_AZC_DES_PEVE_POS_01"
+  API_KEY: "AK_AZC_DES_PEVE_CRMAN_PAYMENT_01"
 
 jobs:
   deploy-compute-pools:
@@ -44,6 +46,11 @@ jobs:
           mv resources/${{ env.CODAPP }} ./${{ env.CODAPP }}
           rm -rf resources
           echo "✅ ${{ env.CODAPP }} folder moved to workspace root"
+
+      - name: Configure Azure Storage Access
+        run: |
+          export ARM_ACCESS_KEY="${{ secrets.ARM_ACCESS_KEY }}"
+          echo "✅ Azure Storage access configured"
 
       - name: Verify ${{ env.CODAPP }} folder structure
         run: |
@@ -77,24 +84,6 @@ jobs:
           yq --version
           echo "✅ yq installed successfully"
 
-      - name: Extract secrets from dev-vars.yaml
-        id: extract-secrets
-        run: |
-          echo "=== Extracting secrets from ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml ==="
-          
-          # Extract service_account and api_key_terraform from dev-vars.yaml using yq
-          SERVICE_ACCOUNT=$(yq eval '.secrets_hv.service_account' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
-          API_KEY=$(yq eval '.secrets_hv.api_key_terraform' ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml)
-          
-          echo "SERVICE_ACCOUNT: $SERVICE_ACCOUNT"
-          echo "API_KEY: $API_KEY"
-          
-          # Set as environment variables for next steps
-          echo "SERVICE_ACCOUNT=$SERVICE_ACCOUNT" >> $GITHUB_ENV
-          echo "API_KEY=$API_KEY" >> $GITHUB_ENV
-          
-          echo "✅ Secrets extracted successfully"
-
       - name: Get Secrets for Compute Pools
         id: get-secrets-cp
         uses: hashicorp/vault-action@v2
@@ -111,7 +100,16 @@ jobs:
 
       - name: Terraform Init - Compute Pools
         working-directory: terraform/ccloud-flink-compute-pool
-        run: terraform init
+        run: |
+          # Inicializar con estado limpio
+          terraform init \
+            -backend-config="storage_account_name=pevetfstate" \
+            -backend-config="resource_group_name=rg-peve-terraform" \
+            -backend-config="container_name=tf-flink-stm-dev" \
+            -backend-config="key=dev/${{ github.event.inputs.CODAPP }}/tf-flink.tfstate" \
+            -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
 
       - name: Extract Environment ID from CC_PROPERTIES
         id: extract-env

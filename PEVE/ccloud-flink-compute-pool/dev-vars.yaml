@@ -1,0 +1,15 @@
+secrets_hv:
+  service_account: SA_AZC_DES_PEVE_POS_01
+  api_key_terraform: AK_AZC_DES_PEVE_CRMAN_PAYMENT_01
+  api_key_flink: AK_AZC_DES_PEVE_FLINK_PAYMENT_01
+
+compute_pools:
+  - cloud: "AZURE"
+    region: "westus2"
+    max_cfu: 5
+    pool_name: "CP_AZC_DES_PEVE_01"
+  - cloud: "AZURE"
+    region: "westus2"
+    max_cfu: 10
+    pool_name: "CP_AZC_DES_PEVE_02"
+

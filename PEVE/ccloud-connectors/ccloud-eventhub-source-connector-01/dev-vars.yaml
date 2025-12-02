@@ -1,0 +1,40 @@
+# =============================================================================
+# CONNECTOR VARIABLES - DEVELOPMENT
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Development (DES)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  azure.eventhubs.namespace: "dev-eventhub-namespace.servicebus.windows.net"
+  azure.eventhubs.hub.name: "dev-eventhub-name"
+  azure.eventhubs.consumer.group: "dev-consumer-group"
+  kafka.topic: "dev-topic-name"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+# Las credenciales se obtienen desde Vault o secrets
+# Ejemplo de estructura (los valores reales vienen de secrets)
+config_sensitive:
+  azure.eventhubs.sas.keyname: ""  # Se obtiene desde Vault/secrets
+  azure.eventhubs.sas.key: ""     # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+# Estado del conector en este entorno
+status: "RUNNING"
+
+# =============================================================================
+# METADATA (Opcional - para referencia)
+# =============================================================================
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"
+

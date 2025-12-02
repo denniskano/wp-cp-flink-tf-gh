@@ -20,9 +20,28 @@ variable "organization_id" {
   }
 }
 
-variable "statements_dir" {
-  description = "Directorio con archivos .yaml de DDL/DML"
+variable "kafka_cluster_id" {
+  description = "ID del cluster de Kafka"
   type        = string
+  validation {
+    condition     = can(regex("^lkc-[a-z0-9]+$", var.kafka_cluster_id))
+    error_message = "El kafka_cluster_id debe tener el formato 'lkc-xxxxx'."
+  }
+}
+
+variable "connectors_dir" {
+  description = "Directorio base con conectores (ej: ../../PEVE/ccloud-connectors)"
+  type        = string
+}
+
+variable "environment" {
+  description = "Environment para conectores (DES, CER, PRO)"
+  type        = string
+  default     = "DES"
+  validation {
+    condition     = contains(["DES", "CER", "PRO"], var.environment)
+    error_message = "El environment debe ser DES, CER o PRO."
+  }
 }
 
 # =============================================================================
@@ -41,52 +60,9 @@ variable "confluent_cloud_api_secret" {
   sensitive   = true
 }
 
-variable "confluent_flink_api_key" {
-  description = "Flink API Key de Confluent Cloud"
-  type        = string
-  sensitive   = true
-}
-
-variable "confluent_flink_api_secret" {
-  description = "Flink API Secret de Confluent Cloud"
-  type        = string
-  sensitive   = true
-}
-
 variable "principal_id" {
   description = "Service Account ID de Confluent Cloud"
   type        = string
   sensitive   = true
 }
 
-# =============================================================================
-# FLINK STATEMENTS CONFIGURATION
-# =============================================================================
-
-variable "catalog_name" {
-  description = "Nombre del catálogo para Flink statements"
-  type        = string
-  default     = "default"
-}
-
-variable "cluster_name" {
-  description = "Nombre del cluster para Flink statements"
-  type        = string
-  default     = "denniskano-clu"
-}
-
-variable "environment" {
-  description = "Environment para compute pools (DES, CER, PRO)"
-  type        = string
-  default     = "DES"
-  validation {
-    condition     = contains(["DES", "CER", "PRO"], var.environment)
-    error_message = "El environment debe ser DES, CER o PRO."
-  }
-}
-
-variable "flink_private_rest_endpoint" {
-  description = "Private REST endpoint de Flink (ej: https://flink.eastus2.azure.private.confluent.cloud)"
-  type        = string
-  default     = ""
-}

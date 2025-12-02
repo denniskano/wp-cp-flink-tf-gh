@@ -1,0 +1,11 @@
+statement-name: "create-table-demo-table"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+
+statement: |
+  CREATE TABLE `${catalog_name}`.`${cluster_name}`.`demo_table` (
+    id STRING,
+    name STRING,
+    created_at TIMESTAMP(3)
+  ) WITH (
+    'connector' = 'confluent'
+  );

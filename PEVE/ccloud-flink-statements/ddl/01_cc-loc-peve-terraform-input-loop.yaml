@@ -1,0 +1,9 @@
+statement-name: "cc-loc-peve-terraform-input-loop"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_01"
+
+statement: |
+  CREATE TABLE `${catalog_name}`.`${cluster_name}`.`cc-loc-peve-terraform-input-loop`(
+    my_field1 int,
+    my_field2 double,
+    my_field3 string
+  );
