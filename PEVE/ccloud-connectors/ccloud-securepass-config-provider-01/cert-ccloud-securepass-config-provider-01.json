@@ -1,0 +1,16 @@
+{
+    "name": "securepass-config-provider-01",
+    "config_nonsensitive": {
+        "name": "securepass-config-provider-01",
+        "connector.class": "SecurePassConfigProvider",
+        "kafka.auth.mode": "SERVICE_ACCOUNT",
+        "securepass.api.url": "",
+        "securepass.tenant.id": "",
+        "securepass.client.id": "",
+        "securepass.scope": "read",
+        "securepass.config.path": "",
+        "securepass.refresh.interval.ms": "300000",
+        "tasks.max": "1"
+    }
+}
+

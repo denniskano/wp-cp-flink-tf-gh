@@ -1,0 +1,23 @@
+{
+    "name": "mq-source-connector-01",
+    "config_nonsensitive": {
+        "name": "mq-source-connector-01",
+        "connector.class": "IbmMQSource",
+        "kafka.auth.mode": "SERVICE_ACCOUNT",
+        "schema.context.name": "default",
+        "output.data.format": "JSON_SR",
+        "mq.queue.manager": "",
+        "mq.connection.name.list": "",
+        "mq.queue": "",
+        "mq.channel": "",
+        "kafka.topic": "",
+        "mq.message.builder": "com.ibm.eventstreams.connect.mqsource.builders.DefaultMessageBuilder",
+        "mq.record.builder": "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder",
+        "mq.batch.size": "250",
+        "tasks.max": "1",
+        "errors.tolerance": "all",
+        "errors.deadletterqueue.context.headers.enable": "true",
+        "errors.deadletterqueue.topic.replication.factor": "3"
+    }
+}
+

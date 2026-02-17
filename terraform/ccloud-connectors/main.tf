@@ -6,46 +6,47 @@
 # LOCAL VALUES
 # =============================================================================
 locals {
-  # Mapear environment a nombre de archivo vars
-  env_vars_file = {
-    "DES" = "dev-vars.yaml"
-    "CER" = "cert-vars.yaml"
-    "PRO" = "prod-vars.yaml"
+  # Mapear environment a prefijo de archivos de configuración
+  env_prefix = {
+    "DES" = "dev"
+    "CER" = "cert"
+    "PRO" = "prod"
   }
-  
-  vars_file_name = local.env_vars_file[var.environment]
-  
+
+  prefix = local.env_prefix[var.environment]
+
+  # Nombres de archivos por entorno derivados del prefijo
+  # JSON: {prefix}-{connector-name}.json  (ej: dev-ccloud-sql-db-sink-connector-01.json)
+  # YAML: {prefix}-vars.yaml              (ej: dev-vars.yaml)
+  vars_file_name = "${local.prefix}-vars.yaml"
+
   # Encontrar todos los directorios de conectores
   all_connector_dirs = fileset(var.connectors_dir, "*")
-  
-  # Para cada directorio, encontrar archivos JSON de configuración
-  # Buscar cualquier archivo JSON en el directorio (asumimos uno por conector)
+
+  # Para cada directorio, encontrar el archivo JSON que corresponde al entorno actual
+  # Convención: {prefix}-{nombre-directorio}.json
+  # Ejemplo: dev-ccloud-azure-datalake-gen2-sink-connector-01.json
   connector_json_files = {
     for dir in local.all_connector_dirs :
-    dir => [
-      for json_file in fileset("${var.connectors_dir}/${dir}", "*.json") :
-      json_file if fileexists("${var.connectors_dir}/${dir}/${json_file}")
-    ]
+    dir => "${local.prefix}-${dir}.json"
   }
-  
-  # Filtrar solo directorios que tengan al menos un archivo JSON
+
+  # Filtrar solo directorios que tengan el archivo JSON para el entorno actual
   connector_dirs = [
-    for dir, json_files in local.connector_json_files :
-    dir if length(json_files) > 0
+    for dir, json_file in local.connector_json_files :
+    dir if fileexists("${var.connectors_dir}/${dir}/${json_file}")
   ]
-  
+
   # Cargar configuración de cada conector
   connectors_data = {
     for connector_dir in local.connector_dirs :
     connector_dir => {
-      # Usar el primer archivo JSON encontrado en el directorio
-      # (asumimos un solo archivo JSON por conector con la configuración base)
-      json_file = local.connector_json_files[connector_dir][0]
-      json_file_path = "${var.connectors_dir}/${connector_dir}/${local.connector_json_files[connector_dir][0]}"
-      
-      # Cargar configuración base del conector desde JSON
-      config_json = jsondecode(file("${var.connectors_dir}/${connector_dir}/${local.connector_json_files[connector_dir][0]}"))
-      
+      json_file      = local.connector_json_files[connector_dir]
+      json_file_path = "${var.connectors_dir}/${connector_dir}/${local.connector_json_files[connector_dir]}"
+
+      # Cargar configuración del conector desde el JSON del entorno
+      config_json = jsondecode(file("${var.connectors_dir}/${connector_dir}/${local.connector_json_files[connector_dir]}"))
+
       # Cargar variables por entorno (si existe, sino usar objeto vacío)
       vars_file_path = "${var.connectors_dir}/${connector_dir}/${local.vars_file_name}"
       vars = fileexists("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}") ? yamldecode(file("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}")) : {}

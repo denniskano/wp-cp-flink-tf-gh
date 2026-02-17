@@ -1,0 +1,23 @@
+{
+    "name": "salesforce-platform-event-sink-connector-01",
+    "config_nonsensitive": {
+        "name": "salesforce-platform-event-sink-connector-01",
+        "connector.class": "SalesforcePlatformEventSink",
+        "kafka.auth.mode": "SERVICE_ACCOUNT",
+        "schema.context.name": "default",
+        "input.data.format": "JSON_SR",
+        "salesforce.platform.event.name": "",
+        "salesforce.instance": "",
+        "salesforce.username": "",
+        "behavior.on.error": "LOG",
+        "max.retries": "10",
+        "retry.backoff.ms": "3000",
+        "tasks.max": "1",
+        "max.poll.interval.ms": "300000",
+        "max.poll.records": "500",
+        "errors.tolerance": "all",
+        "errors.deadletterqueue.context.headers.enable": "true",
+        "errors.deadletterqueue.topic.replication.factor": "3"
+    }
+}
+
