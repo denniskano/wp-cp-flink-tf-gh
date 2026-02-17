@@ -137,6 +137,22 @@ locals {
 # El service account configurado en kafka.service.account.id necesita permisos
 # RBAC (ResourceOwner o DeveloperWrite) al topic DLQ para que el conector pueda
 # escribir mensajes fallidos. Ver docs/CONNECTOR_DLQ_PERMISSIONS.md para más detalles
+# REGLA CRÍTICA: El campo 'name' en el JSON NO debe cambiarse después de la
+# creación inicial. El atributo 'name' es ForceNew en el provider de Confluent,
+# lo que significa que cambiar el nombre destruirá el conector y creará uno nuevo,
+# causando pérdida de offsets y posible re-procesamiento de mensajes.
+#
+# CÓMO FUNCIONA LA ACTUALIZACIÓN:
+# - Si cambias configuraciones (tasks.max, topics, flush.size, etc.):
+#   Terraform envía un update al provider -> actualización in-place.
+# - Si cambias el status (RUNNING/PAUSED): actualización in-place.
+# - Si cambias el 'name': DESTROY + CREATE (pérdida de offsets).
+# - Si renombras el directorio: DESTROY + CREATE (cambia la key del for_each).
+#
+# Para un cambio seguro de configuración:
+# 1. Modificar el JSON o YAML correspondiente al entorno
+# 2. Ejecutar terraform plan para verificar que propone 'update in-place'
+# 3. Si propone 'destroy and recreate', DETENER y revisar qué cambio lo provoca
 resource "confluent_connector" "connectors" {
   for_each = local.connectors_processed
   
@@ -151,5 +167,13 @@ resource "confluent_connector" "connectors" {
   config_nonsensitive = each.value.config_nonsensitive
   config_sensitive    = each.value.config_sensitive
   status              = each.value.status
+
+  # Validación: El nombre del conector debe existir y no debe cambiarse
+  lifecycle {
+    precondition {
+      condition     = can(each.value.config_nonsensitive["name"]) && each.value.config_nonsensitive["name"] != ""
+      error_message = "El campo 'name' es obligatorio en el JSON del conector: ${each.key}. REGLA: NO cambies el 'name' después de la creación inicial para evitar pérdida de offsets."
+    }
+  }
 }
 

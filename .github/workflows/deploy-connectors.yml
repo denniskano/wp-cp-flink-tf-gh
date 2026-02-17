@@ -16,19 +16,11 @@ on:
         description: 'codigo de applicación de 4 letras'
         required: true
         type: string
-      ENVIRONMENT:
-        description: 'Environment (DES, CER, PRO)'
-        required: true
-        type: choice
-        options:
-          - DES
-          - CER
-          - PRO
 
 env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
-  ENVIRONMENT: ${{ github.event.inputs.ENVIRONMENT }}
+  ENVIRONMENT: "DES"
   TF_VAR_connectors_dir: "../../${{ github.event.inputs.CODAPP }}/ccloud-connectors"
   KAFKA_CLUSTER_ID: "lkc-xxxxx"  # Actualizar con el cluster ID real
   SERVICE_ACCOUNT: "SA_AZC_DES_PEVE_POS_01"  # Actualizar según entorno
@@ -73,33 +65,24 @@ jobs:
         with:
           terraform_version: "1.5.0"
 
-      - name: Extract Environment ID and Organization ID from CC_PROPERTIES
+      - name: Extract Environment ID from CC_PROPERTIES
         id: extract-env
         run: |
           echo "CC_PROPERTIES raw content:"
           echo '${{ vars.CC_PROPERTIES }}'
           
-          # Extraer environment_id y organization_id del JSON
+          # Extraer environment_id del JSON
           ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
-          ORGANIZATION_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.organization_id')
           
           echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
-          echo "Extracted ORGANIZATION_ID: '$ORGANIZATION_ID'"
           
           if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
             echo "Error: Could not extract environment_id from CC_PROPERTIES"
             exit 1
           fi
           
-          if [ -z "$ORGANIZATION_ID" ] || [ "$ORGANIZATION_ID" == "null" ]; then
-            echo "Error: Could not extract organization_id from CC_PROPERTIES"
-            exit 1
-          fi
-          
           echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
-          echo "ORGANIZATION_ID=$ORGANIZATION_ID" >> $GITHUB_ENV
           echo "✅ Environment ID configured: $ENVIRONMENT_ID"
-          echo "✅ Organization ID configured: $ORGANIZATION_ID"
 
       - name: Get Secrets for Connectors
         id: get-secrets-connectors
@@ -126,7 +109,6 @@ jobs:
         if: github.event.inputs.action != 'destroy'
         env:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
-          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
           TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
           TF_VAR_environment: ${{ env.ENVIRONMENT }}
@@ -140,7 +122,6 @@ jobs:
         if: github.event.inputs.action == 'apply'
         env:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
-          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
           TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
           TF_VAR_environment: ${{ env.ENVIRONMENT }}
@@ -154,7 +135,6 @@ jobs:
         if: github.event.inputs.action == 'destroy'
         env:
           TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
-          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
           TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
           TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
           TF_VAR_environment: ${{ env.ENVIRONMENT }}
