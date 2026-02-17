@@ -94,16 +94,23 @@ locals {
       # Combinar config_nonsensitive: primero JSON, luego vars (vars sobrescribe)
       # Nota: El merge se hace en orden, así que vars puede sobrescribir JSON
       # Pero los valores finales (name, kafka.service.account.id, y DLQ) siempre se aplican al final
+      #
+      # kafka.service.account.id se inyecta por conector desde var.connector_principals
+      # que se obtiene dinámicamente desde Vault en el workflow usando el campo
+      # vault.service_account definido en cada YAML de entorno
       config_nonsensitive = merge(
         base_config,
         {
-          # Valores que siempre deben estar y no pueden sobrescribirse
+          # Nombre del conector (no debe cambiarse después de la creación)
           "name" = try(
             data.config_json["name"],
             try(data.config_json["config_nonsensitive"]["name"], connector_name)
-          ),
-          "kafka.service.account.id" = var.principal_id
+          )
         },
+        # Inyectar kafka.service.account.id solo si el conector tiene un principal asignado
+        contains(keys(var.connector_principals), connector_name) ? {
+          "kafka.service.account.id" = var.connector_principals[connector_name]
+        } : {},
         # Agregar configuración de DLQ si aplica
         dlq_config
       )
