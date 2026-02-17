@@ -1,0 +1,14 @@
+{
+    "name": "datagen-source-connector-01",
+    "config_nonsensitive": {
+        "name": "datagen-source-connector-01",
+        "connector.class": "DatagenSource",
+        "kafka.auth.mode": "SERVICE_ACCOUNT",
+        "schema.context.name": "default",
+        "output.data.format": "AVRO",
+        "quickstart": "ORDERS",
+        "max.interval": "5000",
+        "iterations": "10000000",
+        "tasks.max": "1"
+    }
+}
