@@ -36,7 +36,7 @@ locals {
     for connector_dir in local.connector_dirs :
     connector_dir => {
       config_json = jsondecode(file("${var.connectors_dir}/${connector_dir}/${local.prefix}-${connector_dir}.json"))
-      vars        = fileexists("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}") ? yamldecode(file("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}")) : {}
+      vars        = try(yamldecode(file("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}")), {})
     }
   }
 
