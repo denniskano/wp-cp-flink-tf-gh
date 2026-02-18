@@ -1,0 +1,35 @@
+# =============================================================================
+# CONNECTOR VARIABLES - DEVELOPMENT
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Development (DES)
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  topics: "azc-peve-connect-test"
+  azblob.account.name: "YOUR_STORAGE_ACCOUNT_NAME"
+  azblob.container.name: "YOUR_CONTAINER_NAME"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  azblob.account.key: "YOUR_STORAGE_ACCOUNT_KEY"
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+
+# =============================================================================
+# VAULT REFERENCES
+# =============================================================================
+vault:
+  service_account: "SA_AZC_DES_PEVE_BLOB_01"
+
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"

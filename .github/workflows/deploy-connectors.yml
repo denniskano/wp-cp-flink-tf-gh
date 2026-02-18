@@ -100,7 +100,13 @@ jobs:
 
       - name: Terraform Init - Connectors
         working-directory: terraform/ccloud-connectors
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=pevetfstate" \
+            -backend-config="resource_group_name=rg-peve-terraform" \
+            -backend-config="container_name=tf-connectors-${{ env.VAULT_ENV_PATH }}" \
+            -backend-config="key=${{ env.VAULT_ENV_PATH }}/${{ env.CODAPP }}/tf-connectors.tfstate" \
+            -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
 
       - name: Terraform Plan - Connectors
         working-directory: terraform/ccloud-connectors
