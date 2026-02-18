@@ -20,22 +20,14 @@ locals {
   # YAML: {prefix}-vars.yaml              (ej: dev-vars.yaml)
   vars_file_name = "${local.prefix}-vars.yaml"
 
-  # Encontrar todos los directorios de conectores
-  all_connector_dirs = fileset(var.connectors_dir, "*")
+  # Descubrir conectores buscando archivos JSON que coincidan con el entorno actual
+  # Convención: {directorio}/{prefix}-{directorio}.json
+  # Ejemplo: ccloud-datagen-source-connector-01/dev-ccloud-datagen-source-connector-01.json
+  # fileset solo retorna archivos, no directorios, por eso buscamos el patrón de JSON
+  connector_json_paths = fileset(var.connectors_dir, "*/${local.prefix}-*.json")
 
-  # Para cada directorio, determinar el archivo JSON que corresponde al entorno actual
-  # Convención: {prefix}-{nombre-directorio}.json
-  # Ejemplo: dev-ccloud-azure-datalake-gen2-sink-connector-01.json
-  connector_json_files = {
-    for dir in local.all_connector_dirs :
-    dir => "${local.prefix}-${dir}.json"
-  }
-
-  # Filtrar solo directorios que tengan el archivo JSON para el entorno actual
-  connector_dirs = [
-    for dir, json_file in local.connector_json_files :
-    dir if fileexists("${var.connectors_dir}/${dir}/${json_file}")
-  ]
+  # Extraer nombres de directorio de los paths encontrados (key del for_each)
+  connector_dirs = distinct([for path in local.connector_json_paths : dirname(path)])
 
   # Cargar configuración de cada conector:
   # - config_json: configuración base desde el JSON del entorno
@@ -43,7 +35,7 @@ locals {
   connectors_data = {
     for connector_dir in local.connector_dirs :
     connector_dir => {
-      config_json = jsondecode(file("${var.connectors_dir}/${connector_dir}/${local.connector_json_files[connector_dir]}"))
+      config_json = jsondecode(file("${var.connectors_dir}/${connector_dir}/${local.prefix}-${connector_dir}.json"))
       vars        = fileexists("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}") ? yamldecode(file("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}")) : {}
     }
   }
