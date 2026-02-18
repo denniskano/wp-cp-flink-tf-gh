@@ -8,7 +8,7 @@
 # CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
 # =============================================================================
 config_nonsensitive:
-  kafka.topic: "dev-peve-datagen-orders"
+  kafka.topic: "azc-peve-connect-test"
 
 # =============================================================================
 # CONNECTOR CONFIGURATION (Sensitive) - Environment Specific

@@ -3,7 +3,7 @@
 # =============================================================================
 
 # =============================================================================
-# LOCAL VALUES
+# LOCAL VALUES - Fase 1: Descubrimiento y carga de configuración
 # =============================================================================
 locals {
   # Mapear environment a prefijo de archivos de configuración
@@ -13,7 +13,7 @@ locals {
     "PRO" = "prod"
   }
 
-  prefix = local.env_prefix[var.environment]
+  prefix         = local.env_prefix[var.environment]
 
   # Nombres de archivos por entorno derivados del prefijo
   # JSON: {prefix}-{connector-name}.json  (ej: dev-ccloud-sql-db-sink-connector-01.json)
@@ -23,7 +23,7 @@ locals {
   # Encontrar todos los directorios de conectores
   all_connector_dirs = fileset(var.connectors_dir, "*")
 
-  # Para cada directorio, encontrar el archivo JSON que corresponde al entorno actual
+  # Para cada directorio, determinar el archivo JSON que corresponde al entorno actual
   # Convención: {prefix}-{nombre-directorio}.json
   # Ejemplo: dev-ccloud-azure-datalake-gen2-sink-connector-01.json
   connector_json_files = {
@@ -37,97 +37,129 @@ locals {
     dir if fileexists("${var.connectors_dir}/${dir}/${json_file}")
   ]
 
-  # Cargar configuración de cada conector
+  # Cargar configuración de cada conector:
+  # - config_json: configuración base desde el JSON del entorno
+  # - vars: variables por entorno desde el YAML (si existe, sino objeto vacío)
   connectors_data = {
     for connector_dir in local.connector_dirs :
     connector_dir => {
-      json_file      = local.connector_json_files[connector_dir]
-      json_file_path = "${var.connectors_dir}/${connector_dir}/${local.connector_json_files[connector_dir]}"
-
-      # Cargar configuración del conector desde el JSON del entorno
       config_json = jsondecode(file("${var.connectors_dir}/${connector_dir}/${local.connector_json_files[connector_dir]}"))
-
-      # Cargar variables por entorno (si existe, sino usar objeto vacío)
-      vars_file_path = "${var.connectors_dir}/${connector_dir}/${local.vars_file_name}"
-      vars = fileexists("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}") ? yamldecode(file("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}")) : {}
+      vars        = fileexists("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}") ? yamldecode(file("${var.connectors_dir}/${connector_dir}/${local.vars_file_name}")) : {}
     }
   }
-  
-  # Procesar y combinar configuraciones
+
+  # Extraer nombre del Service Account por conector desde vault.service_account del YAML
+  # Ejemplo: vault.service_account: "SA_AZC_DES_PEVE_DATAGEN_01"
+  connector_sa_names = {
+    for name, d in local.connectors_data :
+    name => try(d.vars["vault"]["service_account"], "")
+  }
+
+  # Obtener nombres únicos de SAs para hacer un solo lookup por SA (evita duplicados)
+  unique_sa_names = toset([
+    for sa in values(local.connector_sa_names) : sa if sa != ""
+  ])
+
+  # Combinar config_nonsensitive: primero JSON, luego YAML vars (vars sobrescribe JSON)
+  connector_base_configs = {
+    for name, d in local.connectors_data :
+    name => merge(
+      try(d.config_json["config_nonsensitive"], {}),
+      try(d.vars["config_nonsensitive"], {})
+    )
+  }
+
+  # Detectar el topic principal por conector (para generación automática de DLQ)
+  # Puede ser "topics" para sinks o "kafka.topic" para sources
+  # Si hay múltiples topics separados por comas, tomar el primero
+  connector_topics = {
+    for name, cfg in local.connector_base_configs :
+    name => (
+      try(cfg["topics"], "") != "" ?
+      trimspace(split(",", tostring(cfg["topics"]))[0]) :
+      try(tostring(cfg["kafka.topic"]), "")
+    )
+  }
+
+  # Generar nombre del DLQ: [topic-name]-dlq
+  # Solo si el topic existe y el conector tiene errors.tolerance configurado
+  # Nota: El topic DLQ debe crearse previamente por un proceso externo
+  connector_dlq_configs = {
+    for name, cfg in local.connector_base_configs :
+    name => (
+      local.connector_topics[name] != "" && try(cfg["errors.tolerance"], "") != "" ? {
+        "errors.deadletterqueue.topic.name" = "${local.connector_topics[name]}-dlq"
+      } : {}
+    )
+  }
+}
+
+# =============================================================================
+# DATA SOURCES - Resolver Service Account ID a partir del nombre
+# =============================================================================
+# Cada conector define su SA en el YAML (vault.service_account: "SA_AZC_DES_PEVE_DATAGEN_01")
+# Terraform resuelve el ID (sa-xxxxx) automáticamente via este data source
+data "confluent_service_account" "connector_sa" {
+  for_each     = local.unique_sa_names
+  display_name = each.value
+}
+
+# =============================================================================
+# LOCAL VALUES - Fase 2: Procesamiento final
+# =============================================================================
+locals {
+  # Mapa de connector -> SA ID resuelto desde el data source
+  # Ejemplo: "ccloud-datagen-source-connector-01" -> "sa-abc123"
+  connector_sa_ids = {
+    for name, sa_name in local.connector_sa_names :
+    name => sa_name != "" ? data.confluent_service_account.connector_sa[sa_name].id : ""
+  }
+
+  # Procesar y combinar configuraciones finales para cada conector
   connectors_processed = {
-    for connector_name, data in local.connectors_data :
+    for connector_name, d in local.connectors_data :
     connector_name => {
       # Obtener nombre del conector desde JSON o usar el nombre del directorio
       name = try(
-        data.config_json["name"],
-        try(data.config_json["config_nonsensitive"]["name"], connector_name)
+        d.config_json["name"],
+        try(d.config_json["config_nonsensitive"]["name"], connector_name)
       )
-      
-      # Combinar configuración base (JSON + vars) para detectar el topic
-      base_config = merge(
-        try(data.config_json["config_nonsensitive"], {}),
-        try(data.vars["config_nonsensitive"], {})
-      )
-      
-      # Detectar el topic principal (puede ser "topics" para sinks o "kafka.topic" para sources)
-      # Si hay múltiples topics separados por comas, tomar el primero y limpiar espacios
-      topics_value = try(base_config["topics"], null)
-      kafka_topic_value = try(base_config["kafka.topic"], null)
-      
-      topic_name_raw = topics_value != null && topics_value != "" ? (
-        # Si topics existe y no está vacío, tomar el primero de la lista separada por comas
-        trimspace(split(",", tostring(topics_value))[0])
-      ) : (
-        # Si no, intentar obtener de kafka.topic (sources)
-        kafka_topic_value != null && kafka_topic_value != "" ? tostring(kafka_topic_value) : ""
-      )
-      
-      # Verificar si el conector tiene configuración de DLQ (errors.tolerance configurado)
-      has_dlq_config = try(base_config["errors.tolerance"], "") != ""
-      
-      # Generar nombre del DLQ: [topic-name]-dlq
-      # Solo si el topic existe, no está vacío, y el conector tiene configuración de DLQ
-      dlq_config = length(topic_name_raw) > 0 && has_dlq_config ? {
-        "errors.deadletterqueue.topic.name" = "${topic_name_raw}-dlq"
-      } : {}
-      
-      # Combinar config_nonsensitive: primero JSON, luego vars (vars sobrescribe)
-      # Nota: El merge se hace en orden, así que vars puede sobrescribir JSON
-      # Pero los valores finales (name, kafka.service.account.id, y DLQ) siempre se aplican al final
-      #
-      # kafka.service.account.id se inyecta por conector desde var.connector_principals
-      # que se obtiene dinámicamente desde Vault en el workflow usando el campo
-      # vault.service_account definido en cada YAML de entorno
+
+      # Combinar config_nonsensitive:
+      # 1. base_config (JSON + YAML vars merge)
+      # 2. name (siempre se aplica, no puede sobrescribirse)
+      # 3. kafka.service.account.id (resuelto desde data source por SA name)
+      # 4. DLQ config (si aplica)
       config_nonsensitive = merge(
-        base_config,
+        local.connector_base_configs[connector_name],
         {
-          # Nombre del conector (no debe cambiarse después de la creación)
           "name" = try(
-            data.config_json["name"],
-            try(data.config_json["config_nonsensitive"]["name"], connector_name)
+            d.config_json["name"],
+            try(d.config_json["config_nonsensitive"]["name"], connector_name)
           )
         },
-        # Inyectar kafka.service.account.id solo si el conector tiene un principal asignado
-        contains(keys(var.connector_principals), connector_name) ? {
-          "kafka.service.account.id" = var.connector_principals[connector_name]
+        # Inyectar kafka.service.account.id resuelto desde el data source
+        # Solo si el conector tiene un SA definido en vault.service_account
+        local.connector_sa_ids[connector_name] != "" ? {
+          "kafka.service.account.id" = local.connector_sa_ids[connector_name]
         } : {},
         # Agregar configuración de DLQ si aplica
-        dlq_config
+        local.connector_dlq_configs[connector_name]
       )
-      
-      # Combinar config_sensitive: primero JSON (si existe), luego vars (vars sobrescribe)
-      # Filtrar valores vacíos ya que pueden venir como placeholders desde vars
+
+      # Combinar config_sensitive: primero JSON (si existe), luego YAML vars (vars sobrescribe)
+      # Filtrar valores vacíos ya que pueden venir como placeholders
       config_sensitive = {
         for k, v in merge(
-          try(data.config_json["config_sensitive"], {}),
-          try(data.vars["config_sensitive"], {})
+          try(d.config_json["config_sensitive"], {}),
+          try(d.vars["config_sensitive"], {})
         ) : k => v if v != "" && v != null
       }
-      
+
       # Estado del conector (desde vars o JSON, por defecto RUNNING)
       status = try(
-        data.vars["status"],
-        try(data.config_json["status"], "RUNNING")
+        d.vars["status"],
+        try(d.config_json["status"], "RUNNING")
       )
     }
   }
@@ -142,8 +174,9 @@ locals {
 # -----------------------------------------------------------------------------
 # Nota: Los topics DLQ deben crearse previamente por otro proceso externo
 # El service account configurado en kafka.service.account.id necesita permisos
-# RBAC (ResourceOwner o DeveloperWrite) al topic DLQ para que el conector pueda
-# escribir mensajes fallidos. Ver docs/CONNECTOR_DLQ_PERMISSIONS.md para más detalles
+# RBAC (DeveloperWrite/DeveloperRead) a los topics y Schema Registry correspondientes.
+# Ver docs/CONNECTOR_DLQ_PERMISSIONS.md para más detalles
+#
 # REGLA CRÍTICA: El campo 'name' en el JSON NO debe cambiarse después de la
 # creación inicial. El atributo 'name' es ForceNew en el provider de Confluent,
 # lo que significa que cambiar el nombre destruirá el conector y creará uno nuevo,
@@ -162,7 +195,7 @@ locals {
 # 3. Si propone 'destroy and recreate', DETENER y revisar qué cambio lo provoca
 resource "confluent_connector" "connectors" {
   for_each = local.connectors_processed
-  
+
   environment {
     id = var.environment_id
   }
@@ -175,12 +208,10 @@ resource "confluent_connector" "connectors" {
   config_sensitive    = each.value.config_sensitive
   status              = each.value.status
 
-  # Validación: El nombre del conector debe existir y no debe cambiarse
   lifecycle {
     precondition {
       condition     = can(each.value.config_nonsensitive["name"]) && each.value.config_nonsensitive["name"] != ""
-      error_message = "El campo 'name' es obligatorio en el JSON del conector: ${each.key}. REGLA: NO cambies el 'name' después de la creación inicial para evitar pérdida de offsets."
+      error_message = "El campo 'name' es obligatorio en el JSON del conector: ${each.key}. REGLA: NO cambies el 'name' después de la creación inicial."
     }
   }
 }
-

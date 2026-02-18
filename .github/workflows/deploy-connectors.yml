@@ -21,7 +21,6 @@ env:
   VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
   ENVIRONMENT: "DES"
-  ENV_PREFIX: "dev"
   VAULT_ENV_PATH: "dev"
   TF_VAR_connectors_dir: "../../${{ github.event.inputs.CODAPP }}/ccloud-connectors"
   KAFKA_CLUSTER_ID: "lkc-xxxxx"  # Actualizar con el cluster ID real
@@ -67,20 +66,12 @@ jobs:
         with:
           terraform_version: "1.5.0"
 
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-          yq --version
-          echo "✅ yq installed successfully"
-
       - name: Extract Environment ID from CC_PROPERTIES
         id: extract-env
         run: |
           echo "CC_PROPERTIES raw content:"
           echo '${{ vars.CC_PROPERTIES }}'
           
-          # Extraer environment_id del JSON
           ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
           
           echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
@@ -103,59 +94,9 @@ jobs:
           namespace: admin
           roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
-          exportToken: true
           secrets: |
             peve/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
             peve/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
-
-      - name: Fetch per-connector Service Account principals from Vault
-        run: |
-          echo "=== Fetching per-connector principals from Vault ==="
-          CONNECTORS_DIR="${{ env.CODAPP }}/ccloud-connectors"
-          RESULT="{}"
-
-          for dir in "$CONNECTORS_DIR"/*/; do
-            dirname=$(basename "$dir")
-            vars_file="$dir/${{ env.ENV_PREFIX }}-vars.yaml"
-
-            if [ ! -f "$vars_file" ]; then
-              echo "⚠️  No vars file found for $dirname ($vars_file), skipping..."
-              continue
-            fi
-
-            SA_NAME=$(yq '.vault.service_account' "$vars_file")
-
-            if [ "$SA_NAME" == "null" ] || [ -z "$SA_NAME" ]; then
-              echo "⚠️  No vault.service_account defined for $dirname, skipping..."
-              continue
-            fi
-
-            echo "🔑 Fetching principal_id for $dirname (SA: $SA_NAME)..."
-
-            RESPONSE=$(curl -s \
-              -H "X-Vault-Token: $VAULT_TOKEN" \
-              -H "X-Vault-Namespace: admin" \
-              "${{ env.VAULT_ADDR }}/v1/peve/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/$SA_NAME")
-
-            PRINCIPAL_ID=$(echo "$RESPONSE" | jq -r '.data.data.principal_id // empty')
-
-            if [ -z "$PRINCIPAL_ID" ]; then
-              echo "❌ ERROR: Could not fetch principal_id for SA: $SA_NAME"
-              echo "   Vault response: $(echo "$RESPONSE" | jq -r '.errors // empty')"
-              exit 1
-            fi
-
-            echo "✅ $dirname -> $PRINCIPAL_ID"
-            RESULT=$(echo "$RESULT" | jq --arg k "$dirname" --arg v "$PRINCIPAL_ID" '. + {($k): $v}')
-          done
-
-          echo ""
-          echo "=== Connector Principals Map ==="
-          echo "$RESULT" | jq .
-
-          # Escribir el mapa como archivo tfvars para que Terraform lo lea automáticamente
-          echo "{\"connector_principals\": $RESULT}" > terraform/ccloud-connectors/connector-principals.auto.tfvars.json
-          echo "✅ Written to connector-principals.auto.tfvars.json"
 
       - name: Terraform Init - Connectors
         working-directory: terraform/ccloud-connectors

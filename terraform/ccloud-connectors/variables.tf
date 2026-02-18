@@ -51,10 +51,4 @@ variable "confluent_cloud_api_secret" {
   sensitive   = true
 }
 
-variable "connector_principals" {
-  description = "Mapa de principal_id por conector (nombre_directorio => sa-xxxxx). Se obtiene dinámicamente desde Vault en el workflow."
-  type        = map(string)
-  sensitive   = true
-  default     = {}
-}
 

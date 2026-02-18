@@ -6,7 +6,7 @@
         "kafka.auth.mode": "SERVICE_ACCOUNT",
         "schema.context.name": "default",
         "output.data.format": "AVRO",
-        "quickstart": "ORDERS",
+        "quickstart": "TRANSACTIONS",
         "max.interval": "1000",
         "iterations": "10000000",
         "tasks.max": "1"
