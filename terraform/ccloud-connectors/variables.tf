@@ -51,4 +51,15 @@ variable "confluent_cloud_api_secret" {
   sensitive   = true
 }
 
+# =============================================================================
+# CONNECTOR SECRETS (inyectados desde Vault via GitHub Actions)
+# =============================================================================
+
+variable "connector_secrets" {
+  description = "Secrets por conector obtenidos de Vault. Mapa: connector_dir -> { config_key: secret_value }"
+  type        = map(map(string))
+  default     = {}
+  sensitive   = true
+}
+
 

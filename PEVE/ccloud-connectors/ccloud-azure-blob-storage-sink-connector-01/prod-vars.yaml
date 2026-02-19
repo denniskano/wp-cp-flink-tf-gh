@@ -9,14 +9,8 @@
 # =============================================================================
 config_nonsensitive:
   topics: "azc-peve-connect-test"
-  azblob.account.name: "YOUR_STORAGE_ACCOUNT_NAME"
-  azblob.container.name: "YOUR_CONTAINER_NAME"
-
-# =============================================================================
-# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
-# =============================================================================
-config_sensitive:
-  azblob.account.key: "YOUR_STORAGE_ACCOUNT_KEY"
+  azblob.account.name: "stpeveconnectpro"
+  azblob.container.name: "peve-connect-sink"
 
 # =============================================================================
 # CONNECTOR STATUS
@@ -28,7 +22,14 @@ status: "RUNNING"
 # =============================================================================
 vault:
   service_account: "SA_AZC_PRO_PEVE_BLOB_01"
+  secrets:
+    azblob.account.key:
+      path: "peve/data/prod/peve/azure/ST_PEVE_CONNECT_PRO"
+      field: "access_key"
 
+# =============================================================================
+# METADATA
+# =============================================================================
 project: "PEVE"
 recipients: dennispaitan@bcp.com.pe
 hosted: ccloud

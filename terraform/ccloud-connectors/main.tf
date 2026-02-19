@@ -139,12 +139,16 @@ locals {
         local.connector_dlq_configs[connector_name]
       )
 
-      # Combinar config_sensitive: primero JSON (si existe), luego YAML vars (vars sobrescribe)
+      # Combinar config_sensitive (orden de precedencia, ultimo gana):
+      # 1. JSON config_sensitive (si existe)
+      # 2. YAML vars config_sensitive (si existe)
+      # 3. Vault secrets (inyectados via var.connector_secrets desde GitHub Actions)
       # Filtrar valores vacíos ya que pueden venir como placeholders
       config_sensitive = {
         for k, v in merge(
           try(d.config_json["config_sensitive"], {}),
-          try(d.vars["config_sensitive"], {})
+          try(d.vars["config_sensitive"], {}),
+          try(var.connector_secrets[connector_name], {})
         ) : k => v if v != "" && v != null
       }
 

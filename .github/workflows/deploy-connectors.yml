@@ -94,9 +94,64 @@ jobs:
           namespace: admin
           roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          exportToken: true
           secrets: |
             peve/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
             peve/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Fetch connector secrets from Vault
+        run: |
+          CONNECTORS_DIR="${{ env.CODAPP }}/ccloud-connectors"
+          PREFIX="${{ env.VAULT_ENV_PATH }}"
+          SECRETS_JSON="{}"
+
+          for connector_dir in $(find "${CONNECTORS_DIR}" -mindepth 1 -maxdepth 1 -type d); do
+            connector_name=$(basename "$connector_dir")
+            vars_file="${connector_dir}/${PREFIX}-vars.yaml"
+
+            if [ ! -f "$vars_file" ]; then
+              echo "⏭️  No vars file for ${connector_name}, skipping"
+              continue
+            fi
+
+            secrets_keys=$(yq '.vault.secrets | keys | .[]' "$vars_file" 2>/dev/null || echo "")
+
+            if [ -z "$secrets_keys" ]; then
+              echo "⏭️  No vault.secrets for ${connector_name}, skipping"
+              continue
+            fi
+
+            echo "🔐 Fetching secrets for ${connector_name}..."
+            connector_secrets="{}"
+
+            while IFS= read -r key; do
+              vault_path=$(yq ".vault.secrets.\"${key}\".path" "$vars_file")
+              vault_field=$(yq ".vault.secrets.\"${key}\".field" "$vars_file")
+
+              secret_value=$(curl -s \
+                -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                -H "X-Vault-Namespace: admin" \
+                "${VAULT_ADDR}/v1/${vault_path}" | jq -r ".data.data.${vault_field}")
+
+              if [ -z "$secret_value" ] || [ "$secret_value" == "null" ]; then
+                echo "❌ Failed to fetch secret: ${vault_path} -> ${vault_field} for key ${key}"
+                exit 1
+              fi
+
+              connector_secrets=$(echo "$connector_secrets" | jq --arg k "$key" --arg v "$secret_value" '. + {($k): $v}')
+              echo "  ✅ ${key} fetched successfully"
+            done <<< "$secrets_keys"
+
+            SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg cn "$connector_name" --argjson cs "$connector_secrets" '. + {($cn): $cs}')
+          done
+
+          echo "CONNECTOR_SECRETS=${SECRETS_JSON}" >> $GITHUB_ENV
+          echo "✅ All connector secrets fetched"
 
       - name: Terraform Init - Connectors
         working-directory: terraform/ccloud-connectors
@@ -119,6 +174,7 @@ jobs:
           TF_VAR_environment: ${{ env.ENVIRONMENT }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
 
       - name: Terraform Apply - Connectors
         working-directory: terraform/ccloud-connectors
@@ -131,6 +187,7 @@ jobs:
           TF_VAR_environment: ${{ env.ENVIRONMENT }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
 
       - name: Terraform Destroy - Connectors
         working-directory: terraform/ccloud-connectors
@@ -143,6 +200,7 @@ jobs:
           TF_VAR_environment: ${{ env.ENVIRONMENT }}
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
 
       - name: Output Connectors
         working-directory: terraform/ccloud-connectors

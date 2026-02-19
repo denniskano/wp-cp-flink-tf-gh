@@ -3,8 +3,6 @@
 # =============================================================================
 # Aplicación: PEVE
 # Entorno: Development (DES)
-# Última actualización: 2024-01-XX
-# Responsable: [Nombre del equipo]
 
 # =============================================================================
 # CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
@@ -16,36 +14,27 @@ config_nonsensitive:
   topics: "poc-peve-badi-01"
 
 # =============================================================================
-# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
-# =============================================================================
-# Las credenciales se obtienen desde Vault o secrets
-# Ejemplo de estructura (los valores reales vienen de secrets)
-config_sensitive:
-  connection.username: ""  # Se obtiene desde Vault/secrets
-  connection.password: ""  # Se obtiene desde Vault/secrets
-
-# =============================================================================
 # CONNECTOR STATUS
 # =============================================================================
-# Estado del conector en este entorno
 status: "RUNNING"
 
-# =============================================================================
-# METADATA (Opcional - para referencia)
-# =============================================================================
 # =============================================================================
 # VAULT REFERENCES
 # =============================================================================
 vault:
   service_account: "SA_AZC_DES_PEVE_SQLSNK_01"
+  secrets:
+    connection.username:
+      path: "peve/data/dev/peve/ccloud/peve_ccloud_sql_bqdi_poc_dev"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/ccloud/peve_ccloud_sql_bqdi_poc_dev"
+      field: "password"
 
+# =============================================================================
+# METADATA
+# =============================================================================
 project: "PEVE"
 recipients: dennispaitan@bcp.com.pe
 hosted: ccloud
 api-key-sequence: "01"
-topic-name: poc-peve-badi-01
-secrets_hv:
-  sqlCredentials:
-    id: peve_ccloud_sql_bqdi_poc_dev
-    type: usernamePassword
-    varkey: "connection.username,connection.password"
