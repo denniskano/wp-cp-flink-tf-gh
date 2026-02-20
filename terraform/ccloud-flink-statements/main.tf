@@ -100,32 +100,14 @@ locals {
 # -----------------------------------------------------------------------------
 # DDL Statements (Data Definition Language) - Usando recursos nativos de Terraform
 # -----------------------------------------------------------------------------
-# IMPORTANTE: Este recurso usa el nombre del archivo como clave en for_each.
-# 
-# REGLA CRÍTICA: El campo 'statement-name' en el YAML NO debe cambiarse después
-# de la creación inicial. Si cambias el statement-name:
-# - Terraform detectará el cambio en el atributo statement_name
-# - El proveedor de Confluent intentará actualizar el statement con el nuevo nombre
-# - Esto puede causar errores o crear un statement duplicado
-# 
-# CÓMO FUNCIONA LA ACTUALIZACIÓN:
-# - Si solo cambias el SQL (campo 'statement'): Terraform detectará el cambio
-#   y enviará una solicitud de actualización al proveedor de Confluent.
-# - La clave del for_each (nombre del archivo) permanece igual, por lo que
-#   Terraform identifica el mismo recurso.
-# 
-# ⚠️ IMPORTANTE: El comportamiento final depende del proveedor de Confluent:
-# - El proveedor puede actualizar el statement in-place (preservando offsets)
-# - O puede destruir y recrear el statement (perdiendo offsets)
-# - Esto NO lo controla Terraform, sino la implementación del proveedor
-# 
-# Para verificar el comportamiento, ejecuta 'terraform plan' después de un cambio
-# y revisa si propone 'update in-place' o 'destroy and recreate'.
-# Ver también: VERIFY_PROVIDER_BEHAVIOR.md
-# 
-# Si necesitas cambiar el statement-name, debes:
-# 1. Renombrar el archivo YAML (esto creará un nuevo recurso)
-# 2. O eliminar el statement antiguo manualmente y crear uno nuevo
+# Usa el nombre del archivo como clave en for_each para identificar cada recurso.
+#
+# El SQL de un statement es INMUTABLE en Confluent Cloud: cualquier cambio en el
+# campo 'statement' resultara en destroy + create (se pierden offsets).
+# Solo 'stopped' se puede actualizar in-place.
+#
+# No cambiar 'statement-name' despues de la creacion inicial.
+# Si necesitas un SQL diferente, crear un nuevo archivo YAML con nuevo nombre.
 resource "confluent_flink_statement" "ddl_statements" {
   for_each = local.ddl_map
   
@@ -177,32 +159,14 @@ resource "confluent_flink_statement" "ddl_statements" {
 # -----------------------------------------------------------------------------
 # DML Statements (Data Manipulation Language) - Usando recursos nativos de Terraform
 # -----------------------------------------------------------------------------
-# IMPORTANTE: Este recurso usa el nombre del archivo como clave en for_each.
-# 
-# REGLA CRÍTICA: El campo 'statement-name' en el YAML NO debe cambiarse después
-# de la creación inicial. Si cambias el statement-name:
-# - Terraform detectará el cambio en el atributo statement_name
-# - El proveedor de Confluent intentará actualizar el statement con el nuevo nombre
-# - Esto puede causar errores o crear un statement duplicado
-# 
-# CÓMO FUNCIONA LA ACTUALIZACIÓN:
-# - Si solo cambias el SQL (campo 'statement'): Terraform detectará el cambio
-#   y enviará una solicitud de actualización al proveedor de Confluent.
-# - La clave del for_each (nombre del archivo) permanece igual, por lo que
-#   Terraform identifica el mismo recurso.
-# 
-# ⚠️ IMPORTANTE: El comportamiento final depende del proveedor de Confluent:
-# - El proveedor puede actualizar el statement in-place (preservando offsets)
-# - O puede destruir y recrear el statement (perdiendo offsets)
-# - Esto NO lo controla Terraform, sino la implementación del proveedor
-# 
-# Para verificar el comportamiento, ejecuta 'terraform plan' después de un cambio
-# y revisa si propone 'update in-place' o 'destroy and recreate'.
-# Ver también: VERIFY_PROVIDER_BEHAVIOR.md
-# 
-# Si necesitas cambiar el statement-name, debes:
-# 1. Renombrar el archivo YAML (esto creará un nuevo recurso)
-# 2. O eliminar el statement antiguo manualmente y crear uno nuevo
+# Usa el nombre del archivo como clave en for_each para identificar cada recurso.
+#
+# El SQL de un statement es INMUTABLE en Confluent Cloud: cualquier cambio en el
+# campo 'statement' resultara en destroy + create (se pierden offsets).
+# Solo 'stopped' se puede actualizar in-place.
+#
+# No cambiar 'statement-name' despues de la creacion inicial.
+# Si necesitas un SQL diferente, crear un nuevo archivo YAML con nuevo nombre.
 resource "confluent_flink_statement" "dml_statements" {
   for_each = local.dml_map
   
