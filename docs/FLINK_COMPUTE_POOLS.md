@@ -22,17 +22,33 @@ Cada Compute Pool:
 
 ```
 Confluent Cloud
-├── Environment (env-xxxxx)
-│   ├── Kafka Cluster Dedicado (lkc-xxxxx)
-│   ├── Schema Registry (lsrc-xxxxx)
-│   ├── Compute Pool - Produccion (CP_AZC_PRO_PEVE_01)
+├── Environment bcp_desa
+│   ├── Kafka Cluster Dedicado
+│   ├── Schema Registry
+│   ├── Compute Pool: CP_AZC_DES_PEVE_01
 │   │   ├── DDL Statements (CREATE TABLE)
 │   │   └── DML Statements (INSERT INTO SELECT)
-│   ├── Compute Pool - Desarrollo (CP_AZC_DES_PEVE_01)
-│   │   ├── DDL Statements
-│   │   └── DML Statements
-│   └── Compute Pool - Ad-hoc Queries (CP_AZC_DES_PEVE_ADHOC)
-│       └── SELECT queries exploratorias
+│   └── Compute Pool: CP_AZC_DES_XXXX_01
+│       ├── DDL Statements (CREATE TABLE)
+│       └── DML Statements (INSERT INTO SELECT)
+├── Environment bcp_cert
+│   ├── Kafka Cluster Dedicado
+│   ├── Schema Registry
+│   ├── Compute Pool: CP_AZC_CER_PEVE_01
+│   │   ├── DDL Statements (CREATE TABLE)
+│   │   └── DML Statements (INSERT INTO SELECT)
+│   └── Compute Pool: CP_AZC_CER_XXXX_01
+│       ├── DDL Statements (CREATE TABLE)
+│       └── DML Statements (INSERT INTO SELECT)
+└── Environment bcp_prod
+    ├── Kafka Cluster Dedicado
+    ├── Schema Registry
+    ├── Compute Pool: CP_AZC_PRO_PEVE_01
+    │   ├── DDL Statements (CREATE TABLE)
+    │   └── DML Statements (INSERT INTO SELECT)
+    └── Compute Pool: CP_AZC_PRO_XXXX_01
+        ├── DDL Statements (CREATE TABLE)
+        └── DML Statements (INSERT INTO SELECT)
 ```
 
 ---
@@ -161,13 +177,13 @@ Estos limites son absolutos por statement, no dependen del tamano del compute po
 
 ### 1. Separar compute pools por prioridad
 
-No mezclar statements criticos de produccion con queries ad-hoc o desarrollo. Cuando el pool alcanza su max_cfu, los statements compiten por recursos.
+No mezclar workloads criticos con workloads no criticos dentro del mismo compute pool. Cuando el pool alcanza su max_cfu, los statements compiten por recursos.
 
 | Pool | Uso | max_cfu sugerido |
 |---|---|---|
-| `CP_AZC_PRO_PEVE_01` | Statements DML de produccion | 20-50 |
-| `CP_AZC_DES_PEVE_01` | Desarrollo y testing | 5-10 |
-| `CP_AZC_DES_PEVE_ADHOC` | Queries exploratorias (SELECT interactivos) | 5 |
+| `CP_AZC_DES_PEVE_01` | Statements de desarrollo de la aplicacion PEVE (bcp_desa) | 5-10 |
+| `CP_AZC_CER_PEVE_01` | Statements de certificacion de la aplicacion PEVE (bcp_cert) | 10-20 |
+| `CP_AZC_PRO_PEVE_01` | Statements de produccion de la aplicacion PEVE (bcp_prod) | 20-50 |
 
 ### 2. Dimensionar max_cfu correctamente
 
