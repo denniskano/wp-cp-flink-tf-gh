@@ -134,7 +134,7 @@ Fuente: [Documentacion oficial de Confluent](https://docs.confluent.io/cloud/cur
 ### Ejemplo basico: Topic Avro simple
 
 ```sql
-CREATE TABLE `catalog`.`cluster`.`mi-topic` (
+CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic` (
   transaction_id STRING,
   amount DOUBLE,
   currency STRING,
@@ -146,7 +146,7 @@ CREATE TABLE `catalog`.`cluster`.`mi-topic` (
 ### Ejemplo: Topic Avro con schema anidado
 
 ```sql
-CREATE TABLE `catalog`.`cluster`.`mi-topic-complejo` (
+CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic-complejo` (
   order_id STRING,
   customer ROW<
     name STRING,
@@ -171,7 +171,7 @@ CREATE TABLE `catalog`.`cluster`.`mi-topic-complejo` (
 ### Ejemplo: DDL con propiedades de connector y changelog
 
 ```sql
-CREATE TABLE `catalog`.`cluster`.`mi-topic-changelog` (
+CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic-changelog` (
   id STRING,
   name STRING,
   value DOUBLE,
@@ -201,7 +201,7 @@ Cuando el topic ya existe y el schema Avro ya esta registrado, puedes consultar 
 #### Ejemplo 1: Reproceso completo desde el inicio (`earliest-offset`)
 
 ```sql
-CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-earliest` (
+CREATE TABLE `{catalog_name}`.`{cluster_name}`.`azc-peve-orders-earliest` (
   order_id STRING,
   customer_id STRING,
   amount DECIMAL(18,2),
@@ -215,7 +215,7 @@ CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-earliest` (
 #### Ejemplo 2: Solo nuevos eventos (`latest-offset`)
 
 ```sql
-CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-latest` (
+CREATE TABLE `{catalog_name}`.`{cluster_name}`.`azc-peve-orders-latest` (
   order_id STRING,
   customer_id STRING,
   amount DECIMAL(18,2),
@@ -229,7 +229,7 @@ CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-latest` (
 #### Ejemplo 3: Arrancar desde instante especifico (`timestamp`)
 
 ```sql
-CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-ts` (
+CREATE TABLE `{catalog_name}`.`{cluster_name}`.`azc-peve-orders-ts` (
   order_id STRING,
   customer_id STRING,
   amount DECIMAL(18,2),
