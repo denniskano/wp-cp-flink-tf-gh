@@ -2,6 +2,8 @@
 
 ## Confluent Cloud for Apache Flink
 
+> **Alcance de este documento**: Este modelo operativo asume un **entorno Confluent Cloud Dedicated** (Kafka Cluster Dedicated + Schema Registry administrado en Confluent Cloud).
+
 ---
 
 ## Que es un Compute Pool

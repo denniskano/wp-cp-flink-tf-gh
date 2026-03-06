@@ -2,6 +2,8 @@
 
 ## Confluent Cloud for Apache Flink
 
+> **Alcance de este documento**: Este modelo operativo asume un **entorno Confluent Cloud Dedicated**, con topics Kafka precreados y schemas Avro en Schema Registry.
+
 ---
 
 ## Conceptos Fundamentales
@@ -13,23 +15,47 @@
 | **DDL** | Data Definition Language | Define/modifica metadata (tablas, vistas) | CREATE TABLE, ALTER TABLE, DROP TABLE |
 | **DML** | Data Manipulation Language | Procesa/transforma datos | INSERT INTO SELECT, SELECT |
 
-### Por que son necesarios los DDLs
+### Cuando son necesarios los DDLs
 
-En Confluent Cloud Flink, **los topics de Kafka no son visibles como tablas automaticamente**. Para que Flink pueda leer o escribir en un topic, necesitas crear un DDL (CREATE TABLE) que:
+En Confluent Cloud Flink, los topics existentes pueden aparecer como tablas en el workspace. De hecho, la documentacion oficial indica que para topics existentes puedes ejecutar `SHOW TABLES` y consultar con `SELECT`, porque Confluent Cloud **registra automaticamente tablas Flink sobre tus topics**.
 
-1. Mapea el topic de Kafka a una tabla Flink
-2. Define el schema de los campos (tipos de datos)
-3. Establece el formato de serializacion (AVRO, JSON_SR, PROTOBUF)
-4. Configura la estrategia de watermark para procesamiento basado en tiempo de evento
-5. Define propiedades adicionales (changelog.mode, scan.startup.mode, etc.)
+Esto coincide con tu prueba en cluster dedicado: si ya tienes topics creados y schema Avro en Schema Registry, esos topics pueden quedar disponibles para consulta sin definir un `CREATE TABLE` manual.
 
-Sin un DDL, Flink no puede interactuar con el topic.
+Entonces, los DDLs (`CREATE TABLE`) no siempre son "obligatorios" para visibilidad basica. Son recomendables cuando necesitas **control explicito** del contrato y del comportamiento de la tabla, por ejemplo:
 
-**Nota**: Si el topic ya tiene un schema registrado en Schema Registry, Confluent Cloud puede auto-detectar la tabla. Sin embargo, para control total (watermarks custom, propiedades especificas), se recomienda crear el DDL explicitamente.
+1. Definir/ajustar watermark personalizado sobre columnas de evento
+2. Configurar propiedades avanzadas (`changelog.mode`, `scan.startup.mode`, etc.)
+3. Declarar metadata columns o computed columns
+4. Definir primary key, distribucion o particionado de tabla
+5. Estandarizar y versionar el contrato SQL en IaC (Terraform + YAML)
+
+**Regla practica**:
+- **Exploracion/lectura rapida** de topics existentes: auto-registro puede ser suficiente.
+- **Pipelines productivos y controlados**: usar DDL explicito para gobernanza, trazabilidad y reproducibilidad.
 
 ### Inmutabilidad de statements
 
 El SQL de un statement es **inmutable**: no se puede modificar una vez enviado. Si necesitas editar un statement, debes detener el statement actual y crear uno nuevo con el SQL corregido.
+
+### Implicacion directa en Terraform
+
+En este modelo (Terraform + YAML por statement), cualquier cambio en el campo `statement` (SQL) debe tratarse como **reemplazo del recurso**: se elimina el statement existente y se crea uno nuevo.
+
+Esto implica:
+
+- Se pierden offsets del statement anterior al recrearse
+- Puede existir una ventana sin procesamiento durante el reemplazo
+- Es obligatorio revisar `terraform plan` antes de aplicar para confirmar si aparece `-/+` (replace)
+
+Cambios que normalmente son in-place:
+
+- `stopped` (`true` / `false`) para pausar o reanudar
+
+Cambios que en la practica deben tratarse como nuevo statement:
+
+- Modificacion del SQL (`statement`)
+- Cambio de `statement-name`
+- Renombrar el archivo YAML (al cambiar la clave del `for_each`)
 
 ### Limites importantes
 
@@ -167,6 +193,55 @@ CREATE TABLE `catalog`.`cluster`.`mi-topic-changelog` (
 | `scan.startup.timestamp-millis` | Epoch en ms | Usado con `scan.startup.mode = timestamp` |
 | `kafka.cleanup-policy` | `delete`, `compact` | Politica de limpieza del topic |
 | `value.format` | `avro-confluent`, `json-sr`, `protobuf` | Formato de serializacion |
+
+### Ejemplos para topics precreados (Dedicated + Avro en Schema Registry)
+
+Cuando el topic ya existe y el schema Avro ya esta registrado, puedes consultar via auto-registro. Pero si necesitas controlar desde que offset iniciar, crea/declara la tabla explicitamente con `WITH`.
+
+#### Ejemplo 1: Reproceso completo desde el inicio (`earliest-offset`)
+
+```sql
+CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-earliest` (
+  order_id STRING,
+  customer_id STRING,
+  amount DECIMAL(18,2),
+  created_at TIMESTAMP_LTZ(3),
+  WATERMARK FOR created_at AS created_at - INTERVAL '5' SECONDS
+) WITH (
+  'scan.startup.mode' = 'earliest-offset'
+);
+```
+
+#### Ejemplo 2: Solo nuevos eventos (`latest-offset`)
+
+```sql
+CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-latest` (
+  order_id STRING,
+  customer_id STRING,
+  amount DECIMAL(18,2),
+  created_at TIMESTAMP_LTZ(3),
+  WATERMARK FOR created_at AS created_at - INTERVAL '5' SECONDS
+) WITH (
+  'scan.startup.mode' = 'latest-offset'
+);
+```
+
+#### Ejemplo 3: Arrancar desde instante especifico (`timestamp`)
+
+```sql
+CREATE TABLE `catalog`.`cluster`.`azc-peve-orders-ts` (
+  order_id STRING,
+  customer_id STRING,
+  amount DECIMAL(18,2),
+  created_at TIMESTAMP_LTZ(3),
+  WATERMARK FOR created_at AS created_at - INTERVAL '5' SECONDS
+) WITH (
+  'scan.startup.mode' = 'timestamp',
+  'scan.startup.timestamp-millis' = '1735689600000'
+);
+```
+
+> `1735689600000` corresponde a `2025-01-01T00:00:00Z`. Ajustalo al punto de recuperacion requerido.
 
 ---
 
@@ -655,6 +730,8 @@ lifecycle {
 ## Referencias
 
 - [Documentacion oficial: Flink SQL Statements (conceptos)](https://docs.confluent.io/cloud/current/flink/concepts/statements.html)
+- [Documentacion oficial: Flink SQL Quick Start (query existing topics)](https://docs.confluent.io/cloud/current/flink/get-started/quick-start-cloud-console.html)
+- [Documentacion oficial: CREATE TABLE](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html)
 - [Documentacion oficial: Data Type Mappings](https://docs.confluent.io/cloud/current/flink/reference/serialization.html)
 - [Documentacion oficial: Best Practices](https://docs.confluent.io/cloud/current/flink/operate-and-deploy/best-practices.html)
 - [Documentacion oficial: SQL Statements Overview](https://docs.confluent.io/cloud/current/flink/reference/statements/overview.html)
