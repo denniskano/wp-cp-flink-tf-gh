@@ -110,7 +110,12 @@ jobs:
           PREFIX="${{ env.VAULT_ENV_PATH }}"
           SECRETS_JSON="{}"
 
-          for connector_dir in $(find "${CONNECTORS_DIR}" -mindepth 1 -maxdepth 1 -type d); do
+          if [ -z "${VAULT_TOKEN:-}" ]; then
+            echo "❌ VAULT_TOKEN no está disponible (vault-action exportToken=true falló o no corrió)."
+            exit 1
+          fi
+
+          for connector_dir in $(find "${CONNECTORS_DIR}" -mindepth 1 -maxdepth 1 -type d | sort); do
             connector_name=$(basename "$connector_dir")
             vars_file="${connector_dir}/${PREFIX}-vars.yaml"
 
@@ -119,7 +124,8 @@ jobs:
               continue
             fi
 
-            secrets_keys=$(yq '.vault.secrets | keys | .[]' "$vars_file" 2>/dev/null || echo "")
+            # -r: raw strings (sin comillas). Si no existe .vault.secrets, yq falla y devolvemos vacío.
+            secrets_keys=$(yq -r '.vault.secrets | keys | .[]' "$vars_file" 2>/dev/null || echo "")
 
             if [ -z "$secrets_keys" ]; then
               echo "⏭️  No vault.secrets for ${connector_name}, skipping"
@@ -130,13 +136,30 @@ jobs:
             connector_secrets="{}"
 
             while IFS= read -r key; do
-              vault_path=$(yq ".vault.secrets.\"${key}\".path" "$vars_file")
-              vault_field=$(yq ".vault.secrets.\"${key}\".field" "$vars_file")
+              vault_path=$(yq -r ".vault.secrets.\"${key}\".path" "$vars_file")
+              vault_field=$(yq -r ".vault.secrets.\"${key}\".field" "$vars_file")
 
-              secret_value=$(curl -s \
+              if [ -z "$vault_path" ] || [ "$vault_path" == "null" ] || [ -z "$vault_field" ] || [ "$vault_field" == "null" ]; then
+                echo "❌ vault.secrets.${key} debe tener path y field (no null) en ${vars_file}"
+                exit 1
+              fi
+
+              vault_resp=$(curl -sS \
+                -w "\n%{http_code}" \
                 -H "X-Vault-Token: ${VAULT_TOKEN}" \
                 -H "X-Vault-Namespace: admin" \
-                "${VAULT_ADDR}/v1/${vault_path}" | jq -r ".data.data.${vault_field}")
+                "${VAULT_ADDR}/v1/${vault_path}")
+
+              http_code="$(echo "$vault_resp" | tail -n 1)"
+              body="$(echo "$vault_resp" | sed '$d')"
+
+              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                echo "❌ Vault HTTP ${http_code} al leer ${vault_path}"
+                echo "$body" | jq -r '.' || true
+                exit 1
+              fi
+
+              secret_value=$(echo "$body" | jq -r ".data.data.${vault_field}")
 
               if [ -z "$secret_value" ] || [ "$secret_value" == "null" ]; then
                 echo "❌ Failed to fetch secret: ${vault_path} -> ${vault_field} for key ${key}"
@@ -150,7 +173,12 @@ jobs:
             SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg cn "$connector_name" --argjson cs "$connector_secrets" '. + {($cn): $cs}')
           done
 
-          echo "CONNECTOR_SECRETS=${SECRETS_JSON}" >> $GITHUB_ENV
+          # Export robusto para JSON (evita problemas con caracteres especiales).
+          {
+            echo "CONNECTOR_SECRETS<<'EOF'"
+            echo "${SECRETS_JSON}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
           echo "✅ All connector secrets fetched"
 
       - name: Terraform Init - Connectors
