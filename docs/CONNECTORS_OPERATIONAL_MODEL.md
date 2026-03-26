@@ -21,12 +21,16 @@ Este documento define el modelo operativo para la gestión de conectores full-ma
 PEVE/
 └── ccloud-connectors/
     ├── connector-01/
-    │   ├── connector-config.json    # Configuración base del conector (non-sensitive)
+    │   ├── dev-connector-01.json    # Configuración base/non-sensitive para DES
+    │   ├── cert-connector-01.json   # Configuración base/non-sensitive para CER
+    │   ├── prod-connector-01.json   # Configuración base/non-sensitive para PRO
     │   ├── dev-vars.yaml            # Variables para desarrollo
     │   ├── cert-vars.yaml           # Variables para certificación
     │   └── prod-vars.yaml           # Variables para producción
     └── connector-02/
-        ├── connector-config.json
+        ├── dev-connector-02.json
+        ├── cert-connector-02.json
+        ├── prod-connector-02.json
         ├── dev-vars.yaml
         ├── cert-vars.yaml
         └── prod-vars.yaml
@@ -36,9 +40,13 @@ PEVE/
 
 ### **1. Configuración Base del Conector**
 
-#### **Archivo: `{CODAPP}/ccloud-connectors/{connector-name}/{connector-name}.json`**
+#### **Archivos JSON por entorno**
 
-Este archivo JSON contiene la configuración base del conector (non-sensitive) que es común a todos los entornos. Los valores específicos por entorno se definen en los archivos `{env}-vars.yaml`.
+- `{CODAPP}/ccloud-connectors/{connector-name}/dev-{connector-name}.json`
+- `{CODAPP}/ccloud-connectors/{connector-name}/cert-{connector-name}.json`
+- `{CODAPP}/ccloud-connectors/{connector-name}/prod-{connector-name}.json`
+
+Cada entorno tiene su propio JSON base (non-sensitive). Los valores adicionales/overrides por entorno se definen en `{env}-vars.yaml`.
 
 ```json
 {
@@ -68,14 +76,15 @@ Este archivo JSON contiene la configuración base del conector (non-sensitive) q
 ```
 
 **Notas importantes:**
-- El archivo JSON debe contener `name` y `config_nonsensitive`
+- Cada archivo JSON de entorno debe contener `name` y `config_nonsensitive`
+- Convención de nombre: `{prefix}-{connector-name}.json`, donde `{prefix}` es `dev`, `cert` o `prod`
 - **NO incluir** valores específicos por entorno como:
   - `connection.host`
   - `connection.port`
   - `db.name`
   - `topics`
   - `kafka.service.account.id` (se inyecta automáticamente)
-- Estos valores van en `{env}-vars.yaml` y sobrescriben el JSON
+- Estos valores van en `{env}-vars.yaml` y sobrescriben el JSON del entorno
 
 ### **2. Variables por Entorno**
 
@@ -215,7 +224,10 @@ TF_VAR_connector_password: ${{ env.CONNECTOR_PASSWORD }}
   - `ccloud-http-source-connector-01`
 
 ### **4. Archivos de Configuración**
-- **Configuración base**: `{connector-name}.json` (archivo JSON con configuración non-sensitive)
+- **Configuración base por entorno**:
+  - `dev-{connector-name}.json`
+  - `cert-{connector-name}.json`
+  - `prod-{connector-name}.json`
 - **Variables por entorno**: `{env}-vars.yaml` donde `{env}` es `dev`, `cert`, o `prod`
 
 ## 🔧 Proceso Operativo
@@ -231,14 +243,16 @@ mkdir -p {CODAPP}/ccloud-connectors/{connector-name}
 #### **Paso 2: Crear Archivos de Configuración**
 ```bash
 # Crear archivos de configuración
-touch {CODAPP}/ccloud-connectors/{connector-name}/{connector-name}.json
+touch {CODAPP}/ccloud-connectors/{connector-name}/dev-{connector-name}.json
+touch {CODAPP}/ccloud-connectors/{connector-name}/cert-{connector-name}.json
+touch {CODAPP}/ccloud-connectors/{connector-name}/prod-{connector-name}.json
 touch {CODAPP}/ccloud-connectors/{connector-name}/dev-vars.yaml
 touch {CODAPP}/ccloud-connectors/{connector-name}/cert-vars.yaml
 touch {CODAPP}/ccloud-connectors/{connector-name}/prod-vars.yaml
 ```
 
 #### **Paso 3: Configurar Conector Base**
-1. Editar el archivo JSON `{connector-name}.json` con la configuración base
+1. Editar `dev-{connector-name}.json`, `cert-{connector-name}.json` y `prod-{connector-name}.json` con la configuración base del entorno
 2. Definir `name` del conector
 3. Configurar `config_nonsensitive` con valores comunes (sin valores específicos por entorno)
 4. **NO incluir** `config_sensitive` en el JSON (se define en vars)
@@ -286,7 +300,7 @@ terraform apply
 ### **3. Gestión de Conectores Existentes**
 
 #### **Actualizar Configuración**
-1. Editar el archivo JSON `{connector-name}.json` (configuración base) o `{env}-vars.yaml` (valores por entorno)
+1. Editar el archivo JSON del entorno (`dev-{connector-name}.json`, `cert-{connector-name}.json` o `prod-{connector-name}.json`) o `{env}-vars.yaml`
 2. Hacer commit de los cambios
 3. Ejecutar el workflow con `action: apply`
 
@@ -302,8 +316,8 @@ terraform apply
 
 La configuración se combina en el siguiente orden (último sobrescribe):
 
-1. **`{connector-name}.json`** → Configuración base (non-sensitive)
-2. **`{env}-vars.yaml`** → Variables por entorno (sobrescribe JSON)
+1. **`{prefix}-{connector-name}.json`** → Configuración base del entorno (non-sensitive)
+2. **`{env}-vars.yaml`** → Variables por entorno (sobrescribe JSON del entorno)
 3. **Valores forzados** → `name` y `kafka.service.account.id` (siempre se aplican)
 
 ## 📊 Conectores Soportados
@@ -334,7 +348,7 @@ Para ver la lista completa de conectores disponibles, consulta la [documentació
 
 ### **Error: "Connector directory not found"**
 - Verificar que el directorio `{CODAPP}/ccloud-connectors/{connector-name}` existe
-- Verificar que contiene un archivo JSON (ej: `{connector-name}.json`)
+- Verificar que contiene el JSON del entorno (ej: `dev-{connector-name}.json`)
 
 ### **Error: "Environment vars file not found"**
 - Verificar que existe `{env}-vars.yaml` para el entorno seleccionado

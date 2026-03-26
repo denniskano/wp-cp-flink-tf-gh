@@ -25,7 +25,7 @@ Entonces, los DDLs (`CREATE TABLE`) no siempre son "obligatorios" para visibilid
 
 1. Definir/ajustar watermark personalizado sobre columnas de evento
 2. Configurar propiedades avanzadas (`changelog.mode`, `scan.startup.mode`, etc.)
-3. Declarar metadata columns o computed columns
+3. Declarar metadata columns o computed columns (incluida la propagacion de **headers** de Kafka)
 4. Definir primary key, distribucion o particionado de tabla
 5. Estandarizar y versionar el contrato SQL en IaC (Terraform + YAML)
 
@@ -242,6 +242,56 @@ CREATE TABLE `{catalog_name}`.`{cluster_name}`.`azc-peve-orders-ts` (
 ```
 
 > `1735689600000` corresponde a `2025-01-01T00:00:00Z`. Ajustalo al punto de recuperacion requerido.
+
+### Propagacion de headers en topics existentes
+
+Los registros de Kafka pueden llevar **headers** (pares clave/valor en bytes). En Confluent Cloud for Apache Flink no forman parte del schema Avro en Schema Registry; se exponen como **columnas de metadata** (`METADATA`; clave de metadata `headers`). Ver [SQL CREATE TABLE](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html) (*Metadata columns*) y [SQL ALTER TABLE](https://docs.confluent.io/cloud/current/flink/reference/statements/alter-table.html) (*Read and/or write Kafka headers*, *Add headers as a metadata column*).
+
+**Patron general** (tablas ya existentes sobre topics existentes)
+
+1. **Origen**: `ALTER TABLE ... ADD` la columna `headers` como `MAP<BYTES, BYTES> METADATA VIRTUAL` para **leer** headers sin mezclarlos con el payload en un `INSERT INTO ... SELECT *`.
+2. **Destino**: un solo `ALTER TABLE ... ADD` con `MAP<BYTES, BYTES> METADATA` **sin** `VIRTUAL`, para que la columna sea **escribible** en el `INSERT` (misma idea que anadir otras metadata legibles/escribibles sin `VIRTUAL` en la doc de ALTER TABLE).
+3. **DML**: en el `SELECT` lista las columnas de negocio **y** `headers` hacia la tabla destino, o bien un `MAP[ ... ]` nuevo con **solo** las claves de header que quieras reenviar.
+
+Ejemplo minimal (nombres de catalogo/cluster como placeholders; asume que `orders-in` y `orders-out` ya existen como tablas Flink sobre esos topics):
+
+```sql
+-- Origen: expone headers de Kafka (solo lectura)
+ALTER TABLE `{catalog_name}`.`{cluster_name}`.`orders-in`
+  ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;
+
+-- Destino: una sola sentencia; METADATA sin VIRTUAL => escribible en el mensaje de salida
+ALTER TABLE `{catalog_name}`.`{cluster_name}`.`orders-out`
+  ADD `headers` MAP<BYTES, BYTES> METADATA;
+
+INSERT INTO `{catalog_name}`.`{cluster_name}`.`orders-out`
+SELECT order_id, amount, `headers`
+FROM `{catalog_name}`.`{cluster_name}`.`orders-in`;
+```
+
+**Solo algunos headers** (reconstruyes un `MAP` nuevo con las claves que quieres; el resto no se reenvian). Con `MAP<STRING, STRING>` en metadata puedes usar literales como `'trace-id'` en el mapa; Confluent documenta `ALTER TABLE ... MODIFY headers MAP<STRING, STRING> METADATA` cuando quieres ese tipo (incluida la conversion implicita desde bytes).
+
+```sql
+INSERT INTO `{catalog_name}`.`{cluster_name}`.`orders-out`
+SELECT
+  order_id,
+  amount,
+  MAP[
+    'trace-id', `headers`['trace-id'],
+    'tenant-id', `headers`['tenant-id']
+  ] AS `headers`
+FROM `{catalog_name}`.`{cluster_name}`.`orders-in`;
+```
+
+Si mantienes `MAP<BYTES, BYTES>`, construye el mapa de salida con `element_at(headers, clave_bytes)` por cada header que quieras copiar (las claves en Kafka suelen ser bytes UTF-8 del nombre del header).
+
+Si necesitas otro nombre de columna que no sea `headers`, usa `METADATA FROM 'headers'` (con o sin `VIRTUAL` segun lectura vs escritura).
+
+**Notas operativas**
+
+- Los valores por defecto son **bytes** en el mapa; Confluent documenta tambien `MODIFY` a `MAP<STRING, STRING> METADATA` con conversion implicita desde bytes cuando conviene construir headers en el `INSERT`.
+- Las claves de headers deben ser **unicas** (no hay multi-header con la misma clave).
+- Para **cambiar** el SQL del statement (incluida la propagacion de headers), recuerda la **inmutabilidad**: nuevo statement o nuevo `statement-name` segun vuestro flujo con Terraform.
 
 ---
 
