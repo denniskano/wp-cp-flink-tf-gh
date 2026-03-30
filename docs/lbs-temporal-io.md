@@ -1,6 +1,6 @@
 # Línea base de seguridad — Temporal Platform (Temporal.io)
 
-Documento orientado a **Temporal Cloud** y **Temporal autogestionado (self-hosted)**, alineado a la estructura de líneas base de seguridad internas. Los requisitos técnicos citados provienen de la **documentación oficial de Temporal** ([Temporal Platform Documentation](https://docs.temporal.io/)).
+Documento orientado **exclusivamente a Temporal Cloud** (SaaS), alineado a la estructura de líneas base de seguridad internas. Los requisitos técnicos citados provienen de la **documentación oficial de Temporal** ([Temporal Platform Documentation](https://docs.temporal.io/)). **No cubre** despliegue autogestionado (self-hosted).
 
 Los **procedimientos, estándares de nombres, modelo de accesos corporativo y herramientas internas** del cliente (en este documento: **Banco de Crédito del Perú — BCP**) se referencian en el **[índice de enlaces internos](#índice-de-enlaces-internos-bcp--completar)**. Sustituir cada marcador de enlace por la URL definitiva (Confluence, ServiceNow, repositorio, etc.).
 
@@ -12,8 +12,8 @@ Los **procedimientos, estándares de nombres, modelo de accesos corporativo y he
 |--------|--------|
 | **Código / tecnología** | Temporal Platform (Temporal.io) |
 | **Tipo** | Línea base de seguridad (LBS) |
-| **Modalidad** | SaaS (**Temporal Cloud**) y/o **autogestionado** |
-| **Complejidad** | Baja / Media / Alta (según despliegue y controles) |
+| **Modalidad** | SaaS (**Temporal Cloud**) |
+| **Complejidad** | Baja / Media / Alta (según Namespaces, conectividad y controles BCP) |
 | **Estado** | Borrador técnico — completar metadatos, responsables y [enlaces internos](#índice-de-enlaces-internos-bcp--completar) |
 
 ### Historial de versiones
@@ -22,6 +22,7 @@ Los **procedimientos, estándares de nombres, modelo de accesos corporativo y he
 |---------|--------|-------------|
 | 0.1 | — | Creación a partir de fuentes oficiales Temporal (docs.temporal.io). |
 | 0.2 | — | Índice de enlaces internos BCP y referencias cruzadas. |
+| 0.3 | — | Alcance acotado solo a **Temporal Cloud** (sin self-hosted / autogestionado). |
 
 ---
 
@@ -38,8 +39,8 @@ Los **procedimientos, estándares de nombres, modelo de accesos corporativo y he
 
 ### Plataforma Temporal (documentación oficial)
 
-- **Temporal Cloud:** administración vía [Temporal Cloud UI](https://cloud.temporal.io/), [CLI `tcld`](https://docs.temporal.io/cloud/tcld), [Terraform Provider](https://docs.temporal.io/cloud/terraform-provider) y [Cloud Operations API](https://docs.temporal.io/ops); el acceso requiere autenticación ([API keys](https://docs.temporal.io/cloud/api-keys) u otros métodos soportados).
-- **Límites operativos:** Temporal Cloud aplica límites por cuenta, Namespace y modelo de programación; revisar [System limits](https://docs.temporal.io/cloud/limits).
+- Administración vía [Temporal Cloud UI](https://cloud.temporal.io/), [CLI `tcld`](https://docs.temporal.io/cloud/tcld), [Terraform Provider](https://docs.temporal.io/cloud/terraform-provider) y [Cloud Operations API](https://docs.temporal.io/ops); el acceso requiere autenticación ([API keys](https://docs.temporal.io/cloud/api-keys) u otros métodos soportados).
+- **Límites operativos:** límites por cuenta, Namespace y modelo de programación; revisar [System limits](https://docs.temporal.io/cloud/limits).
 - **Seguridad corporativa de Temporal Technologies:** prácticas generales, certificaciones y medidas organizativas en [Temporal Trust Center](https://trust.temporal.io/) (enlazado desde [Platform security](https://docs.temporal.io/security)).
 
 ---
@@ -81,11 +82,11 @@ Sustituir `INSERTAR_URL` por el enlace definitivo. Mantener el **ID** para refer
 
 ## Alcance
 
-Esta LBS cubre la plataforma **Temporal** en sus modalidades **Cloud** y **autogestionada**, en lo relativo a:
+Esta LBS cubre la plataforma **Temporal** en **Temporal Cloud**, en lo relativo a:
 
 - Arquitectura lógica (Namespaces, Workers, Clientes, UI).
-- Autenticación y autorización (incl. mTLS, API keys, SAML en Cloud, plugins en self-hosted).
-- Cifrado en tránsito y en reposo en **Temporal Cloud**; cifrado de cargas de aplicación (Data Converter / Payload Codec).
+- Autenticación y autorización (mTLS, API keys, SAML, RBAC en cuenta y Namespace).
+- Cifrado en tránsito y en reposo según documentación de Cloud; cifrado de cargas de aplicación (Data Converter / Payload Codec).
 - Conectividad de red (TLS, conectividad privada opcional en Cloud).
 - Trazabilidad y límites (APS, OPS, RPS, auditoría en Cloud).
 - Integraciones (p. ej. **Temporal Nexus**), secretos y buenas prácticas de claves.
@@ -117,16 +118,11 @@ La documentación describe la **Temporal Platform** como conjunto de **Temporal 
 
 ### 1.2 Configuración inicial, aprovisionamiento y variables de entorno
 
-| Enfoque | Contenido oficial |
-|---------|-------------------|
-| **Temporal Cloud** | Aprovisionamiento de Namespaces, autenticación (API keys / mTLS), conectividad y cuentas se gestiona vía UI, `tcld`, Terraform y Ops API ([Temporal Cloud](https://docs.temporal.io/cloud)). |
-| **Autogestionado** | Configuración estática y dinámica del servidor, TLS, autorización; ver [Cluster & Server configuration](https://docs.temporal.io/references/configuration), [Dynamic configuration](https://docs.temporal.io/references/dynamic-configuration), [Client environment configuration](https://docs.temporal.io/references/client-environment-configuration). |
+En **Temporal Cloud**, el aprovisionamiento de Namespaces, la autenticación (API keys / mTLS), la conectividad y las cuentas se gestionan vía UI, `tcld`, Terraform y Ops API ([Temporal Cloud](https://docs.temporal.io/cloud)).
 
 **Procedimientos internos (BCP):** runbook de aprovisionamiento, nomenclatura y automatización — **INT-07**, **INT-05**, **INT-15** ([índice](#índice-de-enlaces-internos-bcp--completar)). Roles operativos: definir en gobierno (**INT-03**).
 
 ### 1.3 Autenticación y autorización
-
-#### Temporal Cloud
 
 - **gRPC hacia el Namespace:** [API keys](https://docs.temporal.io/cloud/api-keys) (recomendado en muchos casos) o [mTLS con certificados de cliente](https://docs.temporal.io/cloud/certificates) emitidos por la CA configurada.
 - **Usuarios en la UI:** [SAML 2.0](https://docs.temporal.io/cloud/saml) con IdP corporativo (planes Business, Enterprise, Mission Critical según [pricing](https://docs.temporal.io/cloud/pricing#base_plans)).
@@ -134,44 +130,26 @@ La documentación describe la **Temporal Platform** como conjunto de **Temporal 
 
 **Cliente (BCP) — modelo de accesos:** matriz que relaciona roles Temporal Cloud (Global Admin, Developer, Namespace Admin, Read-only, Service Accounts) con roles y comités del banco; flujos de alta/baja/modificación; uso de API keys vs mTLS. **Documento maestro:** **INT-06**. Integración SAML con IdP: **INT-08**. Secretos y rotación: **INT-09** ([índice](#índice-de-enlaces-internos-bcp--completar)).
 
-#### Autogestionado
-
-- **TLS / mTLS:** cifrado entre nodos y hacia clientes; configuración en [TLS configuration](https://docs.temporal.io/references/configuration#tls); ejemplos en [samples-server (TLS)](https://github.com/temporalio/samples-server).
-- **Autorización de llamadas API:** plugins **ClaimMapper** y **Authorizer**; sin configurarlos, el servidor usa **`noopAuthorizer`**, que **permite todas las peticiones** — **inseguro** para producción o redes no confiables ([Self-hosted security — Authorizer](https://docs.temporal.io/self-hosted-guide/security)).
-- **SSO en UI:** OAuth mediante variables de entorno del contenedor UI ([Temporal UI — auth](https://docs.temporal.io/self-hosted-guide/security#temporal-ui)).
-
 ### 1.4 Auditorías nativas, logs y trazabilidad
-
-#### Temporal Cloud
 
 - Se monitorean logs de auditoría del entorno **AWS** y **todas las llamadas a la API gRPC** (SDKs, CLI, Web UI); estos logs **pueden ponerse a disposición** para ingesta en sistemas de monitoreo de seguridad del cliente ([Monitoring](https://docs.temporal.io/cloud/security)).
 
 **Cliente (BCP):** procedimiento de solicitud, formato y destino de ingesta a SIEM u observabilidad corporativa — **INT-10** ([índice](#índice-de-enlaces-internos-bcp--completar)).
 
-#### Autogestionado
-
-- Depende del despliegue y de la integración con sistemas de log/métricas propios; **no hay un único “paquete de auditoría”** descrito como en Cloud — **definir según plataforma de observabilidad interna** (**INT-10**).
-
-**Nota:** [Audit Logging](https://docs.temporal.io/self-hosted-guide/security) en self-hosted se relaciona con el modelo de plugins y despliegue; detalle operativo en la guía de seguridad autogestionada.
-
 ### 1.5 Gestión de roles, perfiles y permisos
 
-| Plataforma | Enfoque |
-|------------|---------|
-| **Temporal Cloud** | RBAC: roles de cuenta (p. ej. administradores, desarrolladores, solo lectura) y permisos a nivel Namespace ([Roles and permissions](https://docs.temporal.io/cloud/manage-access/roles-and-permissions)). |
-| **Autogestionado** | Mapeo de claims JWT a roles Temporal (`read`, `write`, `worker`, `admin`) mediante **ClaimMapper** y decisiones en **Authorizer** ([Authorization](https://docs.temporal.io/self-hosted-guide/security)). |
+En **Temporal Cloud**, el RBAC incluye roles de cuenta (p. ej. administradores, desarrolladores, solo lectura) y permisos a nivel Namespace ([Roles and permissions](https://docs.temporal.io/cloud/manage-access/roles-and-permissions)).
 
 **Cliente (BCP):** perfilamiento y revisiones periódicas de acceso según política interna; enlazar a **INT-06** y, si existe, repositorio de automatización **INT-15** ([índice](#índice-de-enlaces-internos-bcp--completar)).
 
 ### 1.6 Reportes para gestión de usuarios
 
-- **Temporal Cloud:** gestión de usuarios e identidades vía UI y herramientas de cuenta; **no se documenta** un “motor de reportes” equivalente a un SIEM de RRHH — **no aplica** como requisito de producto en la documentación consultada.
+- Gestión de usuarios e identidades vía UI y herramientas de cuenta; **no se documenta** un “motor de reportes” equivalente a un SIEM de RRHH — **no aplica** como requisito de producto en la documentación consultada.
 - **Cliente (BCP):** reportes o extractos para auditoría de identidades / cumplimiento — definir procedimiento y herramienta interna (**INT-06**, **INT-16** si aplica) ([índice](#índice-de-enlaces-internos-bcp--completar)).
 
 ### 1.7 Custodia y deshabilitación de usuarios por defecto o con privilegios elevados
 
-- **Temporal Cloud:** el modelo de identidad y cuentas de servicio está descrito en [Service Accounts](https://docs.temporal.io/cloud/service-accounts) y [API keys](https://docs.temporal.io/cloud/api-keys); rotación y deshabilitación de claves en la documentación.
-- **Autogestionado:** riesgo crítico si no se configura **Authorizer** + **ClaimMapper**; cualquier cliente con acceso de red al Frontend podría invocar APIs ([advertencia oficial](https://docs.temporal.io/self-hosted-guide/security)).
+- El modelo de identidad y cuentas de servicio está descrito en [Service Accounts](https://docs.temporal.io/cloud/service-accounts) y [API keys](https://docs.temporal.io/cloud/api-keys); rotación y deshabilitación de claves en la documentación.
 
 **Contraseñas de usuario por defecto de un producto genérico:** **no aplica** al modelo de Temporal Cloud (autenticación IdP / API keys / certificados según configuración).
 
@@ -179,8 +157,7 @@ La documentación describe la **Temporal Platform** como conjunto de **Temporal 
 
 ### 1.8 Identificación y aseguramiento de archivos y rutas de configuración
 
-- Relevante en **autogestionado** (archivos YAML, certificados, variables de entorno de UI y servidor) según [Configuration](https://docs.temporal.io/references/configuration) y guías de despliegue.
-- En **Temporal Cloud**, la configuración del plano de control y datos del servicio **no está expuesta** como archivos en el lado del cliente — **parcialmente no aplica** al modelo SaaS.
+- La configuración del plano de control y datos del servicio **no está expuesta** como archivos bajo responsabilidad del cliente en el modelo SaaS. Sí aplican archivos y secretos en **componentes bajo control BCP** (p. ej. variables de entorno de Workers, certificados mTLS y claves en sistemas de despliegue) — **INT-09**, **INT-07** ([índice](#índice-de-enlaces-internos-bcp--completar)).
 
 ### 1.9 Encriptación de contraseñas por defecto y delegación a equipos de secretos
 
@@ -190,17 +167,11 @@ La documentación describe la **Temporal Platform** como conjunto de **Temporal 
 
 ### 1.10 Vulnerabilidades, pruebas y actualizaciones
 
-#### Temporal Cloud
-
 - **Cifrado en tránsito:** TLS **1.3** en todas las conexiones ([Encryption](https://docs.temporal.io/cloud/security)).
 - **Cifrado en reposo:** almacenamiento en Elasticsearch (visibilidad) y capa de persistencia principal con **AES-256-GCM** ([Encryption](https://docs.temporal.io/cloud/security)).
 - **Pruebas:** pentest de terceros anual (alcance documentado) y pruebas adicionales puntuales ([Testing](https://docs.temporal.io/cloud/security)).
 - **Acceso interno de Temporal** a producción: restringido, MFA, SSO, sin cuentas compartidas, revisión de accesos ([Internal Temporal access](https://docs.temporal.io/cloud/security)).
 - **Cumplimiento:** Temporal indica certificación **SOC 2 Type 2** y alineación con **GDPR** y **HIPAA**; auditorías bajo solicitud ([Compliance](https://docs.temporal.io/cloud/security)).
-
-#### Autogestionado
-
-- Parcheo y hardening del SO, imagen de contenedor y dependencias **corresponden al operador**; Temporal publica el **servidor open source** y guías de seguridad ([Self-hosted security](https://docs.temporal.io/self-hosted-guide/security)).
 
 ---
 
@@ -208,12 +179,12 @@ La documentación describe la **Temporal Platform** como conjunto de **Temporal 
 
 ### 2.1 Arquitectura de red
 
-- **Temporal Cloud:** conectividad desde Internet y opción de **conectividad privada** ([Private network connectivity](https://docs.temporal.io/cloud/connectivity)) vía **AWS PrivateLink** o **GCP Private Service Connect**; reglas de conectividad por Namespace ([Connectivity rules](https://docs.temporal.io/cloud/connectivity#connectivity-rules)) — en *public preview* según la documentación.
+- Conectividad desde Internet y opción de **conectividad privada** ([Private network connectivity](https://docs.temporal.io/cloud/connectivity)) vía **AWS PrivateLink** o **GCP Private Service Connect**; reglas de conectividad por Namespace ([Connectivity rules](https://docs.temporal.io/cloud/connectivity#connectivity-rules)) — en *public preview* según la documentación.
 - **Plano de control:** hostnames documentados (`saas-api.tmprl.cloud`, `web.onboarding.tmprl.cloud`, etc.); PrivateLink al plano de control en AWS documentado ([Control plane connectivity](https://docs.temporal.io/cloud/connectivity#control-plane-connectivity)).
 
 ### 2.2 Seguridad perimetral
 
-- **Temporal Cloud:** limitación de rutas de acceso mediante **connectivity rules** (públicas/privadas) y autenticación obligatoria con API keys o mTLS ([Connectivity](https://docs.temporal.io/cloud/connectivity)).
+- Limitación de rutas de acceso mediante **connectivity rules** (públicas/privadas) y autenticación obligatoria con API keys o mTLS ([Connectivity](https://docs.temporal.io/cloud/connectivity)).
 - **Web UI y reglas:** la UI de Temporal Cloud **no queda sujeta** a la aplicación de reglas de conectividad del Namespace en el comportamiento descrito — la UI puede seguir siendo accesible por Internet ([Web UI Connectivity](https://docs.temporal.io/cloud/connectivity#web-ui-connectivity)).
 
 **Cliente (BCP):** diseño perimetral (firewall, segmentación, exposición de UI Temporal), alineado a política de red — **INT-11**; conectividad privada (PrivateLink / PSC) y aprobaciones — **INT-02** ([índice](#índice-de-enlaces-internos-bcp--completar)).
@@ -227,14 +198,12 @@ La documentación describe la **Temporal Platform** como conjunto de **Temporal 
 
 ### 2.4 Protocolos, servicios y formatos
 
-- **TLS:** TLS 1.3 en Cloud; mTLS como **método de autenticación**, no sustituto del cifrado ([TLS vs mTLS](https://docs.temporal.io/cloud/security)).
-- **Self-hosted:** TLS/mTLS configurable; deshabilitar exposición innecesaria y seguir [Self-hosted security](https://docs.temporal.io/self-hosted-guide/security).
+- **TLS:** TLS 1.3; mTLS como **método de autenticación**, no sustituto del cifrado ([TLS vs mTLS](https://docs.temporal.io/cloud/security)).
 - **Payloads:** serialización mediante Data Converter; formatos habituales en documentación ([Data conversion](https://docs.temporal.io/dataconversion)); cifrado opcional vía **Payload Codec** ([Data encryption](https://docs.temporal.io/production-deployment/data-encryption)).
 
 ### 2.5 Aseguramiento del canal
 
-- **Temporal Cloud:** TLS 1.3 en todas las conexiones ([Encryption](https://docs.temporal.io/cloud/security)).
-- **Self-hosted:** configuración de `frontend` e `internode` TLS en [TLS configuration](https://docs.temporal.io/references/configuration#tls).
+- TLS **1.3** en todas las conexiones ([Encryption](https://docs.temporal.io/cloud/security)).
 
 ### 2.6 Custodia de certificados y claves
 
@@ -252,7 +221,7 @@ La documentación describe la **Temporal Platform** como conjunto de **Temporal 
 
 ### 2.8 DNS y nombres de host
 
-- **Temporal Cloud:** uso de endpoints y nombres provistos (`*.tmprl.cloud`, `*.api.temporal.io` según modos documentados en [Namespaces](https://docs.temporal.io/cloud/namespaces) y [Connectivity](https://docs.temporal.io/cloud/connectivity)); DNS privado recomendado para PrivateLink/PSC.
+- Uso de endpoints y nombres provistos (`*.tmprl.cloud`, `*.api.temporal.io` según modos documentados en [Namespaces](https://docs.temporal.io/cloud/namespaces) y [Connectivity](https://docs.temporal.io/cloud/connectivity)); DNS privado recomendado para PrivateLink/PSC.
 - **Registro de dominio propio del banco** (p. ej. Codec Server, callbacks IdP): **definir** en arquitectura y DNS interno — **INT-02**, **INT-12** ([índice](#índice-de-enlaces-internos-bcp--completar)).
 
 ---
@@ -280,8 +249,8 @@ Resumen alineado a [Security model — Temporal Cloud](https://docs.temporal.io/
 
 ### 3.4 Controles adicionales sobre componentes estándar
 
-- Extensibilidad en self-hosted (**Authorizer**, **ClaimMapper**, Data Converter, Codec Server) — ver secciones anteriores.
-- **No aplica** un catálogo único adicional “cerrado” en documentación más allá de estas extensiones.
+- En Cloud, la extensibilidad relevante para seguridad de datos incluye **Data Converter**, **Payload Codec** y **Codec Server** (ver secciones de cifrado y **INT-12**).
+- **No aplica** un catálogo único adicional “cerrado” en documentación más allá de estas capacidades y la configuración de cuenta/Namespace.
 
 ### 3.5 Secretos e intercambio seguro; baúl de secretos
 
@@ -291,7 +260,7 @@ Resumen alineado a [Security model — Temporal Cloud](https://docs.temporal.io/
 
 ### 3.6 Disponibilidad y continuidad
 
-- **Temporal Cloud [High Availability](https://docs.temporal.io/cloud/high-availability):** documentación específica de regiones y failover para Namespaces elegibles.
+- **[High Availability](https://docs.temporal.io/cloud/high-availability):** documentación específica de regiones y failover para Namespaces elegibles.
 - **Acuerdos de nivel de servicio y arquitectura multi-región:** revisar documentación de producto y contrato; detalle técnico en [docs.temporal.io/cloud](https://docs.temporal.io/cloud).
 
 ### 3.7 “Backups” y retención
@@ -304,8 +273,7 @@ Resumen alineado a [Security model — Temporal Cloud](https://docs.temporal.io/
 
 ### 3.8 Gobierno y ciclo de vida
 
-- **Temporal Cloud:** actualizaciones operadas por Temporal; cliente gestiona configuración de Namespace, conectividad, identidades y límites según documentación.
-- **Self-hosted:** el operador gestiona versiones del [Temporal Server](https://docs.temporal.io/self-hosted-guide) y dependencias.
+- Las actualizaciones del servicio en Cloud las opera **Temporal**; el cliente gestiona configuración de Namespace, conectividad, identidades y límites según documentación ([Temporal Cloud](https://docs.temporal.io/cloud)).
 
 ---
 
@@ -328,7 +296,7 @@ Resumen alineado a [Security model — Temporal Cloud](https://docs.temporal.io/
 
 ### 4.4 Repositorio de datos y metadatos
 
-- Datos persistidos en el servicio Temporal (historial de eventos, visibilidad) están sujetos al modelo de **Temporal Cloud** o al despliegue autogestionado; **cifrado en reposo en Cloud** descrito en [Encryption](https://docs.temporal.io/cloud/security).
+- Datos persistidos en el servicio Temporal (historial de eventos, visibilidad) están sujetos al modelo de **Temporal Cloud**; **cifrado en reposo** descrito en [Encryption](https://docs.temporal.io/cloud/security).
 - **Data store interno del banco** como “repositorio oficial” de metadatos Temporal: **no aplica** salvo arquitectura híbrida definida por la organización.
 
 ### 4.5 Cifrado en tránsito y en reposo
@@ -360,7 +328,6 @@ Resumen alineado a [Security model — Temporal Cloud](https://docs.temporal.io/
 |---------|-----|
 | Portal de seguridad de la plataforma | https://docs.temporal.io/security |
 | Seguridad en Temporal Cloud | https://docs.temporal.io/cloud/security |
-| Seguridad autogestionada | https://docs.temporal.io/self-hosted-guide/security |
 | Conectividad (PrivateLink, PSC, reglas) | https://docs.temporal.io/cloud/connectivity |
 | API keys | https://docs.temporal.io/cloud/api-keys |
 | Certificados mTLS | https://docs.temporal.io/cloud/certificates |
@@ -401,4 +368,4 @@ Documentación y procedimientos propios del banco: ver **[índice de enlaces int
 
 ---
 
-*Documento alineado a LBS tipo Confluent: requisitos de producto según [docs.temporal.io](https://docs.temporal.io/); obligaciones y enlaces del cliente (BCP) en el [índice interno](#índice-de-enlaces-internos-bcp--completar).*
+*Documento alineado a LBS tipo Confluent: requisitos de **Temporal Cloud** según [docs.temporal.io](https://docs.temporal.io/cloud); obligaciones y enlaces del cliente (BCP) en el [índice interno](#índice-de-enlaces-internos-bcp--completar).*
