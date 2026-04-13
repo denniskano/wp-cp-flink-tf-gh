@@ -1,112 +1,108 @@
-# Conectores Kafka: self-managed y full-managed
+# Presentación: conectores Kafka self-managed y full-managed
 
-## Propósito de este documento
-
-En la organización hemos operado conectores **self-managed** (Kafka Connect desplegado y operado por equipos internos). Este repositorio y el flujo con **GitHub Actions** y **Terraform** para **Confluent Cloud Full-Managed Connectors** representan una **evolución deliberada** del modelo: más estándar, más auditable y con menos carga operativa sobre los equipos que antes mantenían clusters de Connect.
-
-Este texto está pensado para **presentar** el cambio a equipos de negocio y tecnología: qué implica cada modelo, por qué tiene sentido avanzar hacia full-managed y qué beneficios concretos obtiene el banco.
+Documento para **comunicar valor** (negocio y TI) y **fundamento técnico** del modelo **full-managed** en Confluent Cloud frente al **self-managed** que el banco ya utiliza, y de cómo el **pipeline Git (GitHub Actions + Terraform + Vault)** encarna esa capacidad en la práctica.
 
 ---
 
-## Dos formas de ejecutar Kafka Connect
+## Mensaje en una frase
 
-### Self-managed (lo que ya conocemos)
+**Self-managed**: nosotros operamos el motor de integración (Kafka Connect) de punta a punta. **Full-managed**: operamos el **contrato** de la integración (configuración, identidades, topics, esquemas) sobre un **servicio de conectores** que Confluent mantiene; el despliegue queda **industrializado** en Git con trazabilidad y secretos desde Vault.
 
-**Self-managed** significa que **nosotros** somos responsables del ciclo de vida de Kafka Connect:
+---
 
-- Aprovisionamiento y parcheo de máquinas o contenedores donde corre Connect.
-- Escalado (tasks, réplicas, recursos CPU/memoria, almacenamiento de offsets/configs).
-- Alta disponibilidad, backups operativos, monitoreo y alertas propias.
-- Coordinación con red, seguridad y cumplimiento para exponer conectores hacia sistemas externos.
-- Actualización de versiones de Connect y de conectores; resolución de incompatibilidades.
+## Por qué importa (valor)
 
-En la práctica, el banco **posee el “motor”** y la **operación 24/7** asociada.
+- **Velocidad**: menos fricción para publicar o ajustar integraciones cuando el trabajo repetitivo de plataforma lo absorbe el servicio gestionado.
+- **Enfoque del equipo**: las horas dejan de ir a parches, capacidad y “mantener Connect vivo” y pasan a **calidad de datos, contratos y SLAs** con negocio.
+- **Gobernanza en un banco**: cambios **revisables en pull request**, historial en Git, separación de secretos (Vault) y menos configuraciones únicas imposibles de auditar.
+- **Coherencia con Confluent Cloud**: Kafka, Schema Registry y conectores en el **mismo ecosistema** reduce divergencia operativa y simplifica soporte y documentación.
+- **Escala organizacional**: un **estándar por aplicación (CODAPP)** permite que más equipos integren sin multiplicar silos de clusters Connect internos.
+
+---
+
+## Qué es cada modelo (técnico)
+
+### Self-managed
+
+**Kafka Connect** corre en **infraestructura del banco** (VMs, Kubernetes, etc.). El equipo:
+
+- Despliega y actualiza el **runtime** de Connect y los **plugins** (connectors).
+- Define **alta disponibilidad** (varios workers), reparto de tareas y recuperación ante fallos.
+- Gestiona **almacenamiento interno** de Connect (offsets, configuración, estado según el modo del conector).
+- Alinea **red** (firewalls, DNS, TLS), **observabilidad** (métricas, logs, alertas) y **seguridad** (credenciales, rotación) con políticas internas.
+
+En resumen: **vosotros sois SRE del conector y del cluster Connect**.
 
 ### Full-managed (Confluent Cloud)
 
-**Full-managed** en Confluent Cloud significa que **Confluent opera** el servicio de conectores sobre la plataforma gestionada:
+Confluent expone **conectores gestionados** como parte del servicio en la nube: el **plano de control** y la **operación base** del servicio de Connect corren **bajo responsabilidad del proveedor**. Vosotros:
 
-- El proveedor mantiene la infraestructura del servicio, actualizaciones de plataforma y buena parte de la operación repetitiva.
-- Los equipos se centran en **qué** integrar (configuración, topics, esquemas, permisos) y en **gobernanza** (IaC, revisión de cambios, segregación por aplicación).
-- La integración con Kafka, Schema Registry y políticas de la nube queda **alineada** con el ecosistema Confluent en lugar de divergencias por “Connect casero”.
+- Definís el **conector** (clase, topics, formato, opciones de errores/DLQ, etc.).
+- Asignáis **identidades** (p. ej. Service Accounts) y **permisos** coherentes con Kafka y Schema Registry.
+- Versionáis y aplicáis la configuración mediante **API / Terraform**, no mediante SSH a un cluster propio.
 
-En la práctica, el banco **posee el contrato de integración y la gobernanza**; el **motor** pasa a ser un servicio gestionado.
-
----
-
-## Comparativa resumida
-
-| Dimensión | Self-managed | Full-managed (Confluent Cloud) |
-|-----------|--------------|--------------------------------|
-| **Responsabilidad operativa** | Alta (equipo interno) | Menor en capa de plataforma; foco en configuración y gobierno |
-| **Tiempo de equipo en “mantener el conector encendido”** | Sustancial | Redirigible a valor de negocio (nuevas integraciones, calidad de datos) |
-| **Homogeneidad entre equipos** | Depende de cada despliegue | Facilitada por estándar único (modelo CODAPP, JSON/YAML, pipelines) |
-| **Trazabilidad de cambios** | Variable (runbooks, tickets, scripts) | **Git + revisiones + despliegue automatizado** |
-| **Seguridad y secretos** | Diseño propio por cluster | Integración con **Vault** y variables por entorno; menos credenciales en repos |
-| **Escalado y parches de plataforma** | Planificación interna | Gestionado por el proveedor en la capa de servicio |
-| **Coste** | CAPEX/OPEX de infra + personas | Modelo de servicio cloud; suele compensar al reducir esfuerzo operativo |
-
-La tabla no pretende decir que self-managed sea “malo”: ha servido y puede seguir siendo válido en nichos. La tesis es que **full-managed + IaC** encaja mejor con una **estrategia de industrialización** del banco.
+En resumen: **vosotros sois dueños del contrato de integración y de la gobernanza**; el motor como servicio es **operado por Confluent** en esa capa.
 
 ---
 
-## Por qué esta evolución tiene sentido para el banco
+## Comparativa técnica directa
 
-### Menos fricción operativa, más foco en integraciones
-
-Los equipos dejan de invertir ciclos en **parches, capacidad y incidentes de plataforma** de Connect y pueden orientarlos a **calidad de datos, contratos, SLAs con negocio** y nuevas fuentes o destinos.
-
-### Industrialización con Git y automatización
-
-Un conector deja de ser “un despliegue manual en un servidor” y pasa a ser **configuración versionada**, revisable y desplegable por **GitHub Actions**. Eso mejora:
-
-- **Auditoría** (quién cambió qué y cuándo).
-- **Reproducibilidad** entre DES, CER y PRO.
-- **Recuperación** ante errores (rollback por revert).
-
-### Alineación con Confluent Cloud
-
-Si Kafka y Schema Registry ya viven en **Confluent Cloud**, los conectores full-managed **cierran el circuito** en el mismo ecosistema: menos saltos de red ad-hoc, menos piezas sueltas y un camino más claro para soporte y documentación oficial.
-
-### Riesgo y cumplimiento
-
-- Menos superficie **auto-gestionada** implica menos variabilidad entre entornos y menos “configuraciones únicas” difíciles de auditar.
-- Los secretos pueden fluir desde **Vault** hacia el pipeline, en línea con prácticas ya deseables en un banco.
-
-### Escalabilidad organizacional
-
-El modelo por **CODAPP** (cada aplicación con su carpeta de conectores y convenciones compartidas) permite que **más equipos** desplieguen integraciones **sin** multiplicar silos operativos de Connect.
+| Aspecto | Self-managed | Full-managed (Confluent Cloud) |
+|--------|--------------|--------------------------------|
+| **Runtime Connect** | Propio (instalación, versión, parches) | Servicio gestionado |
+| **Alta disponibilidad / workers** | Diseño y operación internos | Abordado en el modelo de servicio |
+| **Actualización de plataforma** | Ventanas de cambio internas | Evolución del servicio en la nube |
+| **Definición del conector** | APIs REST Connect / archivos / CI propia | API Confluent + **IaC** (p. ej. Terraform) |
+| **Secretos** | Patrón interno (vault, vault distinto, etc.) | Encaje con **Vault + pipeline** (sin credenciales en repo) |
+| **Observabilidad** | Stack interno obligatorio | Cloud + prácticas del proveedor + vuestras integraciones |
+| **Red** | Peering/VPN/firewall hacia orígenes y Kafka | Integración con **red privada / endpoints** según diseño Confluent |
 
 ---
 
-## Cómo encaja el nuevo proceso (visión de alto nivel)
+## Cómo se materializa el full-managed en este programa (stack)
 
-El repositorio materializa la evolución así:
+Sin entrar en el detalle de cada archivo (eso vive en el modelo operativo), la **cadena técnica** es:
 
-1. **Definición declarativa**: JSON por entorno para lo no sensible y YAML para variables y referencias a secretos.
-2. **Automatización**: workflow que inicializa Terraform, resuelve identidades en Confluent y aplica cambios de forma controlada.
-3. **Secretos**: integración con **Vault** para no persistir contraseñas en el código.
-4. **Operación documentada**: el modelo operativo detalla estructura, convenciones y buenas prácticas.
+1. **Git**: configuración declarativa por conector y entorno (JSON no sensible, YAML por entorno, referencias a secretos en Vault).
+2. **GitHub Actions**: orquesta el flujo (checkout, credenciales de Terraform, obtención de secretos de conector, `terraform plan/apply`).
+3. **Vault**: almacena credenciales; el pipeline las **lee** y las inyecta como variables sensibles a Terraform (no como texto en el repositorio).
+4. **Terraform (provider Confluent)**: converge el estado deseado del recurso `confluent_connector` (config no sensible + sensible, estado del conector, cluster y entorno de Confluent Cloud).
 
-Para el detalle técnico del modelo full-managed en este repo, ver [CONNECTORS_OPERATIONAL_MODEL.md](./CONNECTORS_OPERATIONAL_MODEL.md).
+Esto convierte cada cambio de integración en un **cambio de software**: revisable, repetible y auditable.
 
----
-
-## Migración desde self-managed (mensaje para stakeholders)
-
-No es un “big bang” obligatorio en todas las integraciones a la vez. Un enfoque sensato suele ser:
-
-1. **Priorizar** conectores con alto coste operativo oriesgo de obsolescencia.
-2. **Pilotar** en DES/CER con el pipeline Git + Terraform y validar con negocio.
-3. **Estandarizar** plantillas y permisos (Service Accounts, topics, DLQ donde aplique).
-4. **Planificar** el apagado gradual de capacidad self-managed conforme las cargas migran.
-
-Cada caso puede tener matices (latencia, requisitos de red privada, conectores aún no disponibles como full-managed); eso se trata caso a caso, pero **la dirección** es clara: **más servicio gestionado, más automatización, menos operación artesanal**.
+Referencia de convenciones y estructura: [CONNECTORS_OPERATIONAL_MODEL.md](./CONNECTORS_OPERATIONAL_MODEL.md).
 
 ---
 
-## Cierre
+## Diagrama mental (flujo de despliegue)
 
-El paso de **conectores self-managed** a **full-managed con despliegue por GitHub Actions y Terraform** no es solo un cambio de herramienta: es **madurez operativa** (menos toil, más gobierno), **mejor trazabilidad** para un entorno regulado y **escalabilidad** para que más equipos integren datos con el mismo estándar.
+```mermaid
+flowchart LR
+  subgraph repo [Repositorio Git]
+    JSON[JSON por entorno]
+    YAML[YAML vars y Vault paths]
+  end
+  subgraph cicd [GitHub Actions]
+    VA[Vault auth]
+    TF[Terraform]
+  end
+  subgraph cc [Confluent Cloud]
+    KC[Kafka cluster]
+    SR[Schema Registry]
+    FMC[Full-managed connectors]
+  end
+  JSON --> TF
+  YAML --> VA
+  VA --> TF
+  TF --> FMC
+  FMC --> KC
+  FMC --> SR
+```
 
-Si tu área quiere profundizar en el modelo de carpetas, permisos o el flujo de secretos, el siguiente paso natural es revisar [CONNECTORS_OPERATIONAL_MODEL.md](./CONNECTORS_OPERATIONAL_MODEL.md) junto con el equipo de plataforma.
+---
+
+## Cierre (pitch)
+
+El banco ya sabe integrar con **Connect propio**. El salto a **full-managed** no es sustituir el “qué” (seguimos moviendo datos entre sistemas y Kafka), sino **elevar el “cómo”**: menos operación de plataforma, más **estándar cloud**, más **trazabilidad** y un camino claro para que **más equipos** publiquen integraciones con el mismo **rieles** de seguridad y automatización.
+
+Para profundizar en carpetas, permisos, DLQ y variables por entorno: [CONNECTORS_OPERATIONAL_MODEL.md](./CONNECTORS_OPERATIONAL_MODEL.md).
