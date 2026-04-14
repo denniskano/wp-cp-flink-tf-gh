@@ -62,141 +62,85 @@ En resumen: **el banco es dueño del contrato de integración y de la gobernanza
 
 ## Comparación de costos (marco para el banco)
 
-### Cuadro resumen: self-managed vs full-managed
+Escenario modelado: **un único sink Azure Data Lake Storage Gen2 (ADLS)**; **`tasks.max` = 3**; **dos workers** de Kafka Connect y **un clúster AKS** en self-managed. Volumen **considerable** = **~15 TB/mes** (**15 000 GB/mes**) hacia ADLS (criterio Confluent **pre-compresión** para `$/GB`). **USD/mes**, lista pública / orden de magnitud Azure; **sin** precio de cluster Kafka ni Schema Registry en Confluent.
 
-Cifras **ilustrativas** en **USD/mes** salvo que se indique lo contrario; escenario detallado más abajo. **No** incluyen el **cluster Kafka** ni Schema Registry en el lado Confluent.
+### Cuadro resumen: self-managed vs full-managed *(1 conector ADLS)*
 
 | Dimensión | **Self-managed** | **Full-managed (Confluent Cloud)** |
 |-----------|------------------|--------------------------------------|
-| **Supuestos de la simulación** | **11 sinks** (6 ADLS + 1 Elasticsearch + 3 Salesforce + 1 JDBC), **~25 TB/mes** por conectores, **11 tareas** (`tasks.max` = 1 c/u), **un AKS por conector** | Mismos supuestos de carga; **sin** 11 AKS en el banco para esos conectores |
-| **Qué se está comparando** | **Plataforma** Connect propia: **11 AKS**, cómputo, observabilidad, red, **licencia/soporte** | Solo **uso de conectores gestionados**: **tareas** + **tráfico** (`$/GB` pre-compresión); Kafka ya contratado aparte |
-| **Ticket mensual (rango)** | **~2 750–10 700** (banda ilustrativa con **11 clústeres**; ver desglose abajo) | **~1 100–1 600** (banda **tarea** min/max del catálogo + **625** de datos a **0,025 $/GB**) |
-| **Referencia “punto medio”** | **~6 700** (estimación central; cuadro final más abajo) | **~1 350** (~721 tareas + ~625 datos) |
-| **TCO con operación** | **~4 300–14 500** con **0,15–0,25 FTE** plataforma (~10–15 k$/mes-FTE), por **complejidad de N clústeres** | Menos **SRE de runtime Connect**; siguen costes de **integración, red a destinos y gobierno** (no cuantificados aquí) |
-| **Palanca principal de coste** | **Número de AKS**, tamaño de **node pools**, **licencia** por despliegue, **headcount** | **Volumen (GB/mes)**, **`tasks.max`**, tipo de conector (p. ej. Salesforce más caro que ADLS) |
-| **Quién opera Kafka Connect** | **Organización**: **11** planos de control Kubernetes y Connect a mantener | **Confluent** en la capa de conector administrado |
+| **Conector** | 1× sink **ADLS Gen2** | Mismo conector administrado |
+| **Paralelismo** | **3 tareas**, **2 workers**, **1 AKS** | **3 tareas** facturables |
+| **Volumen** | **~15 TB/mes** | **15 000 GB × 0,025 $/GB ≈ 375 $/mes** (tráfico) |
+| **Qué se compara** | **1 AKS** + nodos, observabilidad, red, licencia/soporte | **$/tarea·h** + **$/GB** (solo uso del conector) |
+| **Ticket (rango)** | **~320–1 400** | **~287–576** *(tareas al min/max del catálogo + volumen **10–20 TB**)* |
+| **Estimación central** | **~720** | **~432** *(~57 $ tareas + 375 $ datos)* |
+| **+ FTE** | **+300–1 200** → total **~1 020–1 920** *(~0,03–0,1 FTE @ ~10–15 k$/mes)* | Menos SRE de Connect *(no se suma el mismo FTE)* |
+
+**Más económico (caso central):** **full-managed** (**~432 $/mes** vs **~720 $/mes**), **~40 %** de reducción sobre la plataforma modelada; con **FTE**, el ahorro **relativo** suele **subir**.
 
 ### Cuadro final de comparación (montos USD/mes)
 
-Misma simulación: **11 sinks**, **25 TB/mes**, **11 tareas**, **11 AKS** en self-managed. Cifras **redondeadas** y **ilustrativas** (lista pública Confluent + orden de magnitud Azure); **no** incluyen Kafka/SR en Confluent.
-
 | Concepto | **Self-managed** | **Full-managed** |
-|----------|-------------------:|------------------:|
-| **Mínimo estimado** (suelo de banda) | **~2 750** | **~1 100** |
-| **Máximo estimado** (techo de banda) | **~10 700** | **~1 600** |
-| **Estimación central** (punto medio útil para comparar) | **~6 700** | **~1 350** |
-| **+ FTE plataforma** (0,15–0,25 FTE a ~10–15 k$/mes-FTE) | **+1 500 a +3 800** → **~4 300 – 14 500** total | **No aplicado** en esta tabla: la carga de **SRE de Connect** es **mucho menor**; sigue habiendo trabajo de integración/red (no cuantificado como el mismo FTE) |
+|----------|------------------:|-----------------:|
+| **Mínimo** (banda) | **~320** | **~287** |
+| **Máximo** (banda) | **~1 400** | **~576** |
+| **Central** | **~720** | **~432** |
+| **Central + FTE** | **~1 020–1 920** | — |
 
-**¿Cuál es más económico?**  
-En la partida **comparable** de esta simulación —**operar Connect en 11 AKS + licencias** vs **pagar solo conectores gestionados** (tareas + GB)— el modelo **más económico es full-managed**: **~1 350 $/mes** en el caso central frente a **~6 700 $/mes** (rango **~2 750–10 700 $/mes**) en self-managed **antes** de FTE. Si se suma el **FTE** al self-managed (**~4 300–14 500 $/mes** total), la brecha **suele ampliarse** a favor de full-managed **en coste de conectores**, siempre que el **Kafka en Confluent** ya esté asumido en el presupuesto (esta tabla **no** suma el precio del cluster Kafka).
+### Lámina: ahorro *(1 ADLS, 3 tareas, 2 workers, 1 AKS, ~15 TB/mes)*
 
-Un modelo self-managed **consolidado** (menos AKS compartiendo Connect) **reduciría** el coste propio y acercaría la comparación, a costa de **menos aislamiento** por conector.
+**Qué comparamos:** costo de **Connect en 1 AKS (2 workers)** vs **mismo sink ADLS full-managed**. **No** incluye Kafka en Confluent ni presupuesto total TI.
 
-### Lámina: ¿cuánto se ahorra con conectores full-managed?
+**Reducción %** = (costo hoy − costo full) / costo hoy.
 
-**Idea en una frase:** comparamos **cuánto cuesta al mes** tener **Kafka Connect en 11 AKS** (un conector por clúster) frente a **pagar el mismo trabajo con conectores administrados en Confluent Cloud** (lista de precios pública, **USD/mes**).
+| **Escenario** | **Costo hoy** *(USD/mes)* | **Full-managed** *(USD/mes)* | **Ahorro** *(USD/mes)* | **Ahorro** *(%)* |
+|---------------|---------------------------:|-----------------------------:|----------------------:|-----------------:|
+| **Típico** | ~720 | ~432 | ~288 | **~40 %** |
+| **Típico + FTE** *(punto medio ~1 200 vs 432)* | ~1 200 | ~432 | ~768 | **~64 %** |
 
-**Qué estamos contando (y qué no):**
+### Inventario del escenario modelado
 
-- **Sí:** 11 sinks, **~25 TB/mes** por conectores, coste de **plataforma AKS + licencia** vs **tarifa Confluent por tareas + datos**.
-- **No:** precio del **cluster Kafka** ni Schema Registry en Confluent; ni el **presupuesto total** de TI.
-
-**Reducción %** = cuánto **baja el costo** respecto al **self-managed** de esa fila: *(costo hoy − costo full) / costo hoy*.
-
-**FTE** = parte del **tiempo del equipo** (plataforma) contada como costo monetario; en la segunda fila se suma al escenario típico para reflejar operar **11 AKS**.
-
-| **Escenario** | **Costo hoy** *(self-managed, USD/mes)* | **Costo con full-managed** *(USD/mes)* | **Ahorro al mes** *(USD)* | **Ahorro** *(%)* |
-|---------------|--:|--:|--:|--:|
-| **Escenario típico** | ~6 700 | ~1 350 | ~5 350 | **~80 %** |
-| **Mismo escenario + tiempo de equipo** para operar los 11 AKS *(FTE imputado)* | ~9 350 | ~1 350 | ~8 000 | **~86 %** |
-
-**Entre el peor y el mejor caso** del modelo (bandas de la simulación), el ahorro relativo puede ir **aprox. del 42 % al 90 %**.
-
-**Conclusión para la presentación:** en el escenario típico, **full-managed cuesta alrededor de cinco veces menos** que la plataforma self-managed modelada (**~80 %** de reducción sobre ese costo).
-
-### Inventario de referencia (ejemplo actual)
-
-Como línea base de capacidad y conversación con FinOps, un patrón cercano al portafolio descrito sería:
-
-| Destino / tipo | Cantidad | Rol |
-|----------------|----------|-----|
-| **ADLS** (Azure Data Lake / almacenamiento Azure) | 6 | Sink |
-| **Elasticsearch** | 1 | Sink |
-| **Salesforce** | 3 | Sink |
-| **JDBC** | 1 | Sink |
-| **Total conectores** | **11** | Todos sink |
-| **Despliegue self-managed (referencia)** | **11 AKS** | **Un conector por clúster** (topología actual del banco) |
-
-El coste variable en **full-managed** depende también de **`tasks.max`** (y del volumen real de datos), no solo del número de conectores: un conector con varias tareas suma más “tareas·hora” que otro con una sola.
-
-### Simulación ilustrativa: volumen alto (solo conectores, orden de magnitud)
-
-> **Aviso:** Cifras **orientativas** para reunión con FinOps. No sustituyen cotización ni modelo interno. Moneda **USD**, precios de **lista pública** según [Managed Kafka Connector Pricing](https://www.confluent.io/confluent-cloud/connect-pricing/) (varían por **región**, **contrato** y descuentos). El tráfico se factura **pre-compresión** (`$/GB`). **No** incluye aquí el coste del **cluster Kafka**, Schema Registry ni cargos de red del banco.
-
-**Supuestos del escenario “considerable”**
-
-| Supuesto | Valor |
+| Concepto | Valor |
 |----------|--------|
-| Volumen mensual atribuible a estos sinks | **25 TB/mes** (**25 000 GB/mes**) de datos procesados por los conectores |
-| Tareas activas | **1 tarea por conector** → **11 tareas** (si `tasks.max` > 1, multiplicar) |
-| Horas por mes | **730 h** |
-| Self-managed | **11 clústeres AKS** (patrón **1 conector = 1 AKS**); la simulación de coste **no** asume un único cluster Connect compartido |
-| JDBC | Precio tipo **sink JDBC gestionado** (en la tabla pública se usan conectores como **PostgreSQL / Microsoft SQL Server** sink; si fuera **custom BYOC**, la tarea iría a **0,10–0,20 $/tarea/h** aprox.) |
+| Conector | **Azure Data Lake Storage Gen2** sink |
+| `tasks.max` | **3** |
+| Workers (self-managed) | **2** en **1 AKS** |
+| Volumen | **~15 TB/mes** *(ajustar en FinOps)* |
 
-**Tarifas de lista usadas (punto medio del rango publicado para sinks)**
+### Simulación ilustrativa: full-managed *(detalle)*
 
-| Bloque | Conectores (equivalente Confluent Cloud) | $/tarea/h (medio) | Tareas | Coste tareas/mes (730 h) |
-|--------|------------------------------------------|-------------------|--------|---------------------------|
-| ADLS | [Azure Data Lake Storage Gen2 Sink](https://docs.confluent.io/cloud/current/connectors/cc-azure-datalakeGen2-storage-sink.html) | **0,026** (entre 0,017 y 0,0347) | 6 | 6 × 0,026 × 730 ≈ **114 $** |
-| Elasticsearch | [Elasticsearch Sink](https://docs.confluent.io/cloud/current/connectors/cc-elasticsearch-service-sink.html) | **0,078** (entre 0,052 y 0,1041) | 1 | 1 × 0,078 × 730 ≈ **57 $** |
-| Salesforce | [Salesforce SObject Sink](https://docs.confluent.io/cloud/current/connectors/cc-salesforce-SObjects-sink.html) | **0,225** (entre 0,15 y 0,30) | 3 | 3 × 0,225 × 730 ≈ **493 $** |
-| JDBC | [PostgreSQL Sink](https://docs.confluent.io/cloud/current/connectors/cc-postgresql-sink.html) (proxy de «JDBC gestionado») | **0,078** | 1 | 1 × 0,078 × 730 ≈ **57 $** |
-| **Suma tareas** | | | **11** | **~721 $/mes** |
+> **Aviso:** Orientativo; [precios Confluent Connect](https://www.confluent.io/confluent-cloud/connect-pricing/).
 
-**Tráfico de datos** (misma página: **0,025 $/GB** en la tabla de conectores gestionados):
+**Tareas** — [ADLS Gen2 Sink](https://docs.confluent.io/cloud/current/connectors/cc-azure-datalakeGen2-storage-sink.html): **0,017–0,0347 $/tarea/h**; punto medio **~0,026 $/tarea/h**; **730 h/mes**:
 
-25 000 GB/mes × **0,025 $/GB** ≈ **625 $/mes**
+- **3 × 0,026 × 730 ≈ 57 $/mes** (banda **~37–76 $/mes**).
 
-**Total solo conectores full-managed (lista pública, escenario medio)**
+**Datos:** **15 000 GB × 0,025 $/GB = 375 $/mes**.
 
 | Partida | USD/mes (aprox.) |
-|---------|-------------------|
-| Capacidad por tareas | **721** |
-| Tráfico (25 TB) | **625** |
-| **Subtotal** | **~1 350 $/mes** (**~16 200 $/año**) |
+|---------|-----------------:|
+| Capacidad por tareas (3) | **~57** |
+| Tráfico (15 TB) | **375** |
+| **Total conector** | **~432** |
 
-**Banda rápida (mismo volumen, solo cambiando tarea al mínimo/máximo del rango por tipo)**  
-Solo la parte de **tareas** puede moverse aprox. entre **~480 $/mes** y **~960 $/mes**; el tráfico **625 $/mes** es el mismo con **0,025 $/GB**. En conjunto, **orden de magnitud ~1 100–1 600 $/mes** solo conectores + volumen, **antes** de descuentos y **sin** cluster dedicado de Connect (+**~203 $/mes** extra si aplica **0,27778 $/h** al cluster dedicado según la misma página) ni **PrivateLink** (+**0,03 $/tarea/h** según documentación citada).
+### Self-managed *(detalle: 1 AKS, 2 workers)*
 
----
+| Partida | Hipótesis | USD/mes (aprox.) |
+|---------|-----------|-----------------:|
+| **AKS + nodos** | 1 clúster, pool para **2 workers**, discos | **~250–800** |
+| **Observabilidad / logs** | Métricas, retención | **~40–150** |
+| **Red / egress** | Hacia ADLS y Kafka | **~30–120** |
+| **Licencias y soporte** | Comercial u OSS según política | **~0–330** |
+| **Subtotal** | | **~320–1 400** |
+| **FTE** *(0,03–0,1 FTE)* | Operar AKS + Connect | **~300–1 200** |
 
-**Self-managed (misma escala: 25 TB/mes, orden de magnitud)**
-
-Aquí no hay línea “por GB” de Confluent; el coste es **capacidad + red + licencias/soporte + operación**. Se modela el patrón **actual del banco: cada conector en un AKS distinto** (**11 clústeres** para **11** sinks), no un único cluster Connect compartido.
-
-| Partida | Hipótesis ilustrativa | USD/mes (aprox.) |
-|---------|------------------------|------------------|
-| **AKS y nodos** | **11 clústeres AKS** con pools para Connect (coste de **planos de control**, **worker nodes**, discos, balanceadores); mínimos operativos repetidos **por integración** | **~2 000–5 500** |
-| **Observabilidad, logs, disco** | Métricas y retención **por clúster** o centralizado con coste imputado | **~200–800** |
-| **Red / egress** | Rutas, peering, egress y DNS **multiplicados** por entorno | **~150–900** |
-| **Licencias y soporte** | Stack comercial o **soporte** que escala con **despliegues** / nodos. **OSS** sin soporte: **0 $** (poco habitual en banca). | **~400–3 500** |
-| **Subtotal plataforma** | Suma de las filas anteriores | **~2 750–10 700 $/mes** |
-| **Operación (TCO)** | **0,15–0,25 FTE** plataforma a **~10–15 k$/mes-FTE**; con **11 AKS** suele haber **más** fricción operativa que con un solo cluster | **~1 500–3 800 $/mes** |
-
-- **Plataforma (11 AKS + licencia), vs factura Confluent solo conectores:** **~2,8–10,7 k$/mes** frente a **~1,1–1,6 k$/mes** *solo conectores + datos* en la simulación full-managed. El **aislamiento por AKS** tiene **coste explícito** en la nube.
-- **TCO con FTE:** **~4,3–14,5 k$/mes** en este ejemplo (subtotal + fracción FTE).
-
-*(Los importes mensuales desglosados coinciden con el [cuadro resumen](#cuadro-resumen-self-managed-vs-full-managed) al inicio de esta sección.)*
-
-Vuelve a calcular con **vuestro** volumen real (GB/mes), **`tasks.max`** y **coste hora interno**; la fórmula Confluent es siempre:
-
-`coste_tareas = suma de (tareas_i × $/tarea/h_i × 730)` y `coste_datos = GB_mes × $/GB`.
+`coste_tareas = tareas × $/tarea/h × 730`; `coste_datos = GB_mes × $/GB`.
 
 ### Self-managed: de qué está hecho el coste (TCO)
 
 Aquí el gasto **no** suele aparecer como “línea de conector” en una factura, sino como **capacidad y tiempo de personas**:
 
-- **Infraestructura**: en el esquema de referencia, **varios clústeres AKS** (p. ej. **uno por conector**), cada uno con **nodes**, almacenamiento y red; **coste y operación** crecen con el **número de clústeres**.
+- **Infraestructura**: la simulación de costes de arriba usa **un AKS con 2 workers** para **un** sink ADLS; en otras topologías del banco (p. ej. **un AKS por conector**) el **coste fijo por clúster** se **multiplica** con el número de integraciones.
 - **Licencias y soporte**: uso de **Confluent Platform** (u otra distribución comercial), **suscripción de soporte** o **acuerdos por núcleo/nodo**; en modelos solo **Apache Kafka/Connect OSS** el coste de licencia es **cero**, pero suele compensarse con **contrato de soporte** o asumir el riesgo operativo.
 - **Operación**: parches del runtime, actualización de **plugins**, alta disponibilidad, recuperación ante fallos, ajuste de recursos.
 - **Observabilidad y seguridad**: métricas, logs, alertas, hardening, gestión de credenciales y cumplimiento (encaje con políticas del banco).
@@ -225,12 +169,12 @@ Los precios **cambian por región, moneda, acuerdo empresarial y promociones**; 
 
 ### Cómo usar este apartado con FinOps (orden de trabajo sugerido)
 
-1. **Inventario**: conectores, `tasks.max` medio o máximo, y GB/día (o MB/s) por flujo crítico hacia ADLS, Elasticsearch, Salesforce y JDBC.
-2. **Lado self-managed**: coste imputado de **cada AKS** (o agregado **11×** si aplica **un conector por clúster**), **licencia**, red, observabilidad y **%FTE** anualizado.
+1. **Inventario**: por conector crítico (aquí: **ADLS Gen2 sink**), `tasks.max` efectivo y GB/día (o MB/s); repetir el mismo patrón para otros destinos si hace falta un agregado.
+2. **Lado self-managed**: coste imputado del **AKS** que aloja ese Connect (o suma de clústeres si hay **un AKS por conector**), **licencia**, red, observabilidad y **%FTE** anualizado.
 3. **Lado full-managed**: estimación con la **calculadora / pricing** de Confluent y el contrato vigente (no con números genéricos de un documento interno).
 4. **Sensibilidad**: escenarios “bajo / medio / alto” de volumen; el coste de conectores administrados suele **escalar con el dato**, no solo con el número de conectores.
 
-Con el ejemplo de **11 sinks**, la pregunta útil no es solo “¿cuánto cuesta uno?”, sino “¿cuántas **tareas** corren en total y cuánto **volumen** mueven?”: ahí es donde convergen self-managed (capacidad a dimensionar) y full-managed (precio por uso declarado por el proveedor).
+Con el ejemplo de **un sink ADLS de volumen considerable** (`tasks.max` 3, **~15 TB/mes**), la pregunta útil no es solo “¿cuánto cuesta el clúster?”, sino “¿cuántas **tareas** corren y cuánto **volumen** mueven?”: ahí es donde convergen self-managed (capacidad a dimensionar) y full-managed (precio por uso declarado por el proveedor).
 
 ---
 
