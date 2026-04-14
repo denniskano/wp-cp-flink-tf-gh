@@ -92,6 +92,21 @@ En la partida **comparable** de esta simulación —**operar Connect en 11 AKS +
 
 Un modelo self-managed **consolidado** (menos AKS compartiendo Connect) **reduciría** el coste propio y acercaría la comparación, a costa de **menos aislamiento** por conector.
 
+### Ahorro con full-managed (solo costos y porcentajes)
+
+**Definición:** **Ahorro %** = (Coste self-managed − Coste full-managed) / Coste self-managed × 100 (siempre respecto al denominador **self-managed** de esa fila). Misma simulación que arriba; **sin** Kafka/SR en Confluent; **sin** FTE en las tres primeras filas.
+
+| Escenario (cómo se combinan las bandas) | Self-managed (USD/mes) | Full-managed (USD/mes) | Ahorro (USD/mes) | **Ahorro %** |
+|----------------------------------------|----------------------:|-----------------------:|-----------------:|-------------:|
+| **Caso central** (estimación típica) | **6 700** | **1 350** | **~5 350** | **~80 %** |
+| **Menor ahorro** en la simulación (self en suelo, full en techo) | **2 750** | **1 600** | **~1 150** | **~42 %** |
+| **Mayor ahorro** en la simulación (self en techo, full en suelo) | **10 700** | **1 100** | **~9 600** | **~90 %** |
+| **Central + FTE** (self **~6 700** + **~2 650** de FTE medio → **~9 350**; full sigue **~1 350**) | **~9 350** | **1 350** | **~8 000** | **~86 %** |
+
+**Lectura:** pasar estos conectores a **full-managed** implicaría, en el **caso central**, pagar **alrededor de un 20 %** de lo que cuesta la **plataforma** self-managed con **11 AKS** (es decir, **~80 %** de ahorro relativo sobre ese coste). El **%** real queda dentro de **~42 %–90 %** según dónde caigan los extremos de las bandas; con **FTE** imputado al self-managed, el ahorro relativo **suele subir** (más denominador “coste actual”).
+
+*Nota:* el ahorro es sobre la **partida modelada** (Connect en AKS vs conectores gestionados), no sobre el presupuesto total de TI ni sobre el coste de Kafka ya contratado.
+
 ### Inventario de referencia (ejemplo actual)
 
 Como línea base de capacidad y conversación con FinOps, un patrón cercano al portafolio descrito sería:
