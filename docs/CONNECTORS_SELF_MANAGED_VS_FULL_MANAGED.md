@@ -75,6 +75,75 @@ Como línea base de capacidad y conversación con FinOps, un patrón cercano al 
 
 El coste variable en **full-managed** depende también de **`tasks.max`** (y del volumen real de datos), no solo del número de conectores: un conector con varias tareas suma más “tareas·hora” que otro con una sola.
 
+### Simulación ilustrativa: volumen alto (solo conectores, orden de magnitud)
+
+> **Aviso:** Cifras **orientativas** para reunión con FinOps. No sustituyen cotización ni modelo interno. Moneda **USD**, precios de **lista pública** según [Managed Kafka Connector Pricing](https://www.confluent.io/confluent-cloud/connect-pricing/) (varían por **región**, **contrato** y descuentos). El tráfico se factura **pre-compresión** (`$/GB`). **No** incluye aquí el coste del **cluster Kafka**, Schema Registry ni cargos de red del banco.
+
+**Supuestos del escenario “considerable”**
+
+| Supuesto | Valor |
+|----------|--------|
+| Volumen mensual atribuible a estos sinks | **25 TB/mes** (**25 000 GB/mes**) de datos procesados por los conectores |
+| Tareas activas | **1 tarea por conector** → **11 tareas** (si `tasks.max` > 1, multiplicar) |
+| Horas por mes | **730 h** |
+| JDBC | Precio tipo **sink JDBC gestionado** (en la tabla pública se usan conectores como **PostgreSQL / Microsoft SQL Server** sink; si fuera **custom BYOC**, la tarea iría a **0,10–0,20 $/tarea/h** aprox.) |
+
+**Tarifas de lista usadas (punto medio del rango publicado para sinks)**
+
+| Bloque | Conectores (equivalente Confluent Cloud) | $/tarea/h (medio) | Tareas | Coste tareas/mes (730 h) |
+|--------|------------------------------------------|-------------------|--------|---------------------------|
+| ADLS | [Azure Data Lake Storage Gen2 Sink](https://docs.confluent.io/cloud/current/connectors/cc-azure-datalakeGen2-storage-sink.html) | **0,026** (entre 0,017 y 0,0347) | 6 | 6 × 0,026 × 730 ≈ **114 $** |
+| Elasticsearch | [Elasticsearch Sink](https://docs.confluent.io/cloud/current/connectors/cc-elasticsearch-service-sink.html) | **0,078** (entre 0,052 y 0,1041) | 1 | 1 × 0,078 × 730 ≈ **57 $** |
+| Salesforce | [Salesforce SObject Sink](https://docs.confluent.io/cloud/current/connectors/cc-salesforce-SObjects-sink.html) | **0,225** (entre 0,15 y 0,30) | 3 | 3 × 0,225 × 730 ≈ **493 $** |
+| JDBC | [PostgreSQL Sink](https://docs.confluent.io/cloud/current/connectors/cc-postgresql-sink.html) (proxy de «JDBC gestionado») | **0,078** | 1 | 1 × 0,078 × 730 ≈ **57 $** |
+| **Suma tareas** | | | **11** | **~721 $/mes** |
+
+**Tráfico de datos** (misma página: **0,025 $/GB** en la tabla de conectores gestionados):
+
+25 000 GB/mes × **0,025 $/GB** ≈ **625 $/mes**
+
+**Total solo conectores full-managed (lista pública, escenario medio)**
+
+| Partida | USD/mes (aprox.) |
+|---------|-------------------|
+| Capacidad por tareas | **721** |
+| Tráfico (25 TB) | **625** |
+| **Subtotal** | **~1 350 $/mes** (**~16 200 $/año**) |
+
+**Banda rápida (mismo volumen, solo cambiando tarea al mínimo/máximo del rango por tipo)**  
+Solo la parte de **tareas** puede moverse aprox. entre **~480 $/mes** y **~960 $/mes**; el tráfico **625 $/mes** es el mismo con **0,025 $/GB**. En conjunto, **orden de magnitud ~1 100–1 600 $/mes** solo conectores + volumen, **antes** de descuentos y **sin** cluster dedicado de Connect (+**~203 $/mes** extra si aplica **0,27778 $/h** al cluster dedicado según la misma página) ni **PrivateLink** (+**0,03 $/tarea/h** según documentación citada).
+
+---
+
+**Self-managed (misma escala: 25 TB/mes, orden de magnitud)**
+
+Aquí no hay línea “por GB” de Confluent; el coste es **capacidad + red + operación**.
+
+| Partida | Hipótesis ilustrativa | USD/mes (aprox.) |
+|---------|------------------------|------------------|
+| **Cómputo** | 3–4 workers Connect (VM/K8s tamaño medio cloud) para sostener ~25 TB/mes con picos | **~600–1 000** |
+| **Observabilidad, logs, disco** | Métricas, retención | **~100–250** |
+| **Red / egress** | Depende si el Kafka es interno o cloud; muy variable | **~0–400** (placeholder) |
+| **Subtotal infra** | | **~700–1 650 $/mes** |
+| **Operación (TCO)** | Ej. **0,15–0,25 FTE** plataforma a coste cargado **~10–15 k$/mes** por FTE | **~1500–3 800 $/mes** |
+
+- **Solo infra (comparación parcial con la factura Confluent de conectores):** **~0,7–1,7 k$/mes** frente a **~1,1–1,6 k$/mes** de la simulación full-managed *solo conectores + datos* — **del mismo orden**; el desempate suele ser **FTE, riesgo y tiempo de mantenimiento**, no solo el ticket de cloud.
+- **TCO con operación:** self-managed suele situarse **por encima** en modelos bancarios típicos (**~2,2–5,5 k$/mes** en este ejemplo de FTE), porque el **personal** no aparece en la factura de Confluent pero sí en el coste interno.
+
+**Cuadro resumen (misma simulación: 11 tareas, 25 TB/mes, USD/mes aprox.)**
+
+| Enfoque | Qué incluye | Rango ilustrativo |
+|---------|-------------|-------------------|
+| **Full-managed** | Lista pública Confluent: **tareas** (punto medio por tipo) + **datos** a **0,025 $/GB** | **~1 100–1 600** (banda tarea min/max + 625 $ de datos) |
+| **Self-managed** | Solo **infra** Connect + observabilidad + red (placeholder) | **~700–1 650** |
+| **Self-managed (TCO)** | Infra anterior + **0,15–0,25 FTE** a ~10–15 k$/mes-FTE | **~2 200–5 500** |
+
+La fila central compara algo parecido a “ticket de plataforma”; la tercera fila es la comparación **más honesta** para un banco porque incorpora operación.
+
+Vuelve a calcular con **vuestro** volumen real (GB/mes), **`tasks.max`** y **coste hora interno**; la fórmula Confluent es siempre:
+
+`coste_tareas = suma de (tareas_i × $/tarea/h_i × 730)` y `coste_datos = GB_mes × $/GB`.
+
 ### Self-managed: de qué está hecho el coste (TCO)
 
 Aquí el gasto **no** suele aparecer como “línea de conector” en una factura, sino como **capacidad y tiempo de personas**:
@@ -82,7 +151,7 @@ Aquí el gasto **no** suele aparecer como “línea de conector” en una factur
 - **Infraestructura**: nodos (VM, Kubernetes, etc.) para workers de Connect, almacenamiento y red asociados.
 - **Operación**: parches del runtime, actualización de **plugins**, alta disponibilidad, recuperación ante fallos, ajuste de recursos.
 - **Observabilidad y seguridad**: métricas, logs, alertas, hardening, gestión de credenciales y cumplimiento (encaje con políticas del banco).
-- **Coste de oportunidad**: horas de equipos de plataforma que dejan de dedicarse a otrosriesgos o productos.
+- **Coste de oportunidad**: horas de equipos de plataforma que dejan de dedicarse a otros riesgos o productos.
 
 Para comparar en serio hace falta un **modelo interno** (coste hora de plataforma, número de FTE imputados, amortización de HW/cloud interno, etc.).
 
