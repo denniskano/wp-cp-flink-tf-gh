@@ -92,20 +92,27 @@ En la partida **comparable** de esta simulación —**operar Connect en 11 AKS +
 
 Un modelo self-managed **consolidado** (menos AKS compartiendo Connect) **reduciría** el coste propio y acercaría la comparación, a costa de **menos aislamiento** por conector.
 
-### Ahorro con full-managed (solo costos y porcentajes)
+### Lámina: ¿cuánto se ahorra con conectores full-managed?
 
-**Definición:** **Ahorro %** = (Coste self-managed − Coste full-managed) / Coste self-managed × 100 (siempre respecto al denominador **self-managed** de esa fila). Misma simulación que arriba; **sin** Kafka/SR en Confluent; **sin** FTE en las tres primeras filas.
+**Idea en una frase:** comparamos **cuánto cuesta al mes** tener **Kafka Connect en 11 AKS** (un conector por clúster) frente a **pagar el mismo trabajo con conectores administrados en Confluent Cloud** (lista de precios pública, **USD/mes**).
 
-| Escenario (cómo se combinan las bandas) | Self-managed (USD/mes) | Full-managed (USD/mes) | Ahorro (USD/mes) | **Ahorro %** |
-|----------------------------------------|----------------------:|-----------------------:|-----------------:|-------------:|
-| **Caso central** (estimación típica) | **6 700** | **1 350** | **~5 350** | **~80 %** |
-| **Menor ahorro** en la simulación (self en suelo, full en techo) | **2 750** | **1 600** | **~1 150** | **~42 %** |
-| **Mayor ahorro** en la simulación (self en techo, full en suelo) | **10 700** | **1 100** | **~9 600** | **~90 %** |
-| **Central + FTE** (self **~6 700** + **~2 650** de FTE medio → **~9 350**; full sigue **~1 350**) | **~9 350** | **1 350** | **~8 000** | **~86 %** |
+**Qué estamos contando (y qué no):**
 
-**Lectura:** pasar estos conectores a **full-managed** implicaría, en el **caso central**, pagar **alrededor de un 20 %** de lo que cuesta la **plataforma** self-managed con **11 AKS** (es decir, **~80 %** de ahorro relativo sobre ese coste). El **%** real queda dentro de **~42 %–90 %** según dónde caigan los extremos de las bandas; con **FTE** imputado al self-managed, el ahorro relativo **suele subir** (más denominador “coste actual”).
+- **Sí:** 11 sinks, **~25 TB/mes** por conectores, coste de **plataforma AKS + licencia** vs **tarifa Confluent por tareas + datos**.
+- **No:** precio del **cluster Kafka** ni Schema Registry en Confluent; ni el **presupuesto total** de TI.
 
-*Nota:* el ahorro es sobre la **partida modelada** (Connect en AKS vs conectores gestionados), no sobre el presupuesto total de TI ni sobre el coste de Kafka ya contratado.
+**Reducción %** = cuánto **baja el costo** respecto al **self-managed** de esa fila: *(costo hoy − costo full) / costo hoy*.
+
+**FTE** = parte del **tiempo del equipo** (plataforma) contada como costo monetario; en la segunda fila se suma al escenario típico para reflejar operar **11 AKS**.
+
+| **Escenario** | **Costo hoy** *(self-managed, USD/mes)* | **Costo con full-managed** *(USD/mes)* | **Ahorro al mes** *(USD)* | **Ahorro** *(%)* |
+|---------------|--:|--:|--:|--:|
+| **Escenario típico** | ~6 700 | ~1 350 | ~5 350 | **~80 %** |
+| **Mismo escenario + tiempo de equipo** para operar los 11 AKS *(FTE imputado)* | ~9 350 | ~1 350 | ~8 000 | **~86 %** |
+
+**Entre el peor y el mejor caso** del modelo (bandas de la simulación), el ahorro relativo puede ir **aprox. del 42 % al 90 %**.
+
+**Conclusión para la presentación:** en el escenario típico, **full-managed cuesta alrededor de cinco veces menos** que la plataforma self-managed modelada (**~80 %** de reducción sobre ese costo).
 
 ### Inventario de referencia (ejemplo actual)
 
