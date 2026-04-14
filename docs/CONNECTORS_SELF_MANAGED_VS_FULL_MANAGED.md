@@ -61,6 +61,22 @@ En resumen: **el banco es dueño del contrato de integración y de la gobernanza
 
 ## Comparación de costos (marco para el banco)
 
+### Cuadro resumen: self-managed vs full-managed
+
+Cifras **ilustrativas** en **USD/mes** salvo que se indique lo contrario; escenario detallado más abajo. **No** incluyen el **cluster Kafka** ni Schema Registry en el lado Confluent.
+
+| Dimensión | **Self-managed** | **Full-managed (Confluent Cloud)** |
+|-----------|------------------|--------------------------------------|
+| **Supuestos de la simulación** | **11 sinks** (6 ADLS + 1 Elasticsearch + 3 Salesforce + 1 JDBC), **~25 TB/mes** por conectores, **11 tareas** (`tasks.max` = 1 c/u) | Mismos supuestos |
+| **Qué se está comparando** | **Plataforma** Connect propia: cómputo, observabilidad, red, **licencia/soporte** | Solo **uso de conectores gestionados**: **tareas** + **tráfico** (`$/GB` pre-compresión); Kafka ya contratado aparte |
+| **Ticket mensual (rango)** | **~700–4 150** (suelo sin licencia; techo con licencia/soporte alto) | **~1 100–1 600** (banda **tarea** min/max del catálogo + **625** de datos a **0,025 $/GB**) |
+| **Referencia “punto medio”** | **~1 300–2 500** típico si se imputa **licencia/soporte** medio en banca | **~1 350** (~721 tareas + ~625 datos) |
+| **TCO con operación** | **~2 200–8 000** con **0,15–0,25 FTE** plataforma (~10–15 k$/mes-FTE) | Menos **SRE de runtime Connect**; siguen costes de **integración, red a destinos y gobierno** (no cuantificados aquí) |
+| **Palanca principal de coste** | **Nodos**, **contrato de licencia**, **headcount** | **Volumen (GB/mes)**, **`tasks.max`**, tipo de conector (p. ej. Salesforce más caro que ADLS) |
+| **Quién opera Kafka Connect** | **Organización** (parches, HA, plugins) | **Confluent** en la capa de conector administrado |
+
+**Lectura rápida:** en **solo ticket**, ambos modelos pueden ser **del mismo orden**; el **self-managed** se **dispara** con **licencia + FTE**. El **full-managed** escala sobre todo con **datos y tareas** en factura Confluent.
+
 ### Inventario de referencia (ejemplo actual)
 
 Como línea base de capacidad y conversación con FinOps, un patrón cercano al portafolio descrito sería:
@@ -117,28 +133,21 @@ Solo la parte de **tareas** puede moverse aprox. entre **~480 $/mes** y **~960 $
 
 **Self-managed (misma escala: 25 TB/mes, orden de magnitud)**
 
-Aquí no hay línea “por GB” de Confluent; el coste es **capacidad + red + operación**.
+Aquí no hay línea “por GB” de Confluent; el coste es **capacidad + red + licencias/soporte + operación**.
 
 | Partida | Hipótesis ilustrativa | USD/mes (aprox.) |
 |---------|------------------------|------------------|
 | **Cómputo** | 3–4 workers Connect (VM/K8s tamaño medio cloud) para sostener ~25 TB/mes con picos | **~600–1 000** |
 | **Observabilidad, logs, disco** | Métricas, retención | **~100–250** |
 | **Red / egress** | Depende si el Kafka es interno o cloud; muy variable | **~0–400** (placeholder) |
-| **Subtotal infra** | | **~700–1 650 $/mes** |
-| **Operación (TCO)** | Ej. **0,15–0,25 FTE** plataforma a coste cargado **~10–15 k$/mes** por FTE | **~1500–3 800 $/mes** |
+| **Licencias y soporte** | En banca suele haber **distribución con soporte** (p. ej. **Confluent Platform** u oferta equivalente), **AMQ**/fabricante o **contrato enterprise**; suele facturarse por **nodo/vCPU/año** o suscripción. **OSS puro** sin soporte externo: **0 $** de licencia (riesgo y política aparte). | **~0** (solo community, poco habitual) a **~400–2 500**/mes amortizado (**orden de magnitud**; el contrato real lo fija Compras) |
+| **Subtotal plataforma** | Cómputo + observabilidad + red + licencia/soporte | **~700–4 150 $/mes** (techo con licencia/soporte alto; suelo **~700** solo si licencia **0** y política lo permite) |
+| **Operación (TCO)** | Ej. **0,15–0,25 FTE** plataforma a coste cargado **~10–15 k$/mes** por FTE | **~1 500–3 800 $/mes** |
 
-- **Solo infra (comparación parcial con la factura Confluent de conectores):** **~0,7–1,7 k$/mes** frente a **~1,1–1,6 k$/mes** de la simulación full-managed *solo conectores + datos* — **del mismo orden**; el desempate suele ser **FTE, riesgo y tiempo de mantenimiento**, no solo el ticket de cloud.
-- **TCO con operación:** self-managed suele situarse **por encima** en modelos bancarios típicos (**~2,2–5,5 k$/mes** en este ejemplo de FTE), porque el **personal** no aparece en la factura de Confluent pero sí en el coste interno.
+- **Plataforma (infra + licencia/soporte), comparación parcial con la factura Confluent de conectores:** **~0,7–4,2 k$/mes** frente a **~1,1–1,6 k$/mes** de la simulación full-managed *solo conectores + datos*. Con **soporte o stack comercial on-prem**, el self-managed **deja de ser “solo VMs”** y a menudo **iguala o supera** el ticket cloud **antes** de contar FTE.
+- **TCO con operación:** self-managed con FTE imputado: **~2,2–8 k$/mes** en este ejemplo (plataforma + fracción FTE), según si la licencia va al suelo (**~2,2 k$**) o al techo (**~8 k$**).
 
-**Cuadro resumen (misma simulación: 11 tareas, 25 TB/mes, USD/mes aprox.)**
-
-| Enfoque | Qué incluye | Rango ilustrativo |
-|---------|-------------|-------------------|
-| **Full-managed** | Lista pública Confluent: **tareas** (punto medio por tipo) + **datos** a **0,025 $/GB** | **~1 100–1 600** (banda tarea min/max + 625 $ de datos) |
-| **Self-managed** | Solo **infra** Connect + observabilidad + red (placeholder) | **~700–1 650** |
-| **Self-managed (TCO)** | Infra anterior + **0,15–0,25 FTE** a ~10–15 k$/mes-FTE | **~2 200–5 500** |
-
-La fila central compara algo parecido a “ticket de plataforma”; la tercera fila es la comparación **más honesta** para un banco porque incorpora operación.
+*(Los importes mensuales desglosados coinciden con el [cuadro resumen](#cuadro-resumen-self-managed-vs-full-managed) al inicio de esta sección.)*
 
 Vuelve a calcular con **vuestro** volumen real (GB/mes), **`tasks.max`** y **coste hora interno**; la fórmula Confluent es siempre:
 
@@ -149,6 +158,7 @@ Vuelve a calcular con **vuestro** volumen real (GB/mes), **`tasks.max`** y **cos
 Aquí el gasto **no** suele aparecer como “línea de conector” en una factura, sino como **capacidad y tiempo de personas**:
 
 - **Infraestructura**: nodos (VM, Kubernetes, etc.) para workers de Connect, almacenamiento y red asociados.
+- **Licencias y soporte**: uso de **Confluent Platform** (u otra distribución comercial), **suscripción de soporte** o **acuerdos por núcleo/nodo**; en modelos solo **Apache Kafka/Connect OSS** el coste de licencia es **cero**, pero suele compensarse con **contrato de soporte** o asumir el riesgo operativo.
 - **Operación**: parches del runtime, actualización de **plugins**, alta disponibilidad, recuperación ante fallos, ajuste de recursos.
 - **Observabilidad y seguridad**: métricas, logs, alertas, hardening, gestión de credenciales y cumplimiento (encaje con políticas del banco).
 - **Coste de oportunidad**: horas de equipos de plataforma que dejan de dedicarse a otros riesgos o productos.
