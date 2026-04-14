@@ -66,7 +66,9 @@ Escenario con **supuestos fijos** (adecuado para **PPT**): **un** sink **Azure D
 
 **Full-managed (cálculo fijo):** [precios públicos Connect](https://www.confluent.io/confluent-cloud/connect-pricing/); conector [ADLS Gen2 Sink](https://docs.confluent.io/cloud/current/connectors/cc-azure-datalakeGen2-storage-sink.html) a **0,026 $/tarea·h** y **730 h/mes** → **3 × 0,026 × 730 = 56,94** (en la tabla **57 $/mes**); tráfico **15 000 GB × 0,025 $/GB = 375 $/mes** → **432 $/mes** en total conector.
 
-**Self-managed (imputación fija de ejemplo):** **400** (AKS + nodos, 2 workers) + **90** (observabilidad / logs) + **55** (red / egress) + **175** (licencia y soporte del stack Connect) = **720 $/mes**. La fila opcional de **FTE** usa **750 $/mes** (ejemplo **0,0625 FTE** a **12 000 $/mes**); sustituir por el coste hora interno del banco.
+**Self-managed (imputación fija de ejemplo):** **400** (AKS + nodos, 2 workers) + **90** (observabilidad / logs) + **55** (red / egress) + **licencias contratadas** (ver filas del cuadro: prorrateo de **12 500 $/año por 5 conectores** y **5 000 $/año por worker** ×2) = **1 586 $/mes** sin FTE. La fila opcional de **FTE** usa **750 $/mes** (ejemplo **0,0625 FTE** a **12 000 $/mes**); sustituir por el coste hora interno del banco.
+
+**Licencias self-managed (datos aportados por el banco):** **12 500 $/año** por **5 conectores**; en la lámina, **un** conector se imputa como **12 500 ÷ 5 ÷ 12 ≈ 208 $/mes** (si no hay prorrateo y se factura el bloque completo: **12 500 ÷ 12 ≈ 1 042 $/mes** en esa fila y recalcular totales). **5 000 $/año por worker** × **2 workers ÷ 12 ≈ 833 $/mes**. El **full-managed** en Confluent Cloud se valora con la [lista pública de Connect](https://www.confluent.io/confluent-cloud/connect-pricing/), no con estos canones on‑prem.
 
 **Lectura de la columna «Diferencia»:** **self-managed − full-managed** (positivo = más caro en self en esa partida). El **ahorro %** es **(total self − total full) / total self**.
 
@@ -77,16 +79,17 @@ Escenario con **supuestos fijos** (adecuado para **PPT**): **un** sink **Azure D
 | AKS y cómputo (1 clúster, 2 workers) | 400 | 0 | 400 |
 | Observabilidad y logs | 90 | 0 | 90 |
 | Red / egress | 55 | 0 | 55 |
-| Licencia y soporte (stack Connect) | 175 | 0 | 175 |
+| Suscripción conectores (12 500 $/año ÷ 5 ÷ 12; 1 conector) | 208 | 0 | 208 |
+| Suscripción workers (5 000 $/año × 2 ÷ 12) | 833 | 0 | 833 |
 | Confluent — tareas del conector (3) | 0 | 57 | −57 |
 | Confluent — tráfico de datos (15 TB) | 0 | 375 | −375 |
-| **Total (sin FTE)** | **720** | **432** | **288** |
+| **Total (sin FTE)** | **1 586** | **432** | **1 154** |
 | Tiempo imputado (FTE) | 750 | 0 | 750 |
-| **Total (con FTE)** | **1 470** | **432** | **1 038** |
+| **Total (con FTE)** | **2 336** | **432** | **1 904** |
 
 **Nota (FTE):** fila opcional en la lámina si se quiere mostrar carga de equipo; el coste **432** del modelo full-managed **no** incluye el mismo concepto de FTE.
 
-**Resumen:** sin FTE, **ahorro 288 $/mes** (**40 %** sobre 720). Con FTE de ejemplo, **ahorro 1 038 $/mes** (**71 %** sobre 1 470).
+**Resumen:** sin FTE, **ahorro 1 154 $/mes** (**73 %** sobre 1 586). Con FTE de ejemplo, **ahorro 1 904 $/mes** (**82 %** sobre 2 336).
 
 ### Inventario del escenario modelado
 
