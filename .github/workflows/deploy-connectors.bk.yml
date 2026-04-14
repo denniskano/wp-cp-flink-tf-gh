@@ -1,4 +1,4 @@
-name: peve-util-test
+name: Deploy Full-Managed Kafka Connectors
 
 on:
   workflow_dispatch:
@@ -18,45 +18,37 @@ on:
         type: string
 
 env:
-  VAULT_ADDR: "https://vaultdev.lima.bcp.com.pe:443"
-  # Solo si descomentas `namespace:` en hashicorp/vault-action (p. ej. HCP). On-prem suele omitirse.
-  # VAULT_NAMESPACE: admin
+  VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
   CODAPP: ${{ github.event.inputs.CODAPP }}
   ENVIRONMENT: "DES"
   VAULT_ENV_PATH: "dev"
   TF_VAR_connectors_dir: "../../${{ github.event.inputs.CODAPP }}/ccloud-connectors"
-  STORAGE_CONTAINER_NAME: tf-connect-dev
-  RESOURCE_GROUP_NAME: RSGREU2PEVED01
-  KAFKA_CLUSTER_ID: "lkc-xzyppq"  # Actualizar con el cluster ID real
-  RESOURCES_BRANCH: feature/PEVE-5321 # develop-v2
-  TERRAFORM_VERSION: "1.5.0"
-  NODE_VERSION: "16.13.1"
-  TERRAFORM_WORKDIR: terraform/ccloud-connectors
-  SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01 # SA para el API Key de Terraform
-  API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01   # API Key de Terraform
+  KAFKA_CLUSTER_ID: "lkc-xxxxx"  # Actualizar con el cluster ID real
+  SERVICE_ACCOUNT: "SA_AZC_DES_PEVE_POS_01"  # SA para el API Key de Terraform
+  API_KEY_TERRAFORM: "AK_AZC_DES_PEVE_CRMAN_PAYMENT_01"  # API Key de Terraform
 
 jobs:
   deploy-connectors:
-    runs-on: arc-runner-desa-set
+    runs-on: ubuntu-latest
     environment: APP_PEVE_CI_DESA  # Actualizar según entorno
     
     steps:
       - name: Checkout main repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RESOURCES_BRANCH }}
 
       - name: Checkout ${{ env.CODAPP }} resources
         uses: actions/checkout@v4
         with:
-          ref: automation-v3-flink
+          repository: denniskano/test-event-driven-resources
+          ref: develop
           path: resources
+          token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Move terraform to correct location
+      - name: Move ${{ env.CODAPP }} to correct location
         run: |
-          mv resources/terraform ./terraform
+          mv resources/${{ env.CODAPP }} ./${{ env.CODAPP }}
           rm -rf resources
-          echo "✅ terraform folder moved to workspace root"
+          echo "✅ ${{ env.CODAPP }} folder moved to workspace root"
 
       - name: Verify ${{ env.CODAPP }} folder structure
         run: |
@@ -72,20 +64,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Install yq
-        run: |
-          echo "=== Installing yq ==="
-          sudo curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
-          yq --version
-          echo "✅ yq installed successfully"
-
-      - name: Install NodeJs
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+          terraform_version: "1.5.0"
 
       - name: Extract Environment ID from CC_PROPERTIES
         id: extract-env
@@ -93,7 +72,6 @@ jobs:
           echo "CC_PROPERTIES raw content:"
           echo '${{ vars.CC_PROPERTIES }}'
           
-          # Extraer environment_id del JSON
           ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
           
           echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
@@ -113,20 +91,18 @@ jobs:
           url: ${{ env.VAULT_ADDR }}
           tlsSkipVerify: true
           method: approle
-          # namespace: admin
+          namespace: admin
           roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
           exportToken: true
           secrets: |
-            peve/kv2/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
-            peve/kv2/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
-            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
-     
-      - name: Configure Azure Storage Access Key
+            peve/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+
+      - name: Install yq
         run: |
-          echo "Configuring Azure Storage Access Key"
-          export ARM_ACCESS_KEY=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
-          echo "OK: Azure Storage Access Key configured"
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
       - name: Fetch connector secrets from Vault
         run: |
@@ -137,13 +113,6 @@ jobs:
           if [ -z "${VAULT_TOKEN:-}" ]; then
             echo "❌ VAULT_TOKEN no está disponible (vault-action exportToken=true falló o no corrió)."
             exit 1
-          fi
-
-          # Si en vault-action descomentas `namespace: ...`, define env VAULT_NAMESPACE igual (ej. admin).
-          # Vault on-prem suele no usar namespace: no enviar X-Vault-Namespace en curl (evita 403).
-          EXTRA_CURL_HEADERS=()
-          if [ -n "${VAULT_NAMESPACE:-}" ]; then
-            EXTRA_CURL_HEADERS+=(-H "X-Vault-Namespace: ${VAULT_NAMESPACE}")
           fi
 
           for connector_dir in $(find "${CONNECTORS_DIR}" -mindepth 1 -maxdepth 1 -type d | sort); do
@@ -175,21 +144,10 @@ jobs:
                 exit 1
               fi
 
-              # Atajo legacy en YAML: {mount}/data/... -> API KV v2: {mount}/kv2/data/...
-              # Cualquier primer segmento (peve, otra app, etc.); si ya trae /kv2/data/, no tocar.
-              if [[ "${vault_path}" == */kv2/data/* ]]; then
-                :
-              elif [[ "${vault_path}" == */data/* ]]; then
-                _vp_prefix="${vault_path%%/data/*}"
-                _vp_suffix="${vault_path#*/data/}"
-                vault_path="${_vp_prefix}/kv2/data/${_vp_suffix}"
-                unset _vp_prefix _vp_suffix
-              fi
-
-              vault_resp=$(curl -sS -k \
+              vault_resp=$(curl -sS \
                 -w "\n%{http_code}" \
                 -H "X-Vault-Token: ${VAULT_TOKEN}" \
-                "${EXTRA_CURL_HEADERS[@]}" \
+                -H "X-Vault-Namespace: admin" \
                 "${VAULT_ADDR}/v1/${vault_path}")
 
               http_code="$(echo "$vault_resp" | tail -n 1)"
@@ -202,8 +160,6 @@ jobs:
               fi
 
               secret_value=$(echo "$body" | jq -r ".data.data.${vault_field}")
-              # Vault a veces guarda \\r o espacios/saltos al final; Azure rechaza la firma (invalid credentials).
-              secret_value=$(printf '%s' "$secret_value" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
               if [ -z "$secret_value" ] || [ "$secret_value" == "null" ]; then
                 echo "❌ Failed to fetch secret: ${vault_path} -> ${vault_field} for key ${key}"
@@ -217,37 +173,26 @@ jobs:
             SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg cn "$connector_name" --argjson cs "$connector_secrets" '. + {($cn): $cs}')
           done
 
-          # GITHUB_ENV multilinea: NO usar <<'EOF' (las comillas rompen el delimitador). Delimitador unico por si el JSON contiene "EOF".
+          # Export robusto para JSON (evita problemas con caracteres especiales).
           {
-            echo "CONNECTOR_SECRETS<<CONNECTOR_SECRETS_JSON_END"
-            printf '%s\n' "$SECRETS_JSON"
-            echo "CONNECTOR_SECRETS_JSON_END"
+            echo "CONNECTOR_SECRETS<<'EOF'"
+            echo "${SECRETS_JSON}"
+            echo "EOF"
           } >> "$GITHUB_ENV"
           echo "✅ All connector secrets fetched"
 
-      - name: Verify CONNECTOR_SECRETS structure (no secret values)
-        run: |
-          echo "=== Secret key names per connector ==="
-          echo "$CONNECTOR_SECRETS" | jq 'map_values(keys)'
-          echo "=== Value character lengths per key (sanity check) ==="
-          echo "$CONNECTOR_SECRETS" | jq 'map_values(map_values(length))'
-          echo "$CONNECTOR_SECRETS" | jq -r '.["ccloud-azure-blob-storage-sink-connector-01"]["azblob.account.key"]'
-
-      
       - name: Terraform Init - Connectors
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: terraform/ccloud-connectors
         run: |
           terraform init \
-            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
-            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
-            -backend-config="key=dev/${{ env.CODAPP }}/tf-connect.tfstate" \
-            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
-            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
-        env:
-          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+            -backend-config="storage_account_name=pevetfstate" \
+            -backend-config="resource_group_name=rg-peve-terraform" \
+            -backend-config="container_name=tf-connectors-${{ env.VAULT_ENV_PATH }}" \
+            -backend-config="key=${{ env.VAULT_ENV_PATH }}/${{ env.CODAPP }}/tf-connectors.tfstate" \
+            -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
 
       - name: Terraform Plan - Connectors
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: terraform/ccloud-connectors
         run: terraform plan
         if: github.event.inputs.action != 'destroy'
         env:
@@ -260,7 +205,7 @@ jobs:
           TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
 
       - name: Terraform Apply - Connectors
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: terraform/ccloud-connectors
         run: terraform apply -auto-approve
         if: github.event.inputs.action == 'apply'
         env:
@@ -273,7 +218,7 @@ jobs:
           TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
 
       - name: Terraform Destroy - Connectors
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: terraform/ccloud-connectors
         run: terraform destroy -auto-approve
         if: github.event.inputs.action == 'destroy'
         env:
@@ -286,7 +231,7 @@ jobs:
           TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
 
       - name: Output Connectors
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: terraform/ccloud-connectors
         run: |
           if [ "${{ github.event.inputs.action }}" == "apply" ]; then
             echo "=== Connectors Deployed ==="

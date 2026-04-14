@@ -59,6 +59,63 @@ En resumen: **el banco es dueño del contrato de integración y de la gobernanza
 
 ---
 
+## Comparación de costos (marco para el banco)
+
+### Inventario de referencia (ejemplo actual)
+
+Como línea base de capacidad y conversación con FinOps, un patrón cercano al portafolio descrito sería:
+
+| Destino / tipo | Cantidad | Rol |
+|----------------|----------|-----|
+| **ADLS** (Azure Data Lake / almacenamiento Azure) | 6 | Sink |
+| **Elasticsearch** | 1 | Sink |
+| **Salesforce** | 3 | Sink |
+| **JDBC** | 1 | Sink |
+| **Total conectores** | **11** | Todos sink |
+
+El coste variable en **full-managed** depende también de **`tasks.max`** (y del volumen real de datos), no solo del número de conectores: un conector con varias tareas suma más “tareas·hora” que otro con una sola.
+
+### Self-managed: de qué está hecho el coste (TCO)
+
+Aquí el gasto **no** suele aparecer como “línea de conector” en una factura, sino como **capacidad y tiempo de personas**:
+
+- **Infraestructura**: nodos (VM, Kubernetes, etc.) para workers de Connect, almacenamiento y red asociados.
+- **Operación**: parches del runtime, actualización de **plugins**, alta disponibilidad, recuperación ante fallos, ajuste de recursos.
+- **Observabilidad y seguridad**: métricas, logs, alertas, hardening, gestión de credenciales y cumplimiento (encaje con políticas del banco).
+- **Coste de oportunidad**: horas de equipos de plataforma que dejan de dedicarse a otrosriesgos o productos.
+
+Para comparar en serio hace falta un **modelo interno** (coste hora de plataforma, número de FTE imputados, amortización de HW/cloud interno, etc.).
+
+### Full-managed (Confluent Cloud): dimensiones típicas de facturación
+
+En el modelo público de **conectores administrados** en Confluent Cloud, los importes dependen sobre todo de:
+
+- **Uso por tarea y tiempo** (facturación por tarea y hora, según tipo de conector y condiciones del contrato).
+- **Tráfico de datos** asociado al conector (p. ej. GB procesados según la definición de facturación del proveedor; suele referirse a datos **descomprimidos**).
+- **Opciones añadidas** si aplican: por ejemplo cluster **dedicado** de Connect, **PrivateLink** u otros suplementos descritos en la documentación y la lista de precios.
+
+Los precios **cambian por región, moneda, acuerdo empresarial y promociones**; no sustituyen a una cotización. Referencia oficial: [Managed Kafka Connector Pricing (Confluent)](https://www.confluent.io/confluent-cloud/connect-pricing/) y [Billing overview (Confluent Cloud)](https://docs.confluent.io/cloud/current/billing/overview.html).
+
+### Tabla comparativa (enfoque TCO, no solo “ticket”)
+
+| Dimensión | Self-managed | Full-managed (Confluent Cloud) |
+|-----------|--------------|--------------------------------|
+| **Visibilidad en factura** | Repartido en cómputo, red, licencias, herramientas y personal | Líneas de uso Confluent (tareas, datos, opciones de red/cluster) **más** el Kafka/entorno ya contratado |
+| **Coste marginal de un conector nuevo** | Nuevo consumo de capacidad + posible ampliación de soporte/operación | Sobre todo **tareas activas** y **volumen**; conviene dimensionar `tasks.max` con criterio |
+| **Conectores pausados** | Sigue habiendo coste de plataforma subyacente | Sigue habiendo coste de **tareas asignadas** según política de facturación; para dejar de facturar por ese conector suele requerirse **eliminarlo** (confirmar en la guía vigente de billing) |
+| **FTE / operación** | Mayor carga en el banco en runtime Connect y plugins | Menor carga en “mantener el motor”; sigue haciendo falta operar **integración, red hacia sistemas destino y gobierno** |
+
+### Cómo usar este apartado con FinOps (orden de trabajo sugerido)
+
+1. **Inventario**: conectores, `tasks.max` medio o máximo, y GB/día (o MB/s) por flujo crítico hacia ADLS, Elasticsearch, Salesforce y JDBC.
+2. **Lado self-managed**: coste imputado de **workers + red + herramientas + %FTE** anualizado.
+3. **Lado full-managed**: estimación con la **calculadora / pricing** de Confluent y el contrato vigente (no con números genéricos de un documento interno).
+4. **Sensibilidad**: escenarios “bajo / medio / alto” de volumen; el coste de conectores administrados suele **escalar con el dato**, no solo con el número de conectores.
+
+Con el ejemplo de **11 sinks**, la pregunta útil no es solo “¿cuánto cuesta uno?”, sino “¿cuántas **tareas** corren en total y cuánto **volumen** mueven?”: ahí es donde convergen self-managed (capacidad a dimensionar) y full-managed (precio por uso declarado por el proveedor).
+
+---
+
 ## Cómo se materializa el full-managed en este programa (stack)
 
 Sin entrar en el detalle de cada archivo (eso está en el modelo operativo), la **cadena técnica** es:
