@@ -1,0 +1,8 @@
+# =============================================================================
+# COMPUTE POOLS CONFIGURATION
+# =============================================================================
+compute_pools:
+  - cloud: "AZURE"                                # Cloud provider (AZURE/AWS/GCP)
+    region: "eastus2"                             # Azure region eastus2, westus2 etc.
+    max_cfu: 5                                    # Maximum Compute Flink Units
+    pool_name: "CP_AZC_EU2_CER_APPV_PARTNER_01"   # Compute pool name

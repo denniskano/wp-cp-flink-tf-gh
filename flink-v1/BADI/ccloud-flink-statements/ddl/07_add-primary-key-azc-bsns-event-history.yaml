@@ -1,0 +1,8 @@
+07_add-primary-key-azc-bsns-event-history.yaml
+statement-name: "add-primary-key-azc-bsns-even
+t-history"
+flink-compute-pool: "CP_AZC_${environment}_BADI_01"
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-bsns-event-history`
+  ADD PRIMARY KEY (`requestId`) NOT ENFORCED;
+###FIN###

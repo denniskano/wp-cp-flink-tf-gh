@@ -1,0 +1,132 @@
+{
+    "fields": [
+      {
+        "name": "eventId",
+        "type": {
+          "avro.java.string": "String",
+          "type": "string"
+        }
+      },
+      {
+        "name": "requestId",
+        "type": {
+          "avro.java.string": "String",
+          "type": "string"
+        }
+      },
+      {
+        "name": "requestDate",
+        "type": [
+          {
+            "avro.java.string": "String",
+            "type": "string"
+          },
+          "null"
+        ]
+      },
+      {
+        "name": "channel",
+        "type": {
+          "avro.java.string": "String",
+          "type": "string"
+        }
+      },
+      {
+        "aliases": [
+          "type"
+        ],
+        "name": "eventType",
+        "type": {
+          "avro.java.string": "String",
+          "type": "string"
+        }
+      },
+      {
+        "name": "entityType",
+        "type": {
+          "avro.java.string": "String",
+          "type": "string"
+        }
+      },
+      {
+        "name": "entityId",
+        "type": [
+          {
+            "avro.java.string": "String",
+            "type": "string"
+          },
+          "null"
+        ]
+      },
+      {
+        "name": "applicationGroup",
+        "type": {
+          "avro.java.string": "String",
+          "type": "string"
+        }
+      },
+      {
+        "default": null,
+        "name": "scopes",
+        "type": [
+          "null",
+          {
+            "items": {
+              "avro.java.string": "String",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ]
+      },
+      {
+        "name": "result",
+        "type": {
+          "avro.java.string": "String",
+          "type": "string"
+        }
+      },
+      {
+        "name": "errorReason",
+        "type": [
+          {
+            "avro.java.string": "String",
+            "type": "string"
+          },
+          "null"
+        ]
+      },
+      {
+        "name": "data",
+        "type": {
+          "avro.java.string": "String",
+          "type": "map",
+          "values": [
+            {
+              "avro.java.string": "String",
+              "type": "string"
+            },
+            "null"
+          ]
+        }
+      },
+      {
+        "default": null,
+        "name": "externalData",
+        "type": [
+          "null",
+          {
+            "avro.java.string": "String",
+            "type": "map",
+            "values": {
+              "avro.java.string": "String",
+              "type": "string"
+            }
+          }
+        ]
+      }
+    ],
+    "name": "AvroAudit",
+    "namespace": "com.bcp.atlas.core.starter.audit.model.avro",
+    "type": "record"
+  }

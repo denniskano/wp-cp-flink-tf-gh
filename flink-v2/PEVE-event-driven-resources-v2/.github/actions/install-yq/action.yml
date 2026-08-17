@@ -1,0 +1,26 @@
+name: "Instalar yq"
+description: "Descarga e instala yq si no está en caché"
+runs:
+  using: "composite"
+  steps:
+    - name: Cache de Binario yq
+      id: cache-yq
+      uses: actions/cache@v4
+      with:
+        path: ~/yq_linux_amd64
+        key: yq_linux_amd64
+
+    - name: Descargar yq sino existe en Cache
+      if: steps.cache-yq.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O ~/yq_linux_amd64
+      shell: bash
+
+    - name: Instalar yq
+      shell: bash
+      run: |
+        mkdir -p "$HOME/bin"
+        cp ~/yq_linux_amd64 "$HOME/bin/yq"
+        sudo chmod a+x ~/bin/yq
+        echo "$HOME/bin" >> $GITHUB_PATH
+        "$HOME/bin/yq" --version

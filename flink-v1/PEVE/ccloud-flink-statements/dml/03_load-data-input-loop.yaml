@@ -1,0 +1,6 @@
+statement-name: "load-data-input-loop-v3"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+stopped: "false"
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-terraform-input-loop` VALUES (1, 100.0, 'GENESIS 0');
+###FIN###

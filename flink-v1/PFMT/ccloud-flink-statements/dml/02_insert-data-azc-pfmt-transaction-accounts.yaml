@@ -1,0 +1,315 @@
+statement-name: "insert-data-account-transaction"
+flink-compute-pool: "CP_AZC_${environment}_PFMT_01"
+stopped: "false"   #true to pause, false to resume
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-pfmt-transaction` (
+    key,
+    id,
+    beneficiary,
+    channelCode,
+    computableIndicator,
+    consumer,
+    currencyCode,
+    countryCode,
+    `date`,
+    descriptionDetail,
+    exchangeRateAmount,
+    merchant,
+    operation,
+    originatorPhoneNumber,
+    originalAmount,
+    pendingIndicator,
+    planCodeType,
+    productDetail,
+    taxAmount,
+    headers
+  )
+  WITH union_src AS (
+    SELECT
+      key,
+      accountNumber,
+      movementDate,
+      movementTime,
+      operationNumber,
+      operationUser,
+      termId,
+      operationReference,
+      CAST(movementAmount AS DOUBLE) AS movementAmount,
+      productCode,
+      agencyBranchCode,
+      CASE SUBSTRING(termId, 1, 2)
+        WHEN 'NT' THEN 'TL'
+        WHEN 'MC' THEN 'MC'
+        WHEN 'MD' THEN 'MD'
+        WHEN 'MI' THEN 'MI'
+        WHEN 'IF' THEN 'IF'
+        WHEN 'DE' THEN 'DE'
+        WHEN 'DM' THEN 'DM'
+        WHEN 'CI' THEN 'CC'
+        WHEN 'CB' THEN 'FC'
+        WHEN 'TN' THEN 'TN'
+        WHEN 'GA' THEN 'GF'
+        WHEN 'CW' THEN 'CW'
+        WHEN 'WE' THEN 'WE'
+        WHEN 'FD' THEN 'FE'
+        WHEN 'NM' THEN 'NM'
+        WHEN 'BM' THEN 'IZ'
+        WHEN 'TB' THEN 'GV'
+        WHEN 'SC' THEN 'Y1'
+        WHEN 'SO' THEN 'Y2'
+        WHEN 'SH' THEN 'SH'
+        WHEN 'PD' THEN 'PH'
+        WHEN 'BK' THEN 'BT'
+        WHEN 'PL' THEN 'PL'
+        WHEN 'SY' THEN 'SY'
+        WHEN 'TM' THEN 'TM'
+        WHEN 'GA' THEN 'GB'
+        WHEN 'WB' THEN 'WC'
+        WHEN 'TC' THEN 'TC'
+        WHEN 'CU' THEN 'CU'
+        WHEN 'MI' THEN 'W0'
+        WHEN 'BM' THEN 'BM'
+        WHEN 'CX' THEN 'CJ'
+        WHEN 'IV' THEN 'GV'
+        WHEN 'IR' THEN 'TI'
+        WHEN 'CU' THEN 'UN'
+        WHEN 'QS' THEN 'QS'
+        WHEN 'PF' THEN 'B1'
+        WHEN 'AX' THEN 'YP'
+        WHEN 'EV' THEN 'EV'
+        WHEN 'IW' THEN 'IW'
+        WHEN 'TB' THEN 'IB'
+        WHEN 'A8' THEN 'A8'
+        WHEN 'PZ' THEN 'PZ'
+        WHEN 'RI' THEN 'OP'
+        WHEN 'PP' THEN 'YM'
+        WHEN 'RC' THEN 'N3'
+        WHEN 'OD' THEN 'OD'
+        WHEN 'TB' THEN 'PV'
+        WHEN 'VG' THEN 'VG'
+        WHEN 'JT' THEN 'JT'
+        WHEN 'S9' THEN 'S9'
+        WHEN 'PF' THEN 'RU'
+        WHEN 'LE' THEN 'EK'
+        WHEN 'MH' THEN 'MY'
+        WHEN 'NF' THEN 'NF'
+        WHEN 'PX' THEN 'PE'
+        WHEN 'I3' THEN 'I3'
+        WHEN 'MO' THEN 'MO'
+        WHEN 'MK' THEN 'MK'
+        WHEN 'OB' THEN 'OB'
+        WHEN 'OX' THEN 'OX'
+        WHEN 'V1' THEN 'V1'
+        WHEN 'W4' THEN 'W4'
+        WHEN 'XQ' THEN 'XQ'
+        WHEN 'YB' THEN 'YB'
+        WHEN 'YL' THEN 'YL'
+        WHEN 'X5' THEN 'X5'
+        WHEN 'XT' THEN 'XT'
+        WHEN 'TY' THEN 'TY'
+        WHEN 'G7' THEN 'G7'
+        WHEN '4Z' THEN '4Z'
+        WHEN 'D6' THEN 'D6'
+        WHEN '7T' THEN 'T7'
+        WHEN 'Q3' THEN 'Q3'
+        WHEN 'VE' THEN 'VE'
+        WHEN '8X' THEN '8X'
+        WHEN 'QJ' THEN 'QJ'
+        WHEN 'XN' THEN 'XN'
+        WHEN 'S5' THEN 'Q5'
+        WHEN '3Z' THEN '3Z'
+        WHEN 'YW' THEN 'YW'
+        WHEN 'K1' THEN 'K1'
+        WHEN 'V4' THEN 'V4'
+        WHEN 'V6' THEN 'V6'
+        WHEN 'K8' THEN 'K8'
+        WHEN 'ZJ' THEN 'ZJ'
+        WHEN 'NK' THEN 'T6'
+        WHEN 'UQ' THEN 'UQ'
+        WHEN 'HA' THEN 'N0'
+        WHEN 'QE' THEN 'QE'
+        WHEN 'DH' THEN 'N2'
+        ELSE ''
+      END AS channel,
+      '' AS atmCode,
+      headers
+    FROM `${catalog_name}`.`${cluster_name}`.`azc-apsy-account-movements-encrypted` /*+ OPTIONS('scan.startup.mode'='latest-offset') */
+    WHERE trxOrigin <> '98'
+
+    UNION ALL
+
+    SELECT
+      key,
+      accountNumber,
+      movementDate,
+      movementTime,
+      operationNumber,
+      operationUser,
+      termId,
+      operationReference,
+      CAST(movementAmount AS DOUBLE) AS movementAmount,
+      productCode,
+      agencyBranchCode,
+      CASE SUBSTRING(termId, 1, 2)
+        WHEN 'NT' THEN 'TL'
+        WHEN 'MC' THEN 'MC'
+        WHEN 'MD' THEN 'MD'
+        WHEN 'MI' THEN 'MI'
+        WHEN 'IF' THEN 'IF'
+        WHEN 'DE' THEN 'DE'
+        WHEN 'DM' THEN 'DM'
+        WHEN 'CI' THEN 'CC'
+        WHEN 'CB' THEN 'FC'
+        WHEN 'TN' THEN 'TN'
+        WHEN 'GA' THEN 'GF'
+        WHEN 'CW' THEN 'CW'
+        WHEN 'WE' THEN 'WE'
+        WHEN 'FD' THEN 'FE'
+        WHEN 'NM' THEN 'NM'
+        WHEN 'BM' THEN 'IZ'
+        WHEN 'TB' THEN 'GV'
+        WHEN 'SC' THEN 'Y1'
+        WHEN 'SO' THEN 'Y2'
+        WHEN 'SH' THEN 'SH'
+        WHEN 'PD' THEN 'PH'
+        WHEN 'BK' THEN 'BT'
+        WHEN 'PL' THEN 'PL'
+        WHEN 'SY' THEN 'SY'
+        WHEN 'TM' THEN 'TM'
+        WHEN 'GA' THEN 'GB'
+        WHEN 'WB' THEN 'WC'
+        WHEN 'TC' THEN 'TC'
+        WHEN 'CU' THEN 'CU'
+        WHEN 'MI' THEN 'W0'
+        WHEN 'BM' THEN 'BM'
+        WHEN 'CX' THEN 'CJ'
+        WHEN 'IV' THEN 'GV'
+        WHEN 'IR' THEN 'TI'
+        WHEN 'CU' THEN 'UN'
+        WHEN 'QS' THEN 'QS'
+        WHEN 'PF' THEN 'B1'
+        WHEN 'AX' THEN 'YP'
+        WHEN 'EV' THEN 'EV'
+        WHEN 'IW' THEN 'IW'
+        WHEN 'TB' THEN 'IB'
+        WHEN 'A8' THEN 'A8'
+        WHEN 'PZ' THEN 'PZ'
+        WHEN 'RI' THEN 'OP'
+        WHEN 'PP' THEN 'YM'
+        WHEN 'RC' THEN 'N3'
+        WHEN 'OD' THEN 'OD'
+        WHEN 'TB' THEN 'PV'
+        WHEN 'VG' THEN 'VG'
+        WHEN 'JT' THEN 'JT'
+        WHEN 'S9' THEN 'S9'
+        WHEN 'PF' THEN 'RU'
+        WHEN 'LE' THEN 'EK'
+        WHEN 'MH' THEN 'MY'
+        WHEN 'NF' THEN 'NF'
+        WHEN 'PX' THEN 'PE'
+        WHEN 'I3' THEN 'I3'
+        WHEN 'MO' THEN 'MO'
+        WHEN 'MK' THEN 'MK'
+        WHEN 'OB' THEN 'OB'
+        WHEN 'OX' THEN 'OX'
+        WHEN 'V1' THEN 'V1'
+        WHEN 'W4' THEN 'W4'
+        WHEN 'XQ' THEN 'XQ'
+        WHEN 'YB' THEN 'YB'
+        WHEN 'YL' THEN 'YL'
+        WHEN 'X5' THEN 'X5'
+        WHEN 'XT' THEN 'XT'
+        WHEN 'TY' THEN 'TY'
+        WHEN 'G7' THEN 'G7'
+        WHEN '4Z' THEN '4Z'
+        WHEN 'D6' THEN 'D6'
+        WHEN '7T' THEN 'T7'
+        WHEN 'Q3' THEN 'Q3'
+        WHEN 'VE' THEN 'VE'
+        WHEN '8X' THEN '8X'
+        WHEN 'QJ' THEN 'QJ'
+        WHEN 'XN' THEN 'XN'
+        WHEN 'S5' THEN 'Q5'
+        WHEN '3Z' THEN '3Z'
+        WHEN 'YW' THEN 'YW'
+        WHEN 'K1' THEN 'K1'
+        WHEN 'V4' THEN 'V4'
+        WHEN 'V6' THEN 'V6'
+        WHEN 'K8' THEN 'K8'
+        WHEN 'ZJ' THEN 'ZJ'
+        WHEN 'NK' THEN 'T6'
+        WHEN 'UQ' THEN 'UQ'
+        WHEN 'HA' THEN 'N0'
+        WHEN 'QE' THEN 'QE'
+        WHEN 'DH' THEN 'N2'
+        ELSE ''
+      END AS channel,
+      '' AS atmCode,
+      headers
+    FROM `${catalog_name}`.`${cluster_name}`.`azc-apsy-account-batch-movements` /*+ OPTIONS('scan.startup.mode'='latest-offset') */
+  )
+  SELECT
+    key,
+
+    COALESCE(CAST(headers['CUSTOM_header_uuid'] AS STRING), 'none') AS id,
+
+    CAST(NULL AS ROW<id STRING, `name` STRING>) AS beneficiary,
+
+    CONCAT(
+      COALESCE(NULLIF(s.operationUser, ''), 'null'), '-',
+      COALESCE(NULLIF(s.termId, ''), 'null'), '-',
+      COALESCE(NULLIF(s.channel, ''), 'null'), '-',
+      COALESCE(NULLIF(s.agencyBranchCode, ''), 'null'), '-',
+      COALESCE(NULLIF(s.atmCode, ''), 'null')
+    ) AS channelCode,
+
+    CAST(NULL AS BOOLEAN) AS computableIndicator,
+
+    CAST(NULL AS ROW<code STRING, `name` STRING>) AS consumer,
+
+    CAST(NULL AS STRING) AS currencyCode,
+
+    CAST(NULL AS STRING) AS countryCode,
+
+    CAST(
+      CONCAT(
+        SUBSTRING(s.movementDate, 5, 4), '-',
+        SUBSTRING(s.movementDate, 3, 2), '-',
+        SUBSTRING(s.movementDate, 1, 2), 'T',
+        TRIM(s.movementTime), 'Z'
+      ) AS STRING
+    ) AS `date`,
+
+    CAST(s.operationReference AS STRING) AS descriptionDetail,
+
+    CAST(NULL AS ROW<buyer DOUBLE, seller DOUBLE>) AS exchangeRateAmount,
+
+    CAST(NULL AS ROW<categoryCode STRING, code STRING>) AS merchant,
+
+    CAST(
+      ROW(
+        CAST(NULL AS STRING),
+        s.operationNumber,
+        s.operationUser
+      ) AS ROW<note STRING, `number` STRING, `user` STRING>
+    ) AS operation,
+
+    CAST(NULL AS STRING) AS originatorPhoneNumber,
+
+    CAST(s.movementAmount AS DOUBLE) AS originalAmount,
+
+    CAST(TRUE AS BOOLEAN) AS pendingIndicator,
+
+    CAST(NULL AS STRING) AS planCodeType,
+
+    CAST(
+      ROW(
+        s.accountNumber, 
+        CAST(NULL AS STRING)
+      ) AS ROW<id STRING, `name` STRING>
+    ) AS productDetail,
+
+    CAST(NULL AS DOUBLE) AS taxAmount,
+
+    headers
+  FROM union_src s;

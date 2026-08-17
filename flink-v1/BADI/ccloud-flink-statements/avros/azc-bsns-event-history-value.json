@@ -1,0 +1,91 @@
+{
+    "fields": [
+      {
+        "name": "eventId",
+        "type": "string"
+      },
+      {
+        "name": "requestId",
+        "type": "string"
+      },
+      {
+        "name": "requestDate",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      {
+        "name": "channel",
+        "type": "string"
+      },
+      {
+        "aliases": [
+          "type"
+        ],
+        "name": "eventType",
+        "type": "string"
+      },
+      {
+        "name": "entityType",
+        "type": "string"
+      },
+      {
+        "name": "entityId",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      {
+        "name": "applicationGroup",
+        "type": "string"
+      },
+      {
+        "default": null,
+        "name": "scopes",
+        "type": [
+          "null",
+          {
+            "items": "string",
+            "type": "array"
+          }
+        ]
+      },
+      {
+        "name": "result",
+        "type": "string"
+      },
+      {
+        "name": "errorReason",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      {
+        "name": "data",
+        "type": {
+          "type": "map",
+          "values": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      {
+        "default": null,
+        "name": "externalData",
+        "type": [
+          "null",
+          {
+            "type": "map",
+            "values": "string"
+          }
+        ]
+      }
+    ],
+    "name": "AvroAudit",
+    "namespace": "com.bcp.atlas.services.business.transfer.model.avro",
+    "type": "record"
+  }

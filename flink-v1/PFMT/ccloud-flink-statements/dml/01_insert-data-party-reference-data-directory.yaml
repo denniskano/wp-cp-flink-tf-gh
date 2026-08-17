@@ -1,0 +1,78 @@
+statement-name: "insert-data-to-client"
+flink-compute-pool: "CP_AZC_${environment}_PFMT_01"
+stopped: "false"   #true to pause, false to resume
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-pfmt-client` (key, id, type, birthYear, gender, classificationType, segment, subSegment, status, headers)
+  SELECT
+    key,
+
+    partyReference.party.partyId AS id,
+
+    CASE
+      WHEN partyReference.party.partyType = 'Persona' THEN 'Persona'
+      WHEN partyReference.party.partyType = 'Organizacion' THEN 'Organizacion'
+      ELSE NULL
+    END AS type,
+
+    CASE
+      WHEN partyReference.party.reference.birthDate IS NOT NULL
+      THEN SUBSTRING(partyReference.party.reference.birthDate, 1, 4)
+      ELSE NULL
+    END AS birthYear,
+
+    CASE
+      WHEN partyReference.party.demographic.gender.genderType = 'F' THEN 'F'
+      WHEN partyReference.party.demographic.gender.genderType = 'M' THEN 'M'
+      ELSE NULL
+    END AS gender,
+
+    CASE
+      WHEN partyRole.partyRoleType.partyRoleTypeTypeValues IS NOT NULL
+      THEN CAST(
+        ROW(CAST(partyRole.partyRoleType.partyRoleTypeTypeValues AS STRING))
+        AS ROW<code STRING>
+      )
+      ELSE CAST(NULL AS ROW<code STRING>)
+    END AS classificationType,
+
+    CASE
+      WHEN bankingSegment.bankingSegmentType IS NOT NULL
+      THEN CAST(
+        ROW(CAST(bankingSegment.bankingSegmentType AS STRING))
+        AS ROW<code STRING>
+      )
+      ELSE CAST(NULL AS ROW<code STRING>)
+    END AS segment,
+
+    CASE
+      WHEN bankingSubsegment.bankingSubsegmentType IS NOT NULL
+      THEN CAST(
+        ROW(CAST(bankingSubsegment.bankingSubsegmentType AS STRING))
+        AS ROW<code STRING>
+      )
+      ELSE CAST(NULL AS ROW<code STRING>)
+    END AS subSegment,
+
+    CASE partyRole.partyRoleType.partyRoleTypeTypeValues
+      WHEN 'CT' THEN 'Inactivo'
+      WHEN 'CD' THEN 'Inactivo'
+      WHEN 'CF' THEN 'Inactivo'
+      WHEN 'FA' THEN 'Inactivo'
+      WHEN 'XC' THEN 'Inactivo'
+      WHEN 'AN' THEN 'Inactivo'
+      ELSE 'Activo'
+    END AS status,
+
+    headers
+  FROM `${catalog_name}`.`${cluster_name}`.`azc-ncif-party-reference-data-directory` /*+ OPTIONS('scan.startup.mode'='latest-offset') */
+  WHERE (partyReference.party.partyId IS NOT NULL AND TRIM(partyReference.party.partyId) <> '')
+    AND partyReference.party.partyType = 'Persona'
+    AND (
+          partyRole.partyRoleType.partyRoleTypeTypeValues IS NULL
+          OR partyRole.partyRoleType.partyRoleTypeTypeValues IN ('CL', 'CX', 'VP', 'CN', 'CP', 'CT', 'CD', 'CF', 'FA', 'XC', 'AN')
+        )
+    AND (
+          (partyRole.partyRoleType.partyRoleTypeTypeValues IS NOT NULL AND TRIM(partyRole.partyRoleType.partyRoleTypeTypeValues) <> '')
+          OR
+          (partyReference.party.demographic.gender.genderType IS NOT NULL AND TRIM(partyReference.party.demographic.gender.genderType) <> '')
+        )

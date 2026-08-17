@@ -1,0 +1,21 @@
+statement-name: "statement-dml-insert-table-demo-day"
+flink-compute-pool: "CP_AZC_EU2_DES_PEVE_01"
+service-account: "SA_AZC_DES_APPV_CDPEVEFL_01"
+api-key: "AK_AZC_DES_APPV_FLINK_CDPEVEFL_01"
+stopped: "false"
+statement: |
+  EXECUTE STATEMENT SET 
+  BEGIN
+    insert into `azc-peve-poc-demo-day` (my_field1, my_field2, my_field3) values
+    (10,10.0,'GENESIS 2'),
+    (11,11.0,'GENESIS 2'),
+    (12,12.0,'GENESIS 2'),
+    (13,13.0,'GENESIS 2'),
+    (14,14.0,'GENESIS 2'),
+    (15,15.0,'GENESIS 2'),
+    (16,16.0,'GENESIS 2'),
+    (17,17.0,'GENESIS 2'),
+    (18,18.0,'GENESIS 2'),
+    (19,19.0,'GENESIS 2'),
+    (20,20.0,'GENESIS 2');
+  END;

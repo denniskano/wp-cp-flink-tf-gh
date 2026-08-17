@@ -1,9 +1,0 @@
-statement-name: "insert-internal-from-input-loop-v1"
-flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
-stopped: "true" # true to pause, false to resume
-statement: |
-  INSERT INTO `${catalog_name}`.`${cluster_name}`.`demo_table`
-  VALUES 
-    ('1', 'Juan', CURRENT_TIMESTAMP),
-    ('2', 'María', CURRENT_TIMESTAMP),
-    ('3', 'Pedro', CURRENT_TIMESTAMP);

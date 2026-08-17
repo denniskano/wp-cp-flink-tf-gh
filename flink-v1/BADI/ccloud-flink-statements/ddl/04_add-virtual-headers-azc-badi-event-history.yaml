@@ -1,0 +1,7 @@
+statement-name: "add-virtual-headers-azc-badi-event-history"
+flink-compute-pool: "CP_AZC_${environment}_BADI_01"
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-badi-event-history`
+  ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;
+
+###FIN###

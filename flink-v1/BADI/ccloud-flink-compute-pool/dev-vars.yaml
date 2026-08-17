@@ -1,0 +1,5 @@
+compute_pools:
+  - cloud: "AZURE"                    # Cloud provider (AZURE/AWS/GCP)
+    region: "eastus2"                 # Azure region eastus2, westus2 etc.
+    max_cfu: 5                        # Maximum Compute Flink Units
+    pool_name: "CP_AZC_DES_BADI_01"   # Compute pool name

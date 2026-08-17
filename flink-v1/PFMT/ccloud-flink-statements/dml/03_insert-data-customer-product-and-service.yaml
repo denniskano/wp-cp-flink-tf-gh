@@ -1,0 +1,62 @@
+statement-name: "insert-data-product"
+flink-compute-pool: "CP_AZC_${environment}_PFMT_01"
+stopped: "false"   #true to pause, false to resume
+# =============================================================================
+# SQL STATEMENT
+# =============================================================================
+
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-pfmt-product`
+    (key, id, numberObfuscated, type, code, description, family, customer, bankingProduct, currency, amount, status, headers)
+    SELECT
+    key,
+    id,
+    account_obfuscated AS numberObfuscated,
+    CASE
+        WHEN family_code = '003' THEN 'Tarjeta'
+        ELSE 'Cuenta'
+    END AS type,
+    
+    CAST(NULL AS STRING) AS code,
+    CAST(NULL AS STRING) AS description,
+    
+    ROW(family_code, CAST(NULL AS STRING)) AS family,
+    ROW(cic) AS customer,
+    ROW(tioaux, CAST(NULL AS STRING)) AS bankingProduct,
+    ROW(currency_code) AS currency,
+    CAST(NULL AS DOUBLE) AS amount,
+    
+    CASE
+        WHEN status_name = 'Vigente' THEN 'Activo'
+        ELSE 'Inactivo'
+    END AS status,
+    headers
+    
+    FROM (
+    SELECT
+        key,
+        productAgreementReference.productReference.bankingProductId AS tioaux,
+        productAgreementReference.accountReference.accountId AS id,
+        productAgreementReference.accountReference.accountNumberObfuscated AS account_obfuscated,
+        productAgreementReference.accountReference.accountCurrency.currencyType.currencyTypeValues AS currency_code,
+        productAgreementReference.accountReference.accountStatus.accountStatusType.accountStatusTypeValues AS status_name,
+        productAgreementReference.customerRelationshipReference.customerRelationshipCode AS cic,
+        CASE
+            WHEN productAgreementReference.productReference.bankingProductId
+                IN ('CTAEXC', 'CTAPAX', 'CTEEXC', 'CTOEXC') THEN '007'
+            WHEN SUBSTRING(productAgreementReference.productReference.bankingProductId, 1, 3)
+                IN ('AMX','TCR','TMC') THEN '003'
+            WHEN SUBSTRING(productAgreementReference.productReference.bankingProductId, 1, 3)
+                IN ('CTA','CTE','CCN','CMR','CTS','PRL','TRA','CHQ','DSG') THEN '004'
+            WHEN SUBSTRING(productAgreementReference.productReference.bankingProductId, 1, 3)
+                = 'AHO' THEN '005'
+            WHEN SUBSTRING(productAgreementReference.productReference.bankingProductId, 1, 3)
+            = 'DEP' THEN '009'
+        ELSE '000'
+        END AS family_code,
+        headers
+    FROM `${catalog_name}`.`${cluster_name}`.`azc-rcpr-customer-product-and-service`
+    ) rcpr_product
+    WHERE family_code IN ('003','004','005','007','009')
+        AND id IS NOT NULL
+        AND cic IS NOT NULL;

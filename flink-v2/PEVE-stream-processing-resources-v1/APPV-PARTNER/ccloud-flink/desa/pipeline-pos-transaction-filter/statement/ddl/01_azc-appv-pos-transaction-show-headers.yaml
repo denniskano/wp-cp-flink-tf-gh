@@ -1,0 +1,18 @@
+# =============================================================================
+# DDL STATEMENT - DATA DEFINITION LANGUAGE
+# =============================================================================
+# =============================================================================
+# STATEMENT METADATA
+# =============================================================================
+statement-name: "statement-ddl-create-azc-appv-pos-transaction-show-headers"
+statement-description: "Alter table azc-appv-pos-transaction to enable headers viewer"
+flink-compute-pool: "CP_AZC_EU2_DES_APPV_PARTNER_01"
+service-account: "SA_AZC_DES_APPV_PEVEMQFL_02"
+api-key: "AK_AZC_DES_APPV_FLINK_PEVEMQFL_01"
+# =============================================================================
+# SQL STATEMENT
+# =============================================================================
+
+statement: |
+  ALTER TABLE `azc-appv-pos-transaction`
+  ADD headers MAP<BYTES, BYTES> METADATA VIRTUAL;

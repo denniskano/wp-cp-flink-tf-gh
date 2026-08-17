@@ -1,0 +1,458 @@
+name: Deploy Flink Compute Pools-Desa-2.0
+#
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'plan-apply'
+        type: choice
+        options:
+          - plan-apply
+#          - destroy
+      CODAPP:
+        description: 'Código applicación de 4 letras XXXX. "XXXX-PARTNER" para casos de componentes partners.'
+        required: true
+        type: string
+############################################################
+#
+#
+#
+run-name: >
+   ${{ github.event.inputs.CODAPP }}  ${{ github.workflow }} [${{ github.event.inputs.action }}]
+
+env:
+  VAULT_ADDR: "https://vaultdev.lima.bcp.com.pe:443"
+  COD_APP: ${{ github.event.inputs.CODAPP }}
+  TF_VAR_compute_pool_flink_dir: "./externo/${{ github.event.inputs.CODAPP }}/ccloud-flink/desa/compute-pool"
+  TERRAFORM_VERSION: "1.5.0"
+  NODE_VERSION: "16.13.1"
+  TERRAFORM_WORKDIR: terraform/ccloud-flink-compute-pool
+  RESOURCE_GROUP_NAME: RSGREU2PEVED01  
+  STORAGE_CONTAINER_NAME: tf-flink-cps-dev
+  STORAGE_CONTAINER_APP_PATH: dev/${{ github.event.inputs.CODAPP }}/ccloud-flink/compute-pool/tf-flink-cps.tfstate
+  SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01
+  API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01
+  ENVIRONMENT: DES
+  ENVIRONMENT_HV: dev
+  REVERSION_FLAG: ${{ github.event.inputs.reversion }}
+  REVERSION_COMMIT: ${{ github.event.inputs.reversion_commit }}  
+  BRANCH_AUTOMATION: automation-v3-flink-stream-processing
+  #  
+  GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
+  OWNER_EXTERNO: "BCP-Integration-Automation"
+  REPO_EXTERNO: "PEVE-stream-processing-resources-v1"
+  RESOURCES_BRANCH_EXTERNO: master
+############################################################
+#
+#
+#
+jobs:
+#  
+  PREPARE:
+    name: "Prepare: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set
+    environment: APP_AUTOMATION_BOT
+
+    outputs:
+      CIPHER: ${{ steps.enc.outputs.CIPHER }}
+      HOST:   ${{ steps.enc.outputs.HOST }}    
+    
+    steps:
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git tree dnsutils ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1 
+#          
+      - name: Validate Branch Workflow
+        run: |
+          echo "ejecutando rama ${{ github.ref_name }}"
+          echo "PR description: ${{ github.event.pull_request.title }}"
+          echo "PR description: ${{ github.event.pull_request.base.ref }}"
+          if [[ "automation-v3-flink" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido en la rama automation-v3-flink"
+            echo "exit 1"
+          fi
+#          
+      - name: Get GithubApp from Secrets HV
+        id: get-ghapp-peve-key
+        uses: hashicorp/vault-action@v3
+        with:
+          url: https://vault.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
+          secrets: |
+            cos/kv2/data/prod/peve/ccloud/ghapp_peve_self_service_pk secret | ghapp_peve_self_service_pk ;
+
+      - name: Generar token desde GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ env.GITHUB_APP_ID }}
+          private-key: ${{ steps.get-ghapp-peve-key.outputs.ghapp_peve_self_service_pk }}
+          owner: ${{ env.OWNER_EXTERNO }}
+          repositories: ${{ env.REPO_EXTERNO }}
+          skip-token-revoke: true
+#
+      - name: Clone ${{ env.COD_APP }} resources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: resources
+#
+      - name: View directory and tree
+        shell: bash
+        run: |
+          echo "Directorio actual"
+          pwd
+          echo "********* Arbol *********"
+          tree
+#
+      - name: Cifrar token de sesion de githubapp
+        id: enc
+        uses: ./resources/.github/actions/single-encrypt
+        with:
+          plaintext: ${{ steps.app-token.outputs.token }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+      - name: Validate User
+        if: ${{ github.event.sender.type == 'Bot' }}
+        run: |
+          echo "#####  ℹ️ Validar el usuario que ejecuto gh action" > /tmp/validate-user-console-out.txt
+          echo "\`\`\`" >> /tmp/validate-user-console-out.txt
+          echo "Usuario no permitido: ${{ github.actor }}" 2>&1 | tee -a /tmp/validate-user-console-out.txt
+          echo "Tipo: ${{ github.event.sender.type }}" 2>&1 | tee -a /tmp/validate-user-console-out.txt
+          echo "\`\`\`" >> /tmp/validate-user-console-out.txt
+          echo "exit 1: ACTIVAR CUANDO SE EJECUTE CON BOT"
+
+      - name: Console
+        if: ${{ github.event.sender.type != 'Bot' }}
+        run: |
+          echo "Usuario permitido: ${{ github.actor }}" 2>&1 | tee -a /tmp/validate-user-console-out.txt
+      
+      - name: Upload output CI
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: validate-user-console-out.txt
+          path: /tmp/validate-user-console-out.txt
+############################################################
+#
+#
+#
+  ci-compute-pools-flink:
+  #Repetir todo para CD    
+    name: "CI Compute Pools: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-desa-set
+    environment: APP_PEVE_CI_DESA
+    needs: PREPARE
+#
+    steps:
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+#
+      - name: Checkout ${{ env.COD_APP }} resources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: resources
+#
+      - name: Descifrar token de sesion de githubapp
+        id: dec
+        uses: ./resources/.github/actions/single-decrypt
+        with:
+          ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
+          host: ${{ needs.PREPARE.outputs.HOST }}
+          extra_key:  ${{ secrets.APP_ROLEID_PEVE_DESA }}
+#
+      - name: set environment TOKEN de sesion para repo externo
+        run: |
+          echo "GHAPP_TOKEN_REPO_V3=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
+#
+      - name: Checkout base del repo externo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
+          ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./externo
+#
+      - name: Move terraform to correct location
+        run: |
+          echo "Directiroo actual"
+          pwd
+          echo "********* Arbol *********"
+          tree        
+          mv resources/terraform ./terraform
+          mv resources/scripts ./scripts
+          echo "✅ terraform folder moved to workspace root"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Install yq
+        uses: ./resources/.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version        
+      
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set COD_APP_4. Is Partner?
+        run: |
+          COD_APP_4="${COD_APP:0:4}"
+          if [[ "$COD_APP" == *"-PARTNER" ]]; then
+            echo "Es Partner, aplicar validaciones como partner!!!"
+          fi
+          echo "COD_APP_4=$COD_APP_4"
+          echo "COD_APP_4=$COD_APP_4" >> "$GITHUB_ENV"
+#  
+      - name: Extract Environment ID and Organization ID from CC_PROPERTIES
+        id: extract-env
+        run: |
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          ORGANIZATION_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.organization_id')          
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ] || [ "x$ENVIRONMENT_ID" == "x" ] ; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          if [ -z "$ORGANIZATION_ID" ] || [ "$ORGANIZATION_ID" == "null" ] || [ "x$ORGANIZATION_ID" == "x" ]; then
+            echo "Error: Could not extract organization_id from CC_PROPERTIES"
+            exit 1
+          fi
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "ORGANIZATION_ID=$ORGANIZATION_ID" >> $GITHUB_ENV
+#
+      - name: Prepare PATH_HV_APP x environment
+        id: get-path-id-secrets-app
+        shell: bash
+        run: |
+          COD_APP_LOWER=$(echo "${{ env.COD_APP_4 }}" | tr '[:upper:]' '[:lower:]')
+          PATH_HV_APP=cos/kv2/data/${{ env.ENVIRONMENT_HV }}/$COD_APP_LOWER/ccloud/
+          if [ "${{ env.ENVIRONMENT_HV }}" == "dev" ]; then
+            PATH_HV_APP=$COD_APP_LOWER/kv2/data/${{ env.ENVIRONMENT_HV }}/$COD_APP_LOWER/ccloud/
+          fi
+          echo "PATH_HV_APP=$PATH_HV_APP"
+          echo "PATH_HV_APP=$PATH_HV_APP" >> $GITHUB_ENV
+#
+      - name: Get Secrets from HV
+        id: get-secrets-flink
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            peve/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+#            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+#            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+#            ${{ env.PATH_HV_APP }}PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+#
+      - name: Generate tf files
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/gen_cp_flink_dinamic.sh
+          ./scripts/gen_cp_flink_dinamic.sh \
+            "${{ env.ENVIRONMENT_ID }}" \
+            "${{ env.TF_VAR_compute_pool_flink_dir }}" \
+            "${{ env.TERRAFORM_WORKDIR }}"
+#            
+      - name: Terraform Init - ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH }}" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+#
+      - name: Terraform Plan - ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform plan
+        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+############################################################
+#
+#
+#          
+  cd-compute-pools-flink:
+    name: "CD Compute Pools: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-desa-set
+    environment: APP_PEVE_CD_DESA
+    needs: 
+      - PREPARE
+      - ci-compute-pools-flink
+    steps:
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+  #
+      - name: Checkout ${{ env.COD_APP }} resources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: resources
+  #
+      - name: Descifrar token de sesion de githubapp
+        id: dec
+        uses: ./resources/.github/actions/single-decrypt
+        with:
+          ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
+          host: ${{ needs.PREPARE.outputs.HOST }}
+          extra_key:  ${{ secrets.APP_ROLEID_PEVE_DESA }}
+  #
+      - name: set environment TOKEN de sesion para repo externo
+        run: |
+          echo "GHAPP_TOKEN_REPO_V3=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
+  #
+      - name: Checkout base del repo externo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
+          ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./externo
+  #
+      - name: Move terraform to correct location
+        run: |
+          echo "Directiroo actual"
+          pwd
+          echo "********* Arbol *********"
+          tree        
+          mv resources/terraform ./terraform
+          mv resources/scripts ./scripts
+          #rm -rf resources
+          echo "✅ terraform folder moved to workspace root"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Install yq
+        uses: ./resources/.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version        
+      
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set COD_APP_4. Is Partner?
+        run: |
+          COD_APP_4="${COD_APP:0:4}"
+          if [[ "$COD_APP" == *"-PARTNER" ]]; then
+            echo "Es Partner, aplicar validaciones como partner!!!"
+            echo "ESTO SE PUEDE COMENTAR EN CD!!!"
+          fi
+          echo "COD_APP_4=$COD_APP_4"
+          echo "COD_APP_4=$COD_APP_4" >> "$GITHUB_ENV"
+  #  
+      - name: Extract Environment ID and Organization ID from CC_PROPERTIES
+        id: extract-env
+        run: |
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          ORGANIZATION_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.organization_id')          
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ] || [ "x$ENVIRONMENT_ID" == "x" ] ; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          if [ -z "$ORGANIZATION_ID" ] || [ "$ORGANIZATION_ID" == "null" ] || [ "x$ORGANIZATION_ID" == "x" ]; then
+            echo "Error: Could not extract organization_id from CC_PROPERTIES"
+            exit 1
+          fi
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "ORGANIZATION_ID=$ORGANIZATION_ID" >> $GITHUB_ENV
+  #
+      - name: Prepare PATH_HV_APP x environment
+        id: get-path-id-secrets-app
+        shell: bash
+        run: |
+          COD_APP_LOWER=$(echo "${{ env.COD_APP_4 }}" | tr '[:upper:]' '[:lower:]')
+          PATH_HV_APP=cos/kv2/data/${{ env.ENVIRONMENT_HV }}/$COD_APP_LOWER/ccloud/
+          if [ "${{ env.ENVIRONMENT_HV }}" == "dev" ]; then
+            PATH_HV_APP=$COD_APP_LOWER/kv2/data/${{ env.ENVIRONMENT_HV }}/$COD_APP_LOWER/ccloud/
+          fi
+          echo "PATH_HV_APP=$PATH_HV_APP"
+          echo "PATH_HV_APP=$PATH_HV_APP" >> $GITHUB_ENV
+  #
+      - name: Get Secrets from HV
+        id: get-secrets-flink
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            peve/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+#            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+#            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+#            ${{ env.PATH_HV_APP }}PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+#
+      - name: Generate tf files
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./scripts/gen_cp_flink_dinamic.sh
+          ./scripts/gen_cp_flink_dinamic.sh \
+            "${{ env.ENVIRONMENT_ID }}" \
+            "${{ env.TF_VAR_compute_pool_flink_dir }}" \
+            "${{ env.TERRAFORM_WORKDIR }}"
+#            
+      - name: Terraform Init - ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH }}" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+#
+      - name: Terraform Apply - ${{ env.TERRAFORM_WORKDIR }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform apply -auto-approve
+        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+############################################################
+#
+#
+#
+##### FIN #####

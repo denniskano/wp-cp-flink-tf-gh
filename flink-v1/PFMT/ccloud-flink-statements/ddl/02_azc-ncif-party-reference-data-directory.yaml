@@ -1,0 +1,7 @@
+statement-name: "add-virtual-headers-azc-ncif-party-reference-data-directory"
+flink-compute-pool: "CP_AZC_${environment}_PFMT_01"
+stopped: "false"   #true to pause, false to resume
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-ncif-party-reference-data-directory`
+  ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;
+###FIN###

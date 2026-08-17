@@ -1,0 +1,7 @@
+statement-name: "add-headers-azc-bsns-event-history"
+flink-compute-pool: "CP_AZC_${environment}_BADI_01"
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-bsns-event-history`
+  ADD `headers` MAP<BYTES, BYTES> METADATA;
+
+###FIN###

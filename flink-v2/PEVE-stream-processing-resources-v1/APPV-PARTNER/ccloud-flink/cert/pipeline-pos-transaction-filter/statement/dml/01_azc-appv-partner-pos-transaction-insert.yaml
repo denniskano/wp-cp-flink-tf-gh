@@ -1,0 +1,85 @@
+# =============================================================================
+# DML STATEMENT - DATA DEFINITION LANGUAGE
+# =============================================================================
+# =============================================================================
+# STATEMENT METADATA
+# =============================================================================
+statement-name: "statement-dml-insert-azc-appv-partner-pos-transaction-insert"
+flink-compute-pool: "CP_AZC_EU2_CER_APPV_PARTNER_01"
+service-account: "SA_AZC_CER_APPV_PRTNFLNK_01"
+api-key: "AK_AZC_CER_APPV_FLINK_PRTNFLNK_01"
+stopped: "false"
+statement: |
+  INSERT INTO `azc-appv-partner-pos-transaction` (
+  transactionDetail,
+  cardDetail,
+  productDetail,
+  transactionAmount,
+  customer,
+  merchantDetail,
+  authorizationDetail,
+  additionalDetail,
+  headers
+  )
+  SELECT
+    ROW(
+      transactionDetail.mti,
+      transactionDetail.transactionId,
+      transactionDetail.approvalCode,
+      transactionDetail.processCode,
+      transactionDetail.transactionType,
+      transactionDetail.`date`,
+      transactionDetail.`time`,
+      transactionDetail.flagReverseIndicator,
+      transactionDetail.opnNumber,
+      transactionDetail.opnReverseNumber,
+      transactionDetail.originalDataElements
+    ) AS transactionDetail,
+
+    ROW(
+      cardDetail.cic4
+    ) AS cardDetail,
+
+    ROW(
+      productDetail.familyCode,
+      productDetail.currencyCode
+    ) AS productDetail,
+
+    transactionAmount,
+
+    customer,
+
+    merchantDetail,
+
+    ROW(
+      authorizationDetail.referenceNumber,
+      authorizationDetail.responseCode,
+      authorizationDetail.authorizationSource
+    ) AS authorizationDetail,
+
+    additionalDetail,
+
+    MAP[
+      CAST('caller_name' AS BYTES),  headers[CAST('caller_name' AS BYTES)],
+      CAST('request_date' AS BYTES), headers[CAST('request_date' AS BYTES)],
+      CAST('app_code' AS BYTES),     headers[CAST('app_code' AS BYTES)],
+      CAST('specversion' AS BYTES),  headers[CAST('specversion' AS BYTES)],
+      CAST('id' AS BYTES),           headers[CAST('id' AS BYTES)],
+      CAST('Request_ID' AS BYTES),   headers[CAST('Request_ID' AS BYTES)]
+    ] AS headers
+
+  FROM `azc-appv-pos-transaction` /*+ OPTIONS('scan.startup.mode'='latest-offset') */
+  WHERE
+    additionalDetail.tokenDetail.tokenRequestorID = '40010021131'
+    OR
+    (
+      transactionDetail.transactionType = '2C'
+      AND merchantDetail.cardAcceptorID IN (
+        '650184942', '650184943', '650187926', '650189314',
+        '650212662', '650219175',
+        '650036704', '650036525', '650161120', '650039140','650196944',
+        '650181632', '650192246', '650197514', '777778700000000'
+      )
+      AND merchantDetail.acquirerId IN ('420829','409623')
+    )
+  ;

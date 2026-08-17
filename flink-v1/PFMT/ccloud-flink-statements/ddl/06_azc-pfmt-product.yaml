@@ -1,0 +1,7 @@
+statement-name: "add-headers-azc-pfmt-product"
+flink-compute-pool: "CP_AZC_${environment}_PFMT_01"
+stopped: "false"   #true to pause, false to resume
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-pfmt-product`
+  ADD `headers` MAP<BYTES, BYTES> METADATA;
+###FIN###

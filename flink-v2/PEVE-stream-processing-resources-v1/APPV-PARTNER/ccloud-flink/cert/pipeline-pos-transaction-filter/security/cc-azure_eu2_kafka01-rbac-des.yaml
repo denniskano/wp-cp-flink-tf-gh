@@ -1,0 +1,48 @@
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+########## SA_AZC_CER_APPV_PRTNFLNK_01 ##########
+    - principal: SA_AZC_CER_APPV_PRTNFLNK_01
+      resources:
+      #subjects
+      - resource_type: subject
+        resource_name: 'azc-appv-pos-transaction-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: subject
+        resource_name: 'azc-appv-partner-pos-transaction-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      #topics
+      - resource_type: topic
+        resource_name: 'azc-appv-pos-transaction'
+        pattern_type: LITERAL
+        role:
+        - operation: ResourceOwner
+      - resource_type: topic
+        resource_name: 'azc-appv-partner-pos-transaction'
+        pattern_type: LITERAL
+        role:
+        - operation: ResourceOwner
+      #run stmts
+      - resource_type: compute-pool
+        resource_name: CP_AZC_EU2_CER_APPV_PARTNER_01
+        resource_region: azure.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+      #Write/Read transaction-id
+      - resource_type: transactional-id
+        resource_name: '_confluent-flink_'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+#
+

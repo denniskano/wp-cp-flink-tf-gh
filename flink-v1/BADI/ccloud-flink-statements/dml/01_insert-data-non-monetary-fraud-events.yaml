@@ -1,0 +1,37 @@
+statement-name: "insert-data-non-monetary-fraud-events"
+flink-compute-pool: "CP_AZC_${environment}_BADI_01"
+stopped: false  #true to pause, false to resume
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-bsns-event-history` (`key`,eventId,requestId,requestDate,channel,eventType,entityType,entityId,applicationGroup,scopes,`result`,errorReason,data,externalData,`headers`)
+    SELECT 
+      `key`,
+      COALESCE(eventId, '') as eventId,
+      COALESCE(requestId, '') as requestId,
+      COALESCE(requestDate, '') as requestDate,
+      COALESCE(channel, '') as channel,
+      COALESCE(eventType, '') as eventType,
+      COALESCE(entityType, '') as entityType,
+      COALESCE(entityId, '') as entityId,
+      COALESCE(applicationGroup, '') as applicationGroup,
+      COALESCE(scopes, ARRAY['']) as scopes,
+      COALESCE(`result`, '') as `result`,
+      SUBSTRING(COALESCE(errorReason, ''), 1, 2048) as errorReason,
+      MAP['transactionResponseCode', CAST(COALESCE(data['transactionResponseCode'], externalData['transactionResponseCode'], '') AS STRING),
+          'transactionCode', CAST(COALESCE(data['transactionCode'], externalData['transactionCode'], '') AS STRING) 
+      ] as data,
+      MAP_UNION(COALESCE(externalData, MAP['originalExternalDataNull','']), COALESCE(data, MAP['originalDataNull',''])) as externalData,
+      `headers`
+    FROM 
+      `${catalog_name}`.`${cluster_name}`.`azc-badi-event-history` /*+ OPTIONS('scan.startup.mode'='latest-offset') */
+    WHERE
+    eventId IS NOT NULL 
+    AND eventType IS NOT NULL 
+    AND requestId IS NOT NULL 
+    AND channel IS NOT NULL 
+    AND entityType IS NOT NULL 
+    AND applicationGroup IS NOT NULL 
+    AND scopes IS NOT NULL AND `result` IS NOT NULL 
+    AND data IS NOT NULL
+    AND ARRAY_CONTAINS(scopes, 'fraud')
+    AND COALESCE(CHAR_LENGTH(COALESCE(data['cic'], externalData['cic'], '')), 0) BETWEEN 4 AND 40;
+###FIN###

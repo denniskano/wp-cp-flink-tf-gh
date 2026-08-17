@@ -1,0 +1,97 @@
+statement-name: "insert-data-card-transaction"
+flink-compute-pool: "CP_AZC_${environment}_PFMT_01"
+stopped: "false"   #true to pause, false to resume
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-pfmt-transaction` (
+    key, 
+    id,
+    beneficiary,
+    channelCode,
+    computableIndicator,
+    consumer,
+    currencyCode,
+    countryCode,
+    `date`,
+    descriptionDetail,
+    exchangeRateAmount,
+    merchant,
+    operation,
+    originatorPhoneNumber,
+    originalAmount,
+    pendingIndicator,
+    planCodeType,
+    productDetail,
+    taxAmount,
+    headers
+  )
+  SELECT
+    key,
+    transaction.transactionId AS id,
+ 
+    CAST(NULL AS ROW<id STRING, `name` STRING>) AS beneficiary,
+ 
+    CONCAT(
+      'null-null-',
+      transaction.originType.code, '-',
+      COALESCE(NULLIF(transaction.agency.code, ''), 'null'), '-',
+      COALESCE(NULLIF(transaction.atm.code, ''), 'null')
+    ) AS channelCode,
+ 
+    CAST(NULL AS BOOLEAN) AS computableIndicator,
+ 
+    CAST(NULL AS ROW<code STRING, `name` STRING>) AS consumer,
+ 
+    transaction.currency.code AS currencyCode,
+ 
+    CAST(NULL AS STRING) AS countryCode,  
+ 
+    CONCAT(
+      processingDate, 'T',
+      CASE WHEN effectiveTime IS NULL OR CAST(effectiveTime AS STRING) = '' THEN '00' ELSE SUBSTRING(CAST(effectiveTime AS STRING), 1, 2) END, ':',
+      CASE WHEN effectiveTime IS NULL OR CAST(effectiveTime AS STRING) = '' THEN '00' ELSE SUBSTRING(CAST(effectiveTime AS STRING), 3, 2) END, ':',
+      CASE WHEN effectiveTime IS NULL OR CAST(effectiveTime AS STRING) = '' THEN '00' ELSE SUBSTRING(CAST(effectiveTime AS STRING), 5, 2) END, 'Z'
+    ) AS `date`,
+ 
+    transaction.description AS descriptionDetail,
+ 
+    CASE 
+      WHEN transaction.exchangeAmount IS NULL OR CAST(transaction.exchangeAmount AS DOUBLE) = 0.0 THEN
+        ROW(CAST(NULL AS DOUBLE), CAST(NULL AS DOUBLE))
+      ELSE
+        ROW(
+          CAST(NULL AS DOUBLE),
+          ROUND(CAST(transaction.exchangeAmount AS DOUBLE) / CAST(transaction.amount AS DOUBLE), 2)
+        )
+    END AS exchangeRateAmount,
+
+    ROW(
+      transaction.merchant.merchantCategory.code, 
+      transaction.merchant.code
+    ) AS merchant,
+ 
+    ROW(
+      CAST(NULL AS STRING),
+      transaction.authorizationCode, 
+      CAST(NULL AS STRING)
+    ) AS operation,
+ 
+    CAST(NULL AS STRING) AS originatorPhoneNumber,
+ 
+    CAST(transaction.amount AS DOUBLE) AS originalAmount,
+ 
+    CAST(NULL AS BOOLEAN) AS pendingIndicator,
+ 
+    transaction.creditCardInformation.plan.code AS planCodeType,
+ 
+    ROW(
+      transaction.creditCardInformation.cardId,
+      CAST(NULL AS STRING)
+    ) AS productDetail,
+ 
+    CAST(NULL AS DOUBLE) AS taxAmount,
+
+    headers
+ 
+  FROM `${catalog_name}`.`${cluster_name}`.`azc-avpl-credit-card-online-operation-encrypted`
+  AS transaction
+  WHERE transaction.creditCardInformation.cardId IS NOT NULL
