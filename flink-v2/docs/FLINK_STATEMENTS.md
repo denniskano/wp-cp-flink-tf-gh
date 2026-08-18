@@ -4,7 +4,7 @@ Cómo se versionan y piden: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). Este arc
 
 > Alcance: Confluent Cloud **Dedicated**, topics Kafka y schemas Avro en Schema Registry.
 
-El SA que ejecuta el statement se da de alta **antes**, con un ticket Jira distinto (el proceso lo deja en HashiCorp Vault). En el YAML solo van los **nombres** `service-account` y `api-key`.
+El SA que ejecuta el statement se da de alta **antes**: [prerrequisito Service Account](MODELO_OPERATIVO.md#prerrequisito-service-account). En el YAML solo van los **nombres** `service-account` y `api-key`.
 
 ---
 

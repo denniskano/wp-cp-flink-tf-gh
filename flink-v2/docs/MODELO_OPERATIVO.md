@@ -4,16 +4,19 @@ Contrato para que una aplicación (**CODAPP**) declare sus compute pools y state
 
 El SQL, los CFU y el ciclo de vida de pools y statements están en [FLINK_COMPUTE_POOLS.md](FLINK_COMPUTE_POOLS.md) y [FLINK_STATEMENTS.md](FLINK_STATEMENTS.md). Aquí no se documenta la automatización interna de plataforma.
 
+**Prerrequisito de statements:** [alta de Service Account](#prerrequisito-service-account) (ticket Jira distinto; el SA queda en HashiCorp Vault).
+
 > Alcance: Confluent Cloud Dedicated (Kafka + Schema Registry). Región de referencia: Azure East US 2.
 
 ---
 
 ## Qué hace el equipo de la aplicación
 
-1. **Fork** de `PEVE-stream-processing-resources-v1`.
-2. Crea la carpeta **`{CODAPP}/`** con la estructura de este documento.
-3. **Pull request** al repositorio central.
-4. **Ticket Jira** para desplegar. El **tipo de ticket** determina el entorno: desarrollo, certificación o producción.
+1. **[Prerrequisito: Service Account](#prerrequisito-service-account)** — ticket Jira de alta (antes de statements).
+2. **Fork** de `PEVE-stream-processing-resources-v1`.
+3. Crea la carpeta **`{CODAPP}/`** con la estructura de este documento.
+4. **Pull request** al repositorio central.
+5. **Ticket Jira** para desplegar. El **tipo de ticket** determina el entorno: desarrollo, certificación o producción.
 
 La aplicación solo versiona YAML en su carpeta. No interviene en cómo plataforma aplica el cambio.
 
@@ -80,7 +83,7 @@ Ejemplos para copiar: `APPV-PARTNER/` (un pipeline en desa y cert) y `PEVE/` (va
 
 ## YAML que hay que llenar
 
-### Compute pool — `cc-compute-pools.yaml`
+### cc-compute-pools.yaml
 
 ```yaml
 compute_pools:
@@ -106,7 +109,7 @@ Prefijo numérico (`01_`, `02_`). Campos:
 |---|---|---|
 | `statement-name` | Sí (único, ≤ 72 caracteres; no lo renombres después) | Sí |
 | `flink-compute-pool` | Sí | Sí |
-| `service-account` / `api-key` | Sí (nombres del ticket de alta de SA) | Sí |
+| `service-account` / `api-key` | Sí ([nombres del alta de SA](#prerrequisito-service-account)) | Sí |
 | `statement` | SQL | SQL |
 | `stopped` | — | `"false"` o `"true"` |
 
@@ -165,7 +168,7 @@ En el ticket indica:
 
 Orden:
 
-1. Ticket de **alta de Service Account** (prerrequisito de statements) → nombres en YAML y Vault.
+1. Ticket de [**alta de Service Account**](#prerrequisito-service-account) (prerrequisito de statements) → nombres en YAML y Vault.
 2. PR con pools → ticket de despliegue de **compute pools**.
 3. PR con `security` + DDL/DML → ticket de despliegue de **statements** (el pool de ese entorno ya tiene que existir).
 
@@ -178,7 +181,7 @@ Orden:
 - [ ] `pool_name` igual en pools, statements y RBAC.
 - [ ] Pipeline con `security/`, `statement/ddl/` y `statement/dml/`.
 - [ ] Statements con `statement-name`, pool, SA, API key y SQL; DML con `stopped`.
-- [ ] SA y API key ya dados de alta (ticket Jira de SA) y en el formato de este documento.
+- [ ] [SA y API key ya dados de alta](#prerrequisito-service-account) (ticket Jira de SA) y en el formato de este documento.
 - [ ] Sin secretos en el YAML.
 - [ ] Topics y schemas del SQL existen, o el DDL/RBAC los cubre.
 
@@ -186,6 +189,7 @@ Orden:
 
 ## Referencias
 
+- [Prerrequisito: Service Account](#prerrequisito-service-account)
 - [FLINK_COMPUTE_POOLS.md](FLINK_COMPUTE_POOLS.md)
 - [FLINK_STATEMENTS.md](FLINK_STATEMENTS.md)
 - [Compute Pools](https://docs.confluent.io/cloud/current/flink/concepts/compute-pools.html)

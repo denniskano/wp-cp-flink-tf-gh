@@ -1,6 +1,6 @@
 # Flink Compute Pools
 
-Cómo se piden y versionan: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). Este archivo cubre CFU, Autopilot, nombres y qué ocurre al cambiar el YAML del pool.
+Cómo se versiona y se pide el pool: [MODELO_OPERATIVO.md — cc-compute-pools.yaml](MODELO_OPERATIVO.md#cc-compute-poolsyaml). Este archivo cubre CFU, Autopilot y qué ocurre al cambiar el pool.
 
 > Alcance: Confluent Cloud **Dedicated** (Kafka Dedicated + Schema Registry).
 
@@ -50,26 +50,6 @@ Confluent Cloud
         ├── DDL Statements (CREATE TABLE)
         └── DML Statements (INSERT INTO SELECT)
 ```
-
----
-
-## Archivo YAML
-
-Ruta y campos: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). Resumen:
-
-```
-{CODAPP}/ccloud-flink/{desa|cert|prod}/compute-pool/cc-compute-pools.yaml
-```
-
-```yaml
-compute_pools:
-  - pool_name: "CP_AZC_EU2_DES_PEVE_01"
-    cloud: "AZURE"
-    region: "eastus2"
-    max_cfu: 10
-```
-
-Un archivo por entorno. `CODAPP` de 4 letras o `XXXX-PARTNER`.
 
 ---
 
@@ -174,17 +154,7 @@ El compute pool debe estar en la **misma region y cloud provider** que el Kafka 
 
 ### 4. Nombrar con convencion clara
 
-Usar una convencion que incluya cloud, entorno, aplicacion y secuencia:
-
-```
-CP_{cloud}_{environment}_{app}_{sequence}
-```
-
-Ejemplos:
-- `CP_AZC_DES_PEVE_01` — Azure, Desarrollo, PEVE, secuencia 01
-- `CP_AZC_PRO_PEVE_01` — Azure, Produccion, PEVE, secuencia 01
-
-En v2 tambien: `CP_AZC_EU2_DES_PEVE_01`, `CP_AZC_EU2_DES_APPV_PARTNER_01`.
+El `pool_name` se declara en [`cc-compute-pools.yaml`](MODELO_OPERATIVO.md#cc-compute-poolsyaml). Usar esa convención (`CP_AZC_EU2_{DES|CER|PRO}_{CODAPP}_{nn}`) para que coincida con statements y RBAC.
 
 ### 5. No eliminar pools con statements activos
 
@@ -230,7 +200,7 @@ Un pool con max_cfu = 1 solo puede ejecutar un statement a la vez con paralelism
 
 Los permisos de Flink siguen un **modelo por capas**. Cada capa agrega permisos sobre la anterior.
 
-El `resource_type: compute-pool` debe coincidir con `pool_name` de `cc-compute-pools.yaml`. Plantilla: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). El SA de ejecución se da de alta por ticket Jira (Vault); aquí solo se declaran sus permisos.
+El `resource_type: compute-pool` debe coincidir con `pool_name` de `cc-compute-pools.yaml`. Plantilla: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). El SA de ejecución se da de alta en el [prerrequisito Service Account](MODELO_OPERATIVO.md#prerrequisito-service-account); aquí solo se declaran sus permisos.
 
 ### Capa base (obligatoria para todos los statements)
 

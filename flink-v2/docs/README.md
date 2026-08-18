@@ -2,7 +2,7 @@
 
 Objetivo: que un equipo haga **fork** de `PEVE-stream-processing-resources-v1`, cree su carpeta `{CODAPP}/` y, tras el **pull request**, pida el despliegue con **ticket Jira** (el tipo de ticket define desa / cert / prod).
 
-El Service Account de los statements se da de alta **antes**, con **otro ticket Jira** (el proceso crea el SA y lo deja en HashiCorp Vault).
+**Prerrequisito de statements:** [alta de Service Account](MODELO_OPERATIVO.md#prerrequisito-service-account) (otro ticket Jira; el proceso crea el SA y lo deja en HashiCorp Vault).
 
 | Documento | Para qué |
 |---|---|
