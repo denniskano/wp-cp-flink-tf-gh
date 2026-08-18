@@ -1,10 +1,12 @@
 # Modelo Operativo: Flink Compute Pools
 
+Punto de entrada para una aplicación nueva: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md) (fork de `PEVE-stream-processing-resources-v1`, carpeta `{CODAPP}/`, YAML de pools y disparo de GitHub Actions). Este archivo es el detalle de compute pools (CFU, Autopilot, lifecycle, RBAC).
+
 ## Confluent Cloud for Apache Flink
 
 > **Alcance de este documento**: Este modelo operativo asume un **entorno Confluent Cloud Dedicated** (Kafka Cluster Dedicated + Schema Registry administrado en Confluent Cloud).
 
-En v2 la definicion de pools y el despliegue estan en **dos repositorios**:
+En v2 la definicion de pools y el despliegue estan en **dos repositorios**. La aplicación **no** cambia Terraform: declara pools en su carpeta del repo de configuracion.
 
 | Repositorio | Rol |
 |---|---|

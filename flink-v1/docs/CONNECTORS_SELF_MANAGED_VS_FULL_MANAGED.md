@@ -102,6 +102,8 @@ Escenario con **supuestos fijos** (adecuado para **PPT**): **un** sink **Azure D
 
 Fórmulas de referencia: `coste_tareas = tareas × $/tarea/h × 730`; `coste_datos = GB_mes × $/GB`.
 
+Calculadora Excel (tarifas oficiales Connect + ingress Kafka para sources que escriben a Confluent Cloud): [`calculadora-costos-conectores-confluent-cloud.xlsx`](calculadora-costos-conectores-confluent-cloud.xlsx).
+
 ### Self-managed: de qué está hecho el coste (TCO)
 
 Aquí el gasto **no** suele aparecer como “línea de conector” en una factura, sino como **capacidad y tiempo de personas**:

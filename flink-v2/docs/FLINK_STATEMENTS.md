@@ -1,10 +1,12 @@
 # Modelo Operativo: Flink SQL Statements
 
+Punto de entrada para una aplicación nueva: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md) (fork de `PEVE-stream-processing-resources-v1`, carpeta `{CODAPP}/ccloud-flink/{entorno}/{pipeline_flink}/`, YAML DDL/DML/RBAC y disparo de GitHub Actions). Este archivo es el detalle de statements (SQL, inmutabilidad, headers, prácticas).
+
 ## Confluent Cloud for Apache Flink
 
 > **Alcance de este documento**: Este modelo operativo asume un **entorno Confluent Cloud Dedicated**, con topics Kafka precreados y schemas Avro en Schema Registry.
 
-En v2 el SQL vive en un repo y Terraform/Actions en otro:
+En v2 el SQL vive en un repo y Terraform/Actions en otro. La aplicación **solo** versiona YAML en su carpeta; no edita el repo de IaC.
 
 | Repositorio | Rol |
 |---|---|
