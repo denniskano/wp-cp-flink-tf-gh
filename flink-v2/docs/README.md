@@ -1,16 +1,13 @@
 # Flink v2 — documentación para aplicaciones
 
-Objetivo de esta carpeta: que un equipo de aplicación pueda **hacer fork** de `PEVE-stream-processing-resources-v1`, **crear su carpeta `{CODAPP}/`** y desplegar **compute pools** y **statements** con el pipeline de `PEVE-event-driven-resources-v2`.
+Objetivo: que un equipo haga **fork** de `PEVE-stream-processing-resources-v1`, cree su carpeta `{CODAPP}/` y, tras el **pull request**, pida el despliegue con **ticket Jira** (el tipo de ticket define desa / cert / prod).
 
-Empieza por el modelo operativo. Los otros dos archivos son el detalle técnico de pools y de SQL.
+El Service Account de los statements se da de alta **antes**, con **otro ticket Jira** (el proceso crea el SA y lo deja en HashiCorp Vault).
 
 | Documento | Para qué |
 |---|---|
-| [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md) | Contrato de directorios, YAML, fork, checklist y cómo lanzar los workflows |
-| [FLINK_COMPUTE_POOLS.md](FLINK_COMPUTE_POOLS.md) | Qué es un compute pool, CFU, Autopilot, nombres y lifecycle |
+| [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md) | Carpetas, YAML, fork, PR, prerrequisito de SA y tickets de despliegue |
+| [FLINK_COMPUTE_POOLS.md](FLINK_COMPUTE_POOLS.md) | Compute pool, CFU, Autopilot y lifecycle |
 | [FLINK_STATEMENTS.md](FLINK_STATEMENTS.md) | DDL/DML, campos YAML, inmutabilidad del SQL y prácticas |
 
-| Repositorio | Rol de la aplicación |
-|---|---|
-| `PEVE-stream-processing-resources-v1` | Aquí vive tu carpeta. Solo YAML. |
-| `PEVE-event-driven-resources-v2` | No lo forks para tu caso: Terraform y GitHub Actions de plataforma. |
+El repositorio que versiona el equipo es `PEVE-stream-processing-resources-v1` (solo YAML).

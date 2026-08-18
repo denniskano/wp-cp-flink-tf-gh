@@ -1,19 +1,8 @@
-# Modelo Operativo: Flink Compute Pools
+# Flink Compute Pools
 
-Punto de entrada para una aplicación nueva: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md) (fork de `PEVE-stream-processing-resources-v1`, carpeta `{CODAPP}/`, YAML de pools y disparo de GitHub Actions). Este archivo es el detalle de compute pools (CFU, Autopilot, lifecycle, RBAC).
+Cómo se piden y versionan: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). Este archivo cubre CFU, Autopilot, nombres y qué ocurre al cambiar el YAML del pool.
 
-## Confluent Cloud for Apache Flink
-
-> **Alcance de este documento**: Este modelo operativo asume un **entorno Confluent Cloud Dedicated** (Kafka Cluster Dedicated + Schema Registry administrado en Confluent Cloud).
-
-En v2 la definicion de pools y el despliegue estan en **dos repositorios**. La aplicación **no** cambia Terraform: declara pools en su carpeta del repo de configuracion.
-
-| Repositorio | Rol |
-|---|---|
-| `PEVE-event-driven-resources-v2` | Terraform (`terraform/ccloud-flink-compute-pool`), GitHub Actions (`deploy-compute-pools-*-2-0.yml`) y scripts |
-| `PEVE-stream-processing-resources-v1` | YAML de configuracion por CODAPP y entorno (`cc-compute-pools.yaml`) |
-
-El workflow del repo de IaC clona el repo de configuracion en `./externo` y aplica Terraform contra esos YAML.
+> Alcance: Confluent Cloud **Dedicated** (Kafka Dedicated + Schema Registry).
 
 ---
 
@@ -64,74 +53,23 @@ Confluent Cloud
 
 ---
 
-## Configuracion via Terraform
+## Archivo YAML
 
-### Archivo de configuracion YAML
-
-Cada aplicacion define sus compute pools en un archivo YAML en el **repo de configuracion** (`PEVE-stream-processing-resources-v1`):
+Ruta y campos: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). Resumen:
 
 ```
 {CODAPP}/ccloud-flink/{desa|cert|prod}/compute-pool/cc-compute-pools.yaml
 ```
 
-`CODAPP` puede ser de 4 letras o `XXXX-PARTNER` (ej. `APPV-PARTNER`). Un archivo por entorno (no mezclar DES/CER/PRO en el mismo YAML).
-
 ```yaml
-# PEVE/ccloud-flink/desa/compute-pool/cc-compute-pools.yaml
 compute_pools:
   - pool_name: "CP_AZC_EU2_DES_PEVE_01"
     cloud: "AZURE"
     region: "eastus2"
     max_cfu: 10
-
-  - pool_name: "CP_AZC_EU2_DES_PEVE_02"
-    cloud: "AZURE"
-    region: "eastus2"
-    max_cfu: 10
-
-  - pool_name: "CP_AZC_EU2_DES_PEVE_03"
-    cloud: "AZURE"
-    region: "eastus2"
-    max_cfu: 10
 ```
 
-CI resuelve la ruta como:
-
-```
-TF_VAR_compute_pool_flink_dir: ./externo/{CODAPP}/ccloud-flink/{desa|cert|prod}/compute-pool
-```
-
-### Modulo Terraform
-
-El modulo `terraform/ccloud-flink-compute-pool` (repo `PEVE-event-driven-resources-v2`) despliega los pools. El script `scripts/gen_cp_flink_dinamic.sh` lee `cc-compute-pools.yaml` y genera los recursos:
-
-```hcl
-resource "confluent_flink_compute_pool" "this" {
-  for_each = {
-    for idx, pool in try(local.config.compute_pools, []) : pool.pool_name => pool
-  }
-
-  display_name = each.value.pool_name
-
-  environment {
-    id = var.environment_id
-  }
-
-  cloud   = each.value.cloud
-  region  = each.value.region
-  max_cfu = each.value.max_cfu
-}
-```
-
-### GitHub Actions
-
-| Entorno | Workflow | State (Azure) |
-|---|---|---|
-| DES | `deploy-compute-pools-desa-2-0.yml` | `tf-flink-cps-dev` |
-| CER | `deploy-compute-pools-cert-2-0.yml` | `tf-flink-cps-cert` |
-| PRO | `deploy-compute-pools-prod-2-0.yml` | `tf-flink-cps-prod` |
-
-Input: `CODAPP`. Accion tipica: `plan-apply` (`destroy` suele estar deshabilitado).
+Un archivo por entorno. `CODAPP` de 4 letras o `XXXX-PARTNER`.
 
 ---
 
@@ -270,31 +208,21 @@ Un pool con max_cfu = 1 solo puede ejecutar un statement a la vez con paralelism
 
 - Crear un compute pool toma entre 1-5 minutos
 - Los statements no pueden ejecutarse hasta que el pool este en estado PROVISIONED
-- En pipelines CI/CD, considerar un `sleep` o polling despues de crear el pool
+- Pedir statements solo cuando el pool del entorno ya existe
 
 ---
 
-## Lifecycle en Terraform
+## Cambios en el YAML del pool
 
 | Accion | Resultado | Impacto |
 |---|---|---|
 | Incrementar `max_cfu` | Update in-place | Sin impacto en statements activos |
 | Reducir `max_cfu` | **No soportado** | Confluent Cloud no permite reducir max_cfu una vez creado |
-| Cambiar `display_name` | Update in-place | Sin impacto en statements activos |
-| Cambiar `region` o `cloud` | Destroy + Create | Pool se recrea, statements se pierden |
+| Cambiar `display_name` / `pool_name` | Recreate | Pool se recrea, statements se pierden |
+| Cambiar `region` o `cloud` | Recreate | Pool se recrea, statements se pierden |
 | Eliminar pool del YAML | Destroy | Statements fallaran si estan activos |
 
 > **Fuente**: *"You can update the name of the compute pool, its environment, and the MAX_CFUs setting. You can increase the Max CFUs value, but decreasing Max CFUs is not supported."* — [Manage Compute Pools](https://docs.confluent.io/cloud/current/flink/operate-and-deploy/create-compute-pool.html)
-
-### Proteccion recomendada
-
-Para pools de produccion, agregar `prevent_destroy`:
-
-```hcl
-lifecycle {
-  prevent_destroy = true
-}
-```
 
 ---
 
@@ -302,13 +230,7 @@ lifecycle {
 
 Los permisos de Flink siguen un **modelo por capas**. Cada capa agrega permisos sobre la anterior.
 
-En v2 el RBAC de ejecucion se declara en el repo de configuracion:
-
-```
-{CODAPP}/ccloud-flink/{entorno}/{pipeline}/security/cc-azure_eu2_kafka01-rbac-des.yaml
-```
-
-El `resource_type: compute-pool` debe coincidir con `pool_name` de `cc-compute-pools.yaml`.
+El `resource_type: compute-pool` debe coincidir con `pool_name` de `cc-compute-pools.yaml`. Plantilla: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). El SA de ejecución se da de alta por ticket Jira (Vault); aquí solo se declaran sus permisos.
 
 ### Capa base (obligatoria para todos los statements)
 
@@ -333,19 +255,9 @@ El `resource_type: compute-pool` debe coincidir con `pool_name` de `cc-compute-p
 | `DeveloperManage` | Topics Kafka | Crear topics via CREATE TABLE |
 | `DeveloperWrite` | Schema Registry subjects | Registrar schemas |
 
-### Capa administrativa (gestion de infraestructura)
+### Capa administrativa (plataforma)
 
-| Rol | Recurso | Motivo |
-|---|---|---|
-| `FlinkAdmin` | Environment | Crear/eliminar compute pools y statements |
-| `Assigner` | Service Account de produccion | Delegar ejecucion de statements a un SA |
-
-### Service Account para Terraform (despliegue)
-
-| Rol | Recurso | Motivo |
-|---|---|---|
-| `FlinkAdmin` o `EnvironmentAdmin` | Environment | Crear/eliminar compute pools y statements |
-| `Assigner` | Service Account de produccion | Ejecutar statements bajo el SA de produccion |
+`FlinkAdmin` / `Assigner` los opera plataforma. El equipo de aplicación no los declara en el YAML del pipeline.
 
 > **Fuente**: [Grant Role-Based Access in Confluent Cloud for Apache Flink](https://docs.confluent.io/cloud/current/flink/operate-and-deploy/flink-rbac.html)
 
@@ -355,9 +267,9 @@ El `resource_type: compute-pool` debe coincidir con `pool_name` de `cc-compute-p
 
 ### Pool no esta listo
 
-**Sintoma**: Terraform falla al crear statements porque el pool no existe.
-**Causa**: El pool no ha terminado de provisionarse.
-**Solucion**: Verificar estado del pool con `confluent flink compute-pool list` o agregar `depends_on` en Terraform. Aplicar primero `deploy-compute-pools-*-2-0`.
+**Sintoma**: Los statements no arrancan porque el pool no existe o no está PROVISIONED.
+**Causa**: El ticket de statements se pidió antes de que existiera el pool.
+**Solucion**: Pedir primero el despliegue de compute pools ([MODELO_OPERATIVO.md](MODELO_OPERATIVO.md)) y esperar a que el pool esté listo.
 
 ### Statements compitiendo por recursos
 
@@ -371,11 +283,11 @@ El `resource_type: compute-pool` debe coincidir con `pool_name` de `cc-compute-p
 **Causa**: No hay statements en estado RUNNING.
 **Solucion**: Verificar que los statements no estan en `stopped: true`.
 
-### YAML no encontrado en CI
+### YAML no encontrado
 
-**Sintoma**: El workflow no encuentra `cc-compute-pools.yaml`.
-**Causa**: `CODAPP` o entorno (`desa`/`cert`/`prod`) no coinciden con el repo de configuracion.
-**Solucion**: Verificar `./externo/{CODAPP}/ccloud-flink/{entorno}/compute-pool/cc-compute-pools.yaml`.
+**Sintoma**: No se despliega el pool.
+**Causa**: `CODAPP` o entorno (`desa`/`cert`/`prod`) no coinciden con la carpeta del repo de configuración.
+**Solucion**: Verificar `{CODAPP}/ccloud-flink/{entorno}/compute-pool/cc-compute-pools.yaml` en el PR.
 
 ---
 

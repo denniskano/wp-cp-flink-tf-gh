@@ -1,25 +1,10 @@
-# Modelo Operativo: Flink SQL Statements
+# Flink SQL Statements
 
-Punto de entrada para una aplicación nueva: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md) (fork de `PEVE-stream-processing-resources-v1`, carpeta `{CODAPP}/ccloud-flink/{entorno}/{pipeline_flink}/`, YAML DDL/DML/RBAC y disparo de GitHub Actions). Este archivo es el detalle de statements (SQL, inmutabilidad, headers, prácticas).
+Cómo se versionan y piden: [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md). Este archivo cubre SQL (DDL/DML), inmutabilidad, headers y prácticas.
 
-## Confluent Cloud for Apache Flink
+> Alcance: Confluent Cloud **Dedicated**, topics Kafka y schemas Avro en Schema Registry.
 
-> **Alcance de este documento**: Este modelo operativo asume un **entorno Confluent Cloud Dedicated**, con topics Kafka precreados y schemas Avro en Schema Registry.
-
-En v2 el SQL vive en un repo y Terraform/Actions en otro. La aplicación **solo** versiona YAML en su carpeta; no edita el repo de IaC.
-
-| Repositorio | Rol |
-|---|---|
-| `PEVE-event-driven-resources-v2` | Terraform (`terraform/ccloud-flink-statements`), GitHub Actions (`deploy-flink-statements-*-2-0.yml`) |
-| `PEVE-stream-processing-resources-v1` | YAML DDL/DML y RBAC por CODAPP, entorno y pipeline |
-
-CI clona el repo de configuracion en `./externo` y aplica:
-
-```
-TF_VAR_statements_dir: ./externo/{CODAPP}/ccloud-flink/{desa|cert|prod}/{pipeline_flink}
-PATH_YAML_STMTS_DDL:   .../{pipeline_flink}/statement/ddl
-PATH_YAML_STMTS_DML:   .../{pipeline_flink}/statement/dml
-```
+El SA que ejecuta el statement se da de alta **antes**, con un ticket Jira distinto (el proceso lo deja en HashiCorp Vault). En el YAML solo van los **nombres** `service-account` y `api-key`.
 
 ---
 
@@ -44,7 +29,7 @@ Entonces, los DDLs (`CREATE TABLE`) no siempre son "obligatorios" para visibilid
 2. Configurar propiedades avanzadas (`changelog.mode`, `scan.startup.mode`, etc.)
 3. Declarar metadata columns o computed columns (incluida la propagacion de **headers** de Kafka)
 4. Definir primary key, distribucion o particionado de tabla
-5. Estandarizar y versionar el contrato SQL en IaC (Terraform + YAML)
+5. Estandarizar y versionar el contrato SQL en YAML (PR al repo de configuración)
 
 **Regla practica**:
 - **Exploracion/lectura rapida** de topics existentes: auto-registro puede ser suficiente.
@@ -54,25 +39,24 @@ Entonces, los DDLs (`CREATE TABLE`) no siempre son "obligatorios" para visibilid
 
 El SQL de un statement es **inmutable**: no se puede modificar una vez enviado. Si necesitas editar un statement, debes detener el statement actual y crear uno nuevo con el SQL corregido.
 
-### Implicacion directa en Terraform
+### Qué implica un cambio de SQL
 
-En este modelo (Terraform + YAML por statement), cualquier cambio en el campo `statement` (SQL) debe tratarse como **reemplazo del recurso**: se elimina el statement existente y se crea uno nuevo.
+Cualquier cambio en el campo `statement` se trata como **reemplazo**: se elimina el statement y se crea uno nuevo.
 
 Esto implica:
 
-- Se pierden offsets del statement anterior al recrearse
-- Puede existir una ventana sin procesamiento durante el reemplazo
-- Es obligatorio revisar `terraform plan` antes de aplicar para confirmar si aparece `-/+` (replace)
+- Se pierden offsets del statement anterior
+- Puede existir una ventana sin procesamiento
 
-Cambios que normalmente son in-place:
+Cambios que no recrean el statement:
 
 - `stopped` (`true` / `false`) para pausar o reanudar
 
-Cambios que en la practica deben tratarse como nuevo statement:
+Cambios que sí se tratan como statement nuevo:
 
 - Modificacion del SQL (`statement`)
 - Cambio de `statement-name`
-- Renombrar el archivo YAML (al cambiar la clave del `for_each`)
+- Renombrar el archivo YAML
 
 ### Limites importantes
 
@@ -310,7 +294,7 @@ Si necesitas otro nombre de columna que no sea `headers`, usa `METADATA FROM 'he
 
 - Los valores por defecto son **bytes** en el mapa; Confluent documenta tambien `MODIFY` a `MAP<STRING, STRING> METADATA` con conversion implicita desde bytes cuando conviene construir headers en el `INSERT`.
 - Las claves de headers deben ser **unicas** (no hay multi-header con la misma clave).
-- Para **cambiar** el SQL del statement (incluida la propagacion de headers), recuerda la **inmutabilidad**: nuevo statement o nuevo `statement-name` segun vuestro flujo con Terraform.
+- Para **cambiar** el SQL del statement (incluida la propagacion de headers), recuerda la **inmutabilidad**: nuevo statement o nuevo `statement-name`.
 
 Un DML ya RUNNING no recoge un `ALTER TABLE` posterior: hay que recrear el INSERT. Verificar con `SHOW CREATE TABLE` / `DESCRIBE`.
 
@@ -352,19 +336,7 @@ DDL equivalente bajo `.../statement/ddl/*.yaml` (sin `stopped` en statements one
 | `${cluster_name}` | Nombre del cluster Kafka | `azure_eu2_kafka01` |
 | `${environment}` | Entorno (DES, CER, PRO) | `DES` |
 
-Los workflows v2 tambien fijan catalog/cluster por entorno (`bcp_desa` / `AZURE_EU2_DESA_KAFKA01`, etc.). El YAML puede incluir `service-account` y `api-key` del SA que **ejecuta** el statement (distinto del SA de Terraform).
-
-### GitHub Actions
-
-| Entorno | Workflow |
-|---|---|
-| DES | `deploy-flink-statements-desa-2-0.yml` |
-| CER | `deploy-flink-statements-cert-2-0.yml` |
-| PRO | `deploy-flink-statements-prod-2-0.yml` |
-
-Inputs: `action` (`plan-apply` / `destroy`), `CODAPP`, `pipeline_flink`. State por pipeline en Azure (`tf-flink-stm-*`).
-
-Orden: compute pool → RBAC (`security/`) → DDL → DML.
+`${catalog_name}`, `${cluster_name}` y `${environment}` se sustituyen al desplegar si las usas. `service-account` y `api-key` son los nombres entregados por el ticket de alta de SA (HashiCorp Vault); no pongas secretos en el YAML.
 
 ---
 
@@ -706,26 +678,16 @@ Siempre probar en un compute pool de desarrollo antes de desplegar a produccion.
 Cuando necesitas modificar el SQL de un DML:
 1. Crear un nuevo archivo YAML con el SQL actualizado y nuevo statement-name (ej: `v2`)
 2. Eliminar el archivo YAML anterior o poner `stopped: true`
-3. Ejecutar `terraform plan` para verificar que propone crear el nuevo y eliminar el antiguo
-4. Aplicar el cambio
+3. Abrir PR y el ticket Jira de despliegue del entorno
 
 **Nunca** cambiar el SQL de un statement in-place. El SQL es inmutable en Confluent Cloud; cualquier cambio resulta en la destruccion del statement actual y la creacion de uno nuevo, perdiendo los offsets.
 
 ### 10. Orden de ejecucion DDL antes que DML
 
-El modulo Terraform ya maneja esto con `depends_on`:
-
-```hcl
-resource "confluent_flink_statement" "dml_statements" {
-  ...
-  depends_on = [confluent_flink_statement.ddl_statements]
-}
-```
-
-Pero adicionalmente, nombrar los archivos con prefijo numerico para asegurar orden:
+Nombrar los archivos con prefijo numerico:
 
 ```
-{CODAPP}/ccloud-flink/{entorno}/{pipeline_flink}/statement/
+{CODAPP}/ccloud-flink/{entorno}/{pipeline}/statement/
   ddl/
     01_tabla-input.yaml
     02_tabla-output.yaml
@@ -733,29 +695,22 @@ Pero adicionalmente, nombrar los archivos con prefijo numerico para asegurar ord
     01_insert-output-from-input.yaml
 ```
 
+El despliegue aplica DDL y después DML. El pool tiene que existir antes (ticket de compute pools).
+
 ---
 
-## Lifecycle en Terraform
+## Cambios en el YAML del statement
 
 | Accion | Resultado | Offsets |
 |---|---|---|
-| Cambiar SQL del statement | Destroy + Create (SQL es inmutable) | Se pierden |
+| Cambiar SQL del statement | Recreate (SQL es inmutable) | Se pierden |
 | Cambiar `stopped` (true/false) | Update in-place | Se conservan |
-| Cambiar `statement-name` | Nuevo statement creado | Se pierden |
-| Renombrar archivo YAML | Destroy antiguo + Create nuevo | Se pierden |
-| Agregar nuevo archivo YAML | Create nuevo | N/A |
-| Eliminar archivo YAML | Destroy statement | Se pierden |
+| Cambiar `statement-name` | Nuevo statement | Se pierden |
+| Renombrar archivo YAML | Recreate | Se pierden |
+| Agregar nuevo archivo YAML | Create | N/A |
+| Eliminar archivo YAML | Destroy | Se pierden |
 
-### Precondiciones implementadas
-
-```hcl
-lifecycle {
-  precondition {
-    condition     = can(each.value["statement-name"])
-    error_message = "El campo 'statement-name' es obligatorio. NO cambies el statement-name despues de la creacion inicial."
-  }
-}
-```
+`statement-name` es obligatorio. No lo cambies después del primer despliegue.
 
 ---
 
@@ -821,10 +776,10 @@ lifecycle {
 1. Usar deduplicacion con `ROW_NUMBER()`
 2. Verificar que el topic destino tiene la key correcta para upsert
 
-### Path o pipeline no encontrado en CI
+### Path o pipeline no encontrado
 
-**Causa comun**: `CODAPP` o `pipeline_flink` no coinciden con carpetas en `PEVE-stream-processing-resources-v1`.
-**Solucion**: Verificar `./externo/{CODAPP}/ccloud-flink/{desa|cert|prod}/{pipeline_flink}/statement/`.
+**Causa comun**: `CODAPP` o el nombre del pipeline no coinciden con las carpetas en `PEVE-stream-processing-resources-v1`.
+**Solucion**: Verificar `{CODAPP}/ccloud-flink/{desa|cert|prod}/{pipeline}/statement/` en el PR. El SA debe existir en Vault (ticket de alta de SA).
 
 ---
 
