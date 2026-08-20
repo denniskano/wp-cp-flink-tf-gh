@@ -1,0 +1,44 @@
+# =============================================================================
+# CONNECTOR VARIABLES - DEVELOPMENT
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Development (DES)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  salesforce.platform.event.name: "dev-platform-event-name"
+  salesforce.instance: "dev-instance.salesforce.com"
+  topics: "dev-topic-name"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  salesforce.username: ""  # Se obtiene desde Vault/secrets
+  salesforce.password: ""  # Se obtiene desde Vault/secrets
+  salesforce.consumer.key: ""  # Se obtiene desde Vault/secrets
+  salesforce.consumer.secret: ""  # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+
+# =============================================================================
+# METADATA (Opcional - para referencia)
+# =============================================================================
+# =============================================================================
+# VAULT REFERENCES
+# =============================================================================
+vault:
+  service_account: "SA_AZC_DES_PEVE_SFPE_01"
+
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"
+

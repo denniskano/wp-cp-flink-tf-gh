@@ -1,0 +1,23 @@
+{
+    "name": "eventhub-source-connector-01",
+    "config_nonsensitive": {
+        "name": "eventhub-source-connector-01",
+        "connector.class": "AzureEventHubsSource",
+        "kafka.auth.mode": "SERVICE_ACCOUNT",
+        "azure.eventhubs.namespace": "",
+        "azure.eventhubs.hub.name": "",
+        "azure.eventhubs.consumer.group": "",
+        "kafka.topic": "",
+        "azure.eventhubs.partition.starting.position": "START_OF_STREAM",
+        "azure.eventhubs.transport.type": "AMQP",
+        "azure.eventhubs.offset.type": "OFFSET",
+        "max.events": "50",
+        "tasks.max": "1",
+        "schema.context.name": "default",
+        "output.data.format": "JSON_SR",
+        "errors.tolerance": "all",
+        "errors.deadletterqueue.context.headers.enable": "true",
+        "errors.deadletterqueue.topic.replication.factor": "3"
+    }
+}
+

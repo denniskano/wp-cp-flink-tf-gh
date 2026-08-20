@@ -1,0 +1,36 @@
+# =============================================================================
+# CONNECTOR VARIABLES - PRODUCTION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Production (PRO)
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  topics: "azc-peve-connect-test"
+  azblob.account.name: "stpeveconnectpro"
+  azblob.container.name: "peve-connect-sink"
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+
+# =============================================================================
+# VAULT REFERENCES
+# =============================================================================
+vault:
+  service_account: "SA_AZC_PRO_PEVE_BLOB_01"
+  secrets:
+    azblob.account.key:
+      path: "peve/data/prod/peve/azure/ST_PEVE_CONNECT_PRO"
+      field: "access_key"
+
+# =============================================================================
+# METADATA
+# =============================================================================
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"

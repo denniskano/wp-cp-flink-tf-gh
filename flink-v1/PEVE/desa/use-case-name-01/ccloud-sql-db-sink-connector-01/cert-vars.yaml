@@ -1,0 +1,40 @@
+# =============================================================================
+# CONNECTOR VARIABLES - CERTIFICATION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Certification (CER)
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  connection.host: "cert-peve-badi.database.windows.net"
+  connection.port: "1433"
+  db.name: "cert-peve-badi-01"
+  topics: "cert-peve-badi-01"
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+
+# =============================================================================
+# VAULT REFERENCES
+# =============================================================================
+vault:
+  service_account: "SA_AZC_CER_PEVE_SQLSNK_01"
+  secrets:
+    connection.username:
+      path: "peve/data/cert/peve/ccloud/peve_ccloud_sql_bqdi_poc_cert"
+      field: "username"
+    connection.password:
+      path: "peve/data/cert/peve/ccloud/peve_ccloud_sql_bqdi_poc_cert"
+      field: "password"
+
+# =============================================================================
+# METADATA
+# =============================================================================
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"

@@ -2,11 +2,11 @@
 
 ## Resumen
 
-Los conectores full-managed de Confluent Cloud **requieren permisos RBAC** en los topics que utilizan (source, sink y DLQ). Estos permisos se otorgan mediante **RBAC (Role-Based Access Control)** al **Service Account** configurado en el conector **ANTES** del despliegue. Los permisos RBAC **NO se configuran en el JSON del conector**.
+Los conectores full-managed de Confluent Cloud **requieren permisos RBAC** en los topics que utilizan (source, sink y DLQ). Estos permisos se otorgan al **Service Account** del conector **antes** (o en el mismo `apply`) del despliegue.
 
-> **Nota**: Este documento asume que los conectores se desplegarán en **Confluent Cloud dedicado**, por lo que se utiliza **RBAC** en lugar de ACLs.
+El RBAC **no** va en el YAML del conector (`connects/`). Se declara en `{CODAPP}/{desa|cert|prod}/{use-case}/security/*.yaml`. Ver [CONNECTORS_OPERATIONAL_MODEL.md](./CONNECTORS_OPERATIONAL_MODEL.md).
 
-> **Importante**: Los permisos RBAC se otorgan al Service Account, **NO** se configuran en el archivo JSON del conector. El JSON solo contiene la configuración del conector (nombres de topics, formatos, etc.).
+> **Nota**: Confluent Cloud Dedicated (RBAC, no ACLs).
 
 ## Prerequisitos: Roles RBAC Requeridos
 

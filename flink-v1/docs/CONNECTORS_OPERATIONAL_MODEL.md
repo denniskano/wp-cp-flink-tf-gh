@@ -1,377 +1,285 @@
-# 🏗️ Modelo Operativo - Gestión de Conectores Full-Managed Kafka
+# Modelo operativo — conectores full-managed
 
-## 📋 Resumen Ejecutivo
+Contrato para que una aplicación (**CODAPP**) declare conectores Kafka Connect full-managed en YAML, agrupados por **caso de uso**, y pida el despliegue con el workflow de GitHub Actions.
 
-Este documento define el modelo operativo para la gestión de conectores full-managed de Kafka en Confluent Cloud, permitiendo que cada equipo de negocio (CODAPP) gestione de forma independiente sus conectores con configuración por entorno.
+RBAC de topics/subjects: [CONNECTOR_DLQ_PERMISSIONS.md](./CONNECTOR_DLQ_PERMISSIONS.md).
 
-## 🎯 Objetivos
+> Alcance: Confluent Cloud Dedicated. El workflow actual despliega **solo DES** (`desa`). Las carpetas `cert/` y `prod/` se versionan para cuando existan los workflows de esos entornos.
 
-- **Autonomía**: Cada equipo gestiona sus propios conectores
-- **Estandarización**: Nomenclatura y estructura consistente
-- **Escalabilidad**: Soporte para múltiples conectores y entornos
-- **Trazabilidad**: Control de versiones y cambios
-- **Seguridad**: Gestión granular de permisos y credenciales
-- **Flexibilidad**: Soporte para cualquier conector full-managed disponible en Confluent Cloud
+---
 
-## 🏗️ Arquitectura del Modelo
+## Qué hace el equipo de la aplicación
 
-### **Estructura de Directorios**
+1. **Prerrequisito: Service Account** del conector (alta aparte; el SA queda en HashiCorp Vault).
+2. Topics (y DLQ si aplica) ya creados en el cluster.
+3. Carpeta `{CODAPP}/{desa|cert|prod}/{use-case}/` con `connects/` y `security/`.
+4. Pull request. Despliegue con **Run workflow**.
+
+La aplicación versiona YAML. No interviene en cómo plataforma aplica el cambio.
+
+### Prerrequisitos que no salen de este repo
+
+| Qué | Quién |
+|---|---|
+| Service Account del conector | Proceso de alta (el nombre va en `vault.service_account`) |
+| Topics de origen/destino | Ya deben existir |
+| Topic DLQ `{topic}-dlq` | Ya debe existir si el YAML tiene `errors.tolerance` |
+| Secretos (keys, passwords) | HashiCorp Vault; el YAML solo declara `path` y `field` |
+
+---
+
+## Unidad de despliegue: el caso de uso
+
+**`plan`, `apply` y `destroy` son por use-case**, no por conector.
+
+Con **CODAPP** + **use_case** basta. El workflow toma **todos** los `*.yaml` de `connects/` y el RBAC de `security/` de esa carpeta.
+
+El input **connector** es **obligatorio solo en `pause` y `resume`**. En `plan` / `apply` / `destroy` se ignora.
+
+| Acción | Inputs | Efecto |
+|---|---|---|
+| `plan` | `CODAPP`, `use_case` | Muestra el diff de **todos** los conectores y el RBAC del use-case |
+| `apply` | `CODAPP`, `use_case` | Crea, actualiza o borra según los YAML de `connects/` y `security/` |
+| `destroy` | `CODAPP`, `use_case` | Elimina **todo** el use-case (conectores y bindings de ese módulo) |
+| `pause` | `CODAPP`, `use_case`, **`connector`** | Pausa **un** conector (in-place). Los demás no se tocan |
+| `resume` | `CODAPP`, `use_case`, **`connector`** | Reanuda **un** conector |
+
+`connector` = nombre del archivo en `connects/` **sin** `.yaml` (ej. `ccloud-azure-blob-storage-sink-connector-01`).
+
+---
+
+## Estructura de directorios
 
 ```
-PEVE/
-└── ccloud-connectors/
-    ├── connector-01/
-    │   ├── dev-connector-01.json    # Configuración base/non-sensitive para DES
-    │   ├── cert-connector-01.json   # Configuración base/non-sensitive para CER
-    │   ├── prod-connector-01.json   # Configuración base/non-sensitive para PRO
-    │   ├── dev-vars.yaml            # Variables para desarrollo
-    │   ├── cert-vars.yaml           # Variables para certificación
-    │   └── prod-vars.yaml           # Variables para producción
-    └── connector-02/
-        ├── dev-connector-02.json
-        ├── cert-connector-02.json
-        ├── prod-connector-02.json
-        ├── dev-vars.yaml
-        ├── cert-vars.yaml
-        └── prod-vars.yaml
+{CODAPP}/
+├── desa/
+│   └── {use-case}/
+│       ├── connects/
+│       │   └── {connector-name}.yaml     # un YAML por conector
+│       └── security/
+│           └── cc-azure_eu2_kafka01-rbac-des.yaml
+├── cert/
+│   └── {use-case}/
+│       ├── connects/
+│       └── security/
+└── prod/
+    └── {use-case}/
+        ├── connects/
+        └── security/
 ```
 
-## 📁 Estructura por Aplicación (CODAPP)
+| Pieza | Ruta |
+|---|---|
+| Conectores | `{CODAPP}/{desa\|cert\|prod}/{use-case}/connects/*.yaml` |
+| RBAC | `{CODAPP}/{desa\|cert\|prod}/{use-case}/security/*.yaml` |
 
-### **1. Configuración Base del Conector**
+- Entornos en minúsculas: `desa`, `cert`, `prod`. El directorio **es** el entorno; **no** uses prefijo `dev-` / `cert-` / `prod-` en el nombre del archivo.
+- Solo `*.yaml` (no `*.yml`, no subcarpetas).
+- `{use-case}` es el valor del input `use_case` (ej. `use-case-name-01`).
+- `security/` es **obligatorio** (el directorio debe existir). Si el use-case no tiene bindings aún, deja la carpeta y añade YAML cuando correspondan.
+- Ejemplo: `PEVE/desa/use-case-name-01/`.
 
-#### **Archivos JSON por entorno**
+---
 
-- `{CODAPP}/ccloud-connectors/{connector-name}/dev-{connector-name}.json`
-- `{CODAPP}/ccloud-connectors/{connector-name}/cert-{connector-name}.json`
-- `{CODAPP}/ccloud-connectors/{connector-name}/prod-{connector-name}.json`
+## YAML del conector (`connects/`)
 
-Cada entorno tiene su propio JSON base (non-sensitive). Los valores adicionales/overrides por entorno se definen en `{env}-vars.yaml`.
-
-```json
-{
-    "name": "sql-db-sink-connector-01",
-    "config_nonsensitive": {
-        "name": "sql-db-sink-connector-01",
-        "schema.context.name": "default",
-        "input.data.format": "JSON_SR",
-        "delete.enabled": "false",
-        "ignore.default.for.nullable": "false",
-        "connector.class": "MicrosoftSqlserverSink",
-        "kafka.auth.mode": "SERVICE_ACCOUNT",
-        "ssl.mode": "prefer",
-        "insert.mode": "INSERT",
-        "table.types": "TABLE",
-        "db.timezone": "UTC",
-        "date.timezone": "DB_TIMEZONE",
-        "auto.create": "true",
-        "auto.evolve": "true",
-        "quote.sql.identifiers": "ALWAYS",
-        "batch.sizes": "3000",
-        "max.poll.interval.ms": "300000",
-        "max.poll.records": "500",
-        "tasks.max": "1"
-    }
-}
-```
-
-**Notas importantes:**
-- Cada archivo JSON de entorno debe contener `name` y `config_nonsensitive`
-- Convención de nombre: `{prefix}-{connector-name}.json`, donde `{prefix}` es `dev`, `cert` o `prod`
-- **NO incluir** valores específicos por entorno como:
-  - `connection.host`
-  - `connection.port`
-  - `db.name`
-  - `topics`
-  - `kafka.service.account.id` (se inyecta automáticamente)
-- Estos valores van en `{env}-vars.yaml` y sobrescriben el JSON del entorno
-
-### **2. Variables por Entorno**
-
-#### **Archivo: `{CODAPP}/ccloud-connectors/{connector-name}/dev-vars.yaml`**
+Un archivo por conector. Config no sensible + referencia a Vault. **No commitear secretos.**
 
 ```yaml
-# =============================================================================
-# CONNECTOR VARIABLES - DEVELOPMENT
-# =============================================================================
-# Aplicación: {CODAPP}
-# Entorno: Development (DES)
-# Última actualización: YYYY-MM-DD
-# Responsable: [Nombre del equipo]
-
-# =============================================================================
-# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
-# =============================================================================
-config_nonsensitive:
-  connection.host: "dev-database.example.com"
-  connection.port: "1433"
-  db.name: "dev-database-01"
-  topics: "dev-topic-name"
-
-# =============================================================================
-# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
-# =============================================================================
-# Las credenciales se obtienen desde Vault o secrets
-# Ejemplo de estructura (los valores reales vienen de secrets)
-config_sensitive:
-  connection.username: ""  # Se obtiene desde Vault/secrets
-  connection.password: ""  # Se obtiene desde Vault/secrets
-
-# =============================================================================
-# CONNECTOR STATUS
-# =============================================================================
-# Estado del conector en este entorno
-status: "RUNNING"
-```
-
-#### **Archivo: `{CODAPP}/ccloud-connectors/{connector-name}/cert-vars.yaml`**
-
-```yaml
-# =============================================================================
-# CONNECTOR VARIABLES - CERTIFICATION
-# =============================================================================
-# Aplicación: {CODAPP}
-# Entorno: Certification (CER)
-# Última actualización: YYYY-MM-DD
-# Responsable: [Nombre del equipo]
+name: "peve-azure-blob-storage-sink-connector-01"
+status: "RUNNING"   # RUNNING | PAUSED
 
 config_nonsensitive:
-  connection.host: "cert-database.example.com"
-  connection.port: "1433"
-  db.name: "cert-database-01"
-  topics: "cert-topic-name"
+  name: "peve-azure-blob-storage-sink-connector-01"
+  connector.class: "AzureBlobSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  tasks.max: "1"
+  errors.tolerance: "all"
+  topics: "azc-peve-connect-test"
+  # resto de propiedades del conector (sin credenciales)
 
-config_sensitive:
-  connection.username: ""  # Se obtiene desde Vault/secrets
-  connection.password: ""  # Se obtiene desde Vault/secrets
-
-status: "RUNNING"
+vault:
+  service_account: "SA_AZC_DES_PEVE_BLOB_01"
+  api-key: "AK_AZC_DES_PEVE_BLOB_01"
+  secrets:
+    azblob.account.key:
+      path: "peve/data/dev/peve/azure/ST_PEVE_CONNECT_DEV"
+      field: "access_key"
 ```
 
-#### **Archivo: `{CODAPP}/ccloud-connectors/{connector-name}/prod-vars.yaml`**
+| Campo | Rol |
+|---|---|
+| Nombre del **archivo** | Key de Terraform. No lo cambies después del primer `apply` |
+| `name` / `config_nonsensitive.name` | Nombre en Confluent Cloud. Tampoco lo cambies después del primer `apply` |
+| `status` | `RUNNING` o `PAUSED`. Fuente de verdad en el próximo `apply` |
+| `config_nonsensitive` | Propiedades del conector. `kafka.service.account.id` se inyecta desde `vault.service_account` |
+| `vault.service_account` | Display name del SA (debe existir). Kafka y Schema Registry usan **este mismo** SA |
+| `vault.api-key` | Nombre lógico del API key de cluster en Vault (`AK_AZC_...`). Inventario; el conector corre con `SERVICE_ACCOUNT`, no inyecta `kafka.api.key` |
+| `vault.secrets` | Mapa `config_key → { path, field }` en Vault. El workflow los lee e inyecta como `config_sensitive` |
+
+Si hay `errors.tolerance` y un topic (`topics` o `kafka.topic`), el módulo asigna `errors.deadletterqueue.topic.name` = `{primer-topic}-dlq`. Ese topic tiene que existir de antemano.
+
+Path de Vault: se admite `{mount}/data/...`; el workflow lo traduce a `{mount}/kv2/data/...` si hace falta.
+
+---
+
+## YAML de RBAC (`security/`)
+
+Mismo schema que Flink v2 (`cluster.cc.rbac`). Este módulo aplica **topic**, **subject** y **transactional-id**. Ignora `compute-pool` / `FlinkDeveloper`.
+
+El `principal` debe coincidir con `vault.service_account` del conector.
 
 ```yaml
-# =============================================================================
-# CONNECTOR VARIABLES - PRODUCTION
-# =============================================================================
-# Aplicación: {CODAPP}
-# Entorno: Production (PRO)
-# Última actualización: YYYY-MM-DD
-# Responsable: [Nombre del equipo]
-
-config_nonsensitive:
-  connection.host: "prod-database.example.com"
-  connection.port: "1433"
-  db.name: "prod-database-01"
-  topics: "prod-topic-name"
-
-config_sensitive:
-  connection.username: ""  # Se obtiene desde Vault/secrets
-  connection.password: ""  # Se obtiene desde Vault/secrets
-
-status: "RUNNING"
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_DES_PEVE_BLOB_01
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-connect-test-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: 'azc-peve-connect-test'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: 'azc-peve-connect-test-dlq'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
 ```
 
-## 🔐 Seguridad y Credenciales
+Roles típicos: [CONNECTOR_DLQ_PERMISSIONS.md](./CONNECTOR_DLQ_PERMISSIONS.md).
 
-### **Gestión de Credenciales Sensibles**
+Borrar un YAML de `connects/` **no** quita estos bindings. Hay que editar o borrar el YAML de `security/` y hacer `apply`.
 
-Las credenciales sensibles (passwords, API keys, etc.) deben gestionarse a través de:
+---
 
-1. **HashiCorp Vault**: Para almacenamiento seguro
-2. **GitHub Secrets**: Para valores que se inyectan en el workflow
-3. **Variables de entorno**: Para valores que se pasan al módulo de Terraform
+## Nomenclatura
 
-**IMPORTANTE**: Nunca commitear credenciales en los archivos YAML. Usar placeholders vacíos (`""`) y obtener los valores desde Vault/secrets.
+| Qué | Formato | Ejemplo |
+|---|---|---|
+| CODAPP | 4 letras | `PEVE` |
+| Use-case (carpeta e input) | kebab-case estable | `use-case-name-01` |
+| Archivo del conector | `ccloud-{tipo}-{secuencia}.yaml` | `ccloud-azure-blob-storage-sink-connector-01.yaml` |
+| `name` en Cloud | sin prefijo de entorno | `peve-azure-blob-storage-sink-connector-01` |
+| Service Account | el que entregue el alta | `SA_AZC_DES_PEVE_BLOB_01` |
+| API key (inventario) | un AK de cluster por SA; no uno para topic y otro para SR | `AK_AZC_DES_PEVE_BLOB_01` |
+| `status` | `RUNNING` o `PAUSED` | `RUNNING` |
 
-### **Ejemplo de Integración con Vault**
+---
 
-En el workflow de GitHub Actions, las credenciales se obtienen desde Vault:
+## Ciclo de vida
 
-```yaml
-- name: Get Secrets for Connectors
-  uses: hashicorp/vault-action@v2
-  with:
-    secrets: |
-      peve/data/dev/peve/ccloud/{service-account}/{api-key} username | CONNECTOR_USERNAME ;
-      peve/data/dev/peve/ccloud/{service-account}/{api-key} password | CONNECTOR_PASSWORD ;
-```
+### Alta (nuevo conector o use-case nuevo)
 
-Luego se pasan a Terraform como variables:
+1. SA, topics y DLQ listos; secretos en Vault.
+2. Crear `{use-case}/connects/{connector}.yaml` y bindings en `security/`.
+3. Workflow: `action: plan`, luego `apply`, con `CODAPP` y `use_case`.
 
-```yaml
-TF_VAR_connector_username: ${{ env.CONNECTOR_USERNAME }}
-TF_VAR_connector_password: ${{ env.CONNECTOR_PASSWORD }}
-```
+### Cambio de configuración
 
-## 📋 Nomenclatura y Estándares
+1. Editar el YAML en `connects/` (o `security/`).
+2. `plan` + `apply` del mismo `use_case`.
 
-### **1. Códigos de Aplicación (CODAPP)**
-- **Formato**: 4 letras mayúsculas
-- **Ejemplos**: `PEVE`, `APSY`, `USER`, `AUTH`
-- **Reglas**: Único por organización, descriptivo del negocio
+### Agregar un conector a un use-case que ya está desplegado
 
-### **2. Entornos**
-- **Development**: `DES` (Desarrollo)
-- **Certification**: `CER` (Certificación)
-- **Production**: `PRO` (Producción)
+1. Añade un YAML nuevo en `connects/` (nombre de archivo **nuevo**).
+2. Completa RBAC en `security/` si aplica.
+3. `apply` del mismo `use_case`.
 
-### **3. Nomenclatura de Conectores**
-- **Formato**: `{tipo}-{descripcion}-{secuencia}`
-- **Ejemplos**: 
-  - `ccloud-sql-db-sink-connector-01`
-  - `ccloud-s3-sink-connector-01`
-  - `ccloud-http-source-connector-01`
+Terraform crea **solo** el nuevo. Los demás no se recrean ni pierden offsets.
 
-### **4. Archivos de Configuración**
-- **Configuración base por entorno**:
-  - `dev-{connector-name}.json`
-  - `cert-{connector-name}.json`
-  - `prod-{connector-name}.json`
-- **Variables por entorno**: `{env}-vars.yaml` donde `{env}` es `dev`, `cert`, o `prod`
+### Quitar un conector del use-case
 
-## 🔧 Proceso Operativo
+1. Borra **ese** YAML de `connects/` (no renombres: borra).
+2. Quita las entradas de `security/` que ya no apliquen.
+3. `apply` del mismo `use_case`.
 
-### **1. Onboarding de Nuevo Conector**
+Se destruye **solo** ese conector. Los otros siguen.
 
-#### **Paso 1: Crear Estructura de Directorios**
-```bash
-# Crear directorio del conector
-mkdir -p {CODAPP}/ccloud-connectors/{connector-name}
-```
+No vacíes `connects/` para “limpiar”: un `apply` sin YAML se **bloquea**. Para borrar el use-case entero usa `destroy`.
 
-#### **Paso 2: Crear Archivos de Configuración**
-```bash
-# Crear archivos de configuración
-touch {CODAPP}/ccloud-connectors/{connector-name}/dev-{connector-name}.json
-touch {CODAPP}/ccloud-connectors/{connector-name}/cert-{connector-name}.json
-touch {CODAPP}/ccloud-connectors/{connector-name}/prod-{connector-name}.json
-touch {CODAPP}/ccloud-connectors/{connector-name}/dev-vars.yaml
-touch {CODAPP}/ccloud-connectors/{connector-name}/cert-vars.yaml
-touch {CODAPP}/ccloud-connectors/{connector-name}/prod-vars.yaml
-```
+### Pausar / reanudar un conector
 
-#### **Paso 3: Configurar Conector Base**
-1. Editar `dev-{connector-name}.json`, `cert-{connector-name}.json` y `prod-{connector-name}.json` con la configuración base del entorno
-2. Definir `name` del conector
-3. Configurar `config_nonsensitive` con valores comunes (sin valores específicos por entorno)
-4. **NO incluir** `config_sensitive` en el JSON (se define en vars)
+**Desde el Action (operación puntual):**
 
-#### **Paso 4: Configurar Variables por Entorno**
-1. Editar `{env}-vars.yaml` para cada entorno
-2. Definir valores específicos por entorno en `config_nonsensitive`
-3. Definir estructura de `config_sensitive` (valores desde Vault)
+1. `action: pause` o `resume`.
+2. Mismo `CODAPP` + `use_case`.
+3. **`connector`**: nombre del archivo sin `.yaml`.
 
-### **2. Despliegue de Conectores**
+Eso no modifica el YAML. El próximo **`apply` vuelve al `status` del archivo**. Si el pause debe quedar fijo, pon `status: "PAUSED"` en el YAML y haz `apply`.
 
-#### **Usando GitHub Actions**
+**Desde Git (estado permanente):** cambia `status` en el YAML y `apply`.
 
-1. Ir a **Actions** → **Deploy Full-Managed Kafka Connectors**
-2. Click en **Run workflow**
-3. Seleccionar:
-   - **CODAPP**: Código de aplicación (ej: `PEVE`)
-   - **ENVIRONMENT**: Entorno (`DES`, `CER`, `PRO`)
-   - **action**: Acción a realizar (`plan`, `apply`, `destroy`)
-4. Click en **Run workflow**
+### Borrar el use-case entero
 
-#### **Usando Terraform Localmente**
+`action: destroy` con `CODAPP` + `use_case`. Elimina conectores y RBAC de ese módulo.
 
-```bash
-cd terraform/ccloud-connectors
+---
 
-# Inicializar Terraform
-terraform init
+## Reglas que evitan recrear el conector
 
-# Planificar cambios
-terraform plan \
-  -var="environment_id=env-xxxxx" \
-  -var="organization_id=xxxxx-xxxxx-xxxxx" \
-  -var="kafka_cluster_id=lkc-xxxxx" \
-  -var="connectors_dir=../../PEVE/ccloud-connectors" \
-  -var="environment=DES" \
-  -var="confluent_cloud_api_key=xxx" \
-  -var="confluent_cloud_api_secret=xxx" \
-  -var="principal_id=sa-xxxxx"
+| Hacer | No hacer |
+|---|---|
+| Agregar un YAML con **nombre de archivo nuevo** | Renombrar un YAML ya aplicado |
+| Borrar el YAML para dar de baja | Cambiar `name` / `config_nonsensitive.name` después del primer apply |
+| Editar propiedades dentro del mismo archivo | Vaciar `connects/` y hacer `apply` |
 
-# Aplicar cambios
-terraform apply
-```
+Renombrar el archivo o el `name` cambia la key de Terraform: destruye el conector viejo, crea uno nuevo y **se pierden los offsets**.
 
-### **3. Gestión de Conectores Existentes**
+---
 
-#### **Actualizar Configuración**
-1. Editar el archivo JSON del entorno (`dev-{connector-name}.json`, `cert-{connector-name}.json` o `prod-{connector-name}.json`) o `{env}-vars.yaml`
-2. Hacer commit de los cambios
-3. Ejecutar el workflow con `action: apply`
+## Cómo disparar el workflow
 
-#### **Pausar/Reanudar Conector**
-1. Editar `{env}-vars.yaml` y cambiar `status: "PAUSED"` o `status: "RUNNING"`
-2. Ejecutar el workflow con `action: apply`
+1. Actions → el workflow de conectores → **Run workflow**.
+2. Rellenar:
 
-#### **Eliminar Conector**
-1. Eliminar el directorio del conector: `rm -rf {CODAPP}/ccloud-connectors/{connector-name}`
-2. Ejecutar el workflow con `action: apply` (Terraform detectará la eliminación)
+| Input | `plan` / `apply` / `destroy` | `pause` / `resume` |
+|---|---|---|
+| `action` | la acción | `pause` o `resume` |
+| `CODAPP` | sí | sí |
+| `use_case` | sí (carpeta del caso de uso) | sí |
+| `connector` | no (se ignora) | **obligatorio** |
 
-## 🔄 Orden de Precedencia de Configuración
+Hoy el workflow apunta a **DES** (`{CODAPP}/desa/{use_case}/`).
 
-La configuración se combina en el siguiente orden (último sobrescribe):
+---
 
-1. **`{prefix}-{connector-name}.json`** → Configuración base del entorno (non-sensitive)
-2. **`{env}-vars.yaml`** → Variables por entorno (sobrescribe JSON del entorno)
-3. **Valores forzados** → `name` y `kafka.service.account.id` (siempre se aplican)
+## Troubleshooting
 
-## 📊 Conectores Soportados
+**`connects/` no existe o sin YAML**  
+El `apply` se bloquea a propósito: un directorio vacío destruiría todos los conectores del use-case. Añade al menos un YAML o usa `destroy`.
 
-Este módulo soporta **cualquier conector full-managed** disponible en Confluent Cloud, incluyendo:
+**`security/` no existe**  
+El job falla. No se “omite” RBAC en silencio (un for_each vacío borraría los bindings). Crea la carpeta.
 
-- **Sink Connectors**:
-  - Microsoft SQL Server Sink
-  - PostgreSQL Sink
-  - MySQL Sink
-  - MongoDB Sink
-  - Elasticsearch Sink
-  - S3 Sink
-  - GCS Sink
-  - Azure Blob Storage Sink
-  - Y muchos más...
+**pause/resume: falta `connector` o no existe el YAML**  
+El input debe ser el basename de un archivo en `connects/` de ese use-case.
 
-- **Source Connectors**:
-  - HTTP Source
-  - MySQL Source
-  - PostgreSQL Source
-  - MongoDB Source
-  - Y muchos más...
+**El conector pausado volvió a RUNNING**  
+El `apply` restauró el `status` del YAML. Deja `status: "PAUSED"` en el archivo si debe persistir.
 
-Para ver la lista completa de conectores disponibles, consulta la [documentación de Confluent Cloud](https://docs.confluent.io/cloud/current/connectors/index.html).
+**Credenciales rechazadas (Azure, SQL, etc.)**  
+Revisa `vault.secrets` (`path` + `field`). No pongas el secreto en el YAML.
 
-## 🚨 Troubleshooting
+**RBAC / DLQ**  
+El SA necesita Read en el topic (sink) o Write (source), y Write en `{topic}-dlq`. Ver [CONNECTOR_DLQ_PERMISSIONS.md](./CONNECTOR_DLQ_PERMISSIONS.md).
 
-### **Error: "Connector directory not found"**
-- Verificar que el directorio `{CODAPP}/ccloud-connectors/{connector-name}` existe
-- Verificar que contiene el JSON del entorno (ej: `dev-{connector-name}.json`)
+---
 
-### **Error: "Environment vars file not found"**
-- Verificar que existe `{env}-vars.yaml` para el entorno seleccionado
-- Verificar el mapeo: `DES` → `dev-vars.yaml`, `CER` → `cert-vars.yaml`, `PRO` → `prod-vars.yaml`
+## Referencias
 
-### **Error: "Invalid connector configuration"**
-- Verificar que el archivo JSON tiene la estructura correcta
-- Verificar que `name` está definido en el JSON
-- Verificar que `config_nonsensitive` es un objeto en el JSON
-- Verificar que el JSON es válido (usar un validador JSON)
+- [Confluent Cloud Connectors](https://docs.confluent.io/cloud/current/connectors/index.html)
+- [Terraform `confluent_connector`](https://registry.terraform.io/providers/confluentinc/confluent/latest/docs/resources/connector)
+- [Permisos RBAC y DLQ](./CONNECTOR_DLQ_PERMISSIONS.md)
 
-### **Error: "Credentials not found"**
-- Verificar que las credenciales están configuradas en Vault
-- Verificar que el workflow tiene acceso a los secrets
-- Verificar que las variables de entorno están correctamente configuradas
+## Changelog
 
-## 📚 Referencias
-
-- [Confluent Cloud Connectors Documentation](https://docs.confluent.io/cloud/current/connectors/index.html)
-- [Terraform Confluent Provider](https://registry.terraform.io/providers/confluentinc/confluent/latest/docs/resources/connector)
-- [Operational Model - Flink Statements](./OPERATIONAL_MODEL.md)
-
-## 📝 Changelog
-
-- **2024-01-XX**: Versión inicial del modelo operativo para conectores full-managed
-
+- **2026-08-20**: Modelo por use-case (`connects/` + `security/`). Despliegue por `use_case`; `pause`/`resume` por conector. Se retira el layout `ccloud-connectors/{connector}/{env}-*.json`.

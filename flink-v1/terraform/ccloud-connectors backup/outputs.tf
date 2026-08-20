@@ -24,15 +24,3 @@ output "connector_names" {
   value       = [for connector in confluent_connector.connectors : connector.config_nonsensitive["name"]]
 }
 
-output "role_bindings" {
-  description = "Bindings RBAC aplicados desde security/"
-  value = {
-    for k, b in confluent_role_binding.connector_rbac :
-    k => {
-      principal   = b.principal
-      role_name   = b.role_name
-      crn_pattern = b.crn_pattern
-    }
-  }
-}
-

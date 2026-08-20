@@ -1,0 +1,168 @@
+name: Deploy Flink Compute Pools
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+          - plan
+      CODAPP:
+        description: 'codigo de applicación de 4 letras'
+        required: true
+        type: string
+
+env:
+  VAULT_ADDR: "https://peve-vault-cluster-public-vault-792c8051.d71fe7f2.z1.hashicorp.cloud:8200"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  TF_VAR_compute_pool_config_path: "../../${{ github.event.inputs.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml"
+  SERVICE_ACCOUNT: "SA_AZC_DES_PEVE_POS_01"
+  API_KEY: "AK_AZC_DES_PEVE_CRMAN_PAYMENT_01"
+
+jobs:
+  deploy-compute-pools:
+    runs-on: ubuntu-latest
+    environment: APP_PEVE_CI_DESA
+    
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Checkout ${{ env.CODAPP }} resources
+        uses: actions/checkout@v4
+        with:
+          repository: denniskano/test-event-driven-resources
+          ref: develop
+          path: resources
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Move ${{ env.CODAPP }} to correct location
+        run: |
+          mv resources/${{ env.CODAPP }} ./${{ env.CODAPP }}
+          rm -rf resources
+          echo "✅ ${{ env.CODAPP }} folder moved to workspace root"
+
+      - name: Configure Azure Storage Access
+        run: |
+          export ARM_ACCESS_KEY="${{ secrets.ARM_ACCESS_KEY }}"
+          echo "✅ Azure Storage access configured"
+
+      - name: Verify ${{ env.CODAPP }} folder structure
+        run: |
+          echo "=== Listing workspace root ==="
+          ls -la
+          echo ""
+          echo "=== Listing ${{ env.CODAPP }} folder ==="
+          ls -la ${{ env.CODAPP }}/ || echo "${{ env.CODAPP }} folder not found!"
+          echo ""
+          echo "=== Listing ${{ env.CODAPP }}/ccloud-flink-compute-pool ==="
+          ls -la ${{ env.CODAPP }}/ccloud-flink-compute-pool/ || echo "ccloud-flink-compute-pool folder not found!"
+          echo ""
+          echo "=== Checking dev-vars.yaml ==="
+          if [ -f "${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml" ]; then
+            echo "✅ dev-vars.yaml exists"
+            cat ${{ env.CODAPP }}/ccloud-flink-compute-pool/dev-vars.yaml
+          else
+            echo "❌ dev-vars.yaml NOT found"
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Install yq
+        run: |
+          echo "=== Installing yq ==="
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+          echo "✅ yq installed successfully"
+
+      - name: Get Secrets for Compute Pools
+        id: get-secrets-cp
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          namespace: admin
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/data/dev/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY }} password | CONFLUENT_CLOUD_API_SECRET ;
+
+      - name: Terraform Init - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: |
+          # Inicializar con estado limpio
+          terraform init \
+            -backend-config="storage_account_name=pevetfstate" \
+            -backend-config="resource_group_name=rg-peve-terraform" \
+            -backend-config="container_name=tf-flink-stm-dev" \
+            -backend-config="key=dev/${{ github.event.inputs.CODAPP }}/tf-flink.tfstate" \
+            -backend-config="access_key=${{ secrets.ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ secrets.ARM_ACCESS_KEY }}
+
+      - name: Extract Environment ID from CC_PROPERTIES
+        id: extract-env
+        run: |
+          echo "CC_PROPERTIES raw content:"
+          echo '${{ vars.CC_PROPERTIES }}'
+          
+          # Extraer environment_id del JSON
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          
+          echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
+          
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "✅ Environment ID configured: $ENVIRONMENT_ID"
+
+      - name: Terraform Plan - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: terraform plan
+        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+
+      - name: Terraform Apply - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: terraform apply -auto-approve
+        if: github.event.inputs.action == 'apply'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+
+      - name: Terraform Destroy - Compute Pools
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: terraform destroy -auto-approve
+        if: github.event.inputs.action == 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+
+      - name: Output Compute Pool IDs
+        working-directory: terraform/ccloud-flink-compute-pool
+        run: |
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            echo "=== Compute Pool IDs ==="
+            terraform output -json compute_pool_ids
+            echo "=== Compute Pool Configs ==="
+            terraform output -json compute_pool_configs
+          fi

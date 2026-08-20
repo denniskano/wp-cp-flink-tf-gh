@@ -1,0 +1,28 @@
+# =============================================================================
+# CONNECTOR VARIABLES - CERTIFICATION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Certification (CER)
+# Última actualización: 2024-01-XX
+# Responsable: [Nombre del equipo]
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  securepass.api.url: "https://cert-securepass-api.example.com"
+  securepass.tenant.id: "cert-tenant-id"
+  securepass.config.path: "cert/config/path"
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Sensitive) - Environment Specific
+# =============================================================================
+config_sensitive:
+  securepass.client.id: ""  # Se obtiene desde Vault/secrets
+  securepass.client.secret: ""  # Se obtiene desde Vault/secrets
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+

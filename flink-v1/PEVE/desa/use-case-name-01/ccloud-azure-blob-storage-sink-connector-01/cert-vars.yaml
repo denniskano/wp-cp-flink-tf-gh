@@ -1,0 +1,36 @@
+# =============================================================================
+# CONNECTOR VARIABLES - CERTIFICATION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Certification (CER)
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  topics: "azc-peve-connect-test"
+  azblob.account.name: "stpeveconnectcer"
+  azblob.container.name: "peve-connect-sink"
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+
+# =============================================================================
+# VAULT REFERENCES
+# =============================================================================
+vault:
+  service_account: "SA_AZC_CER_PEVE_BLOB_01"
+  secrets:
+    azblob.account.key:
+      path: "peve/data/cert/peve/azure/ST_PEVE_CONNECT_CER"
+      field: "access_key"
+
+# =============================================================================
+# METADATA
+# =============================================================================
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"

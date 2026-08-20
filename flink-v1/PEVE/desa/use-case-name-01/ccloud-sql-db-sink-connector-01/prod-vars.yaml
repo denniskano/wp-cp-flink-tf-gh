@@ -1,0 +1,40 @@
+# =============================================================================
+# CONNECTOR VARIABLES - PRODUCTION
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Production (PRO)
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  connection.host: "prod-peve-badi.database.windows.net"
+  connection.port: "1433"
+  db.name: "prod-peve-badi-01"
+  topics: "prod-peve-badi-01"
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+
+# =============================================================================
+# VAULT REFERENCES
+# =============================================================================
+vault:
+  service_account: "SA_AZC_PRO_PEVE_SQLSNK_01"
+  secrets:
+    connection.username:
+      path: "peve/data/prod/peve/ccloud/peve_ccloud_sql_bqdi_poc_prod"
+      field: "username"
+    connection.password:
+      path: "peve/data/prod/peve/ccloud/peve_ccloud_sql_bqdi_poc_prod"
+      field: "password"
+
+# =============================================================================
+# METADATA
+# =============================================================================
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"

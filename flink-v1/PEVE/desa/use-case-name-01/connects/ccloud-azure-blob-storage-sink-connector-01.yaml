@@ -1,0 +1,35 @@
+# =============================================================================
+# Azure Blob Storage Sink — DES
+# Un YAML por conector: config + vault. El directorio padre (desa/cert/prod)
+# define el entorno; no uses prefijo dev-/cert-/prod- en el nombre del archivo.
+# =============================================================================
+name: "peve-azure-blob-storage-sink-connector-01"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "peve-azure-blob-storage-sink-connector-01"
+  connector.class: "AzureBlobSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  input.data.format: "AVRO"
+  output.data.format: "JSON"
+  time.interval: "HOURLY"
+  flush.size: "1000"
+  topics.dir: "topics"
+  path.format: "'year'=YYYY/'month'=MM/'day'=dd/'hour'=HH"
+  tasks.max: "1"
+  errors.tolerance: "all"
+  topics: "azc-peve-connect-test"
+  azblob.account.name: "stpeveconnectdev"
+  azblob.container.name: "peve-connect-sink"
+
+vault:
+  service_account: "SA_AZC_DES_PEVE_BLOB_01"
+  api-key: "AK_AZC_DES_PEVE_BLOB_01"
+  secrets:
+    azblob.account.key:
+      path: "peve/data/dev/peve/azure/ST_PEVE_CONNECT_DEV"
+      field: "access_key"
+
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud

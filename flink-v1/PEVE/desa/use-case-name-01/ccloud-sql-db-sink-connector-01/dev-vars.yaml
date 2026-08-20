@@ -1,0 +1,40 @@
+# =============================================================================
+# CONNECTOR VARIABLES - DEVELOPMENT
+# =============================================================================
+# Aplicación: PEVE
+# Entorno: Development (DES)
+
+# =============================================================================
+# CONNECTOR CONFIGURATION (Non-Sensitive) - Environment Specific
+# =============================================================================
+config_nonsensitive:
+  connection.host: "poc-peve-badi.database.windows.net"
+  connection.port: "1433"
+  db.name: "poc-peve-badi-01"
+  topics: "poc-peve-badi-01"
+
+# =============================================================================
+# CONNECTOR STATUS
+# =============================================================================
+status: "RUNNING"
+
+# =============================================================================
+# VAULT REFERENCES
+# =============================================================================
+vault:
+  service_account: "SA_AZC_DES_PEVE_SQLSNK_01"
+  secrets:
+    connection.username:
+      path: "peve/data/dev/peve/ccloud/peve_ccloud_sql_bqdi_poc_dev"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/ccloud/peve_ccloud_sql_bqdi_poc_dev"
+      field: "password"
+
+# =============================================================================
+# METADATA
+# =============================================================================
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
+api-key-sequence: "01"

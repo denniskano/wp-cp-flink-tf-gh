@@ -1,0 +1,16 @@
+{
+    "name": "peve-azure-blob-storage-sink-connector-01",
+    "config_nonsensitive": {
+        "name": "peve-azure-blob-storage-sink-connector-01",
+        "connector.class": "AzureBlobSink",
+        "kafka.auth.mode": "SERVICE_ACCOUNT",
+        "input.data.format": "AVRO",
+        "output.data.format": "JSON",
+        "time.interval": "HOURLY",
+        "flush.size": "1000",
+        "topics.dir": "topics",
+        "path.format": "'year'=YYYY/'month'=MM/'day'=dd/'hour'=HH",
+        "tasks.max": "1",
+        "errors.tolerance": "all"
+    }
+}

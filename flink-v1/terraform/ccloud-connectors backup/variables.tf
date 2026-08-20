@@ -21,14 +21,8 @@ variable "kafka_cluster_id" {
 }
 
 variable "connectors_dir" {
-  description = "Directorio connects del caso de uso (ej: ../../PEVE/desa/use-case-name-01/connects)"
+  description = "Directorio base con conectores (ej: ../../PEVE/ccloud-connectors)"
   type        = string
-}
-
-variable "security_dir" {
-  description = "Directorio security del caso de uso (YAML RBAC). Vacío = no aplica bindings."
-  type        = string
-  default     = ""
 }
 
 variable "environment" {
@@ -62,26 +56,10 @@ variable "confluent_cloud_api_secret" {
 # =============================================================================
 
 variable "connector_secrets" {
-  description = "Secrets por conector obtenidos de Vault. Mapa: connector key (nombre del YAML sin extensión) -> { config_key: secret_value }"
+  description = "Secrets por conector obtenidos de Vault. Mapa: connector_dir -> { config_key: secret_value }"
   type        = map(map(string))
   default     = {}
   sensitive   = true
-}
-
-variable "connector_status_overrides" {
-  description = "Forzar status (RUNNING|PAUSED) por conector (key = nombre del archivo YAML sin .yaml). Vacío = usa el status del YAML."
-  type        = map(string)
-  default     = {}
-  validation {
-    condition     = alltrue([for s in values(var.connector_status_overrides) : contains(["RUNNING", "PAUSED"], s)])
-    error_message = "connector_status_overrides solo admite RUNNING o PAUSED."
-  }
-}
-
-variable "allow_empty_connectors" {
-  description = "true permite connects/ sin YAML (destruiría todos los conectores del use-case). false bloquea ese apply."
-  type        = bool
-  default     = false
 }
 
 

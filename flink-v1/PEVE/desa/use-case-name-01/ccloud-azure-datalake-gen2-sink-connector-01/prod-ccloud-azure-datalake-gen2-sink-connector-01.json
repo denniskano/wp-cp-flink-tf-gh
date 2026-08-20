@@ -1,0 +1,26 @@
+{
+    "name": "azure-datalake-gen2-sink-connector-01",
+    "config_nonsensitive": {
+        "name": "azure-datalake-gen2-sink-connector-01",
+        "connector.class": "AzureBlobStorageSink",
+        "kafka.auth.mode": "SERVICE_ACCOUNT",
+        "schema.context.name": "default",
+        "input.data.format": "JSON_SR",
+        "azure.blob.storage.account.name": "",
+        "azure.blob.storage.container.name": "",
+        "azure.blob.storage.directory": "",
+        "flush.size": "1000",
+        "rotate.interval.ms": "3600000",
+        "rotate.schedule.interval.ms": "-1",
+        "timezone": "UTC",
+        "format.output.fields": "value",
+        "format.output.fields.value.name": "",
+        "tasks.max": "1",
+        "max.poll.interval.ms": "300000",
+        "max.poll.records": "500",
+        "errors.tolerance": "all",
+        "errors.deadletterqueue.context.headers.enable": "true",
+        "errors.deadletterqueue.topic.replication.factor": "3"
+    }
+}
+
