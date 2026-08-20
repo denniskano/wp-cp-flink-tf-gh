@@ -23,3 +23,21 @@ cluster:
         role:
         - operation: DeveloperWrite
         - operation: DeveloperRead
+    - principal: SA_AZC_DES_PEVE_PGSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-connect-postgres-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: 'azc-peve-connect-postgres'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: 'azc-peve-connect-postgres-dlq'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead

@@ -1,0 +1,39 @@
+# =============================================================================
+# PostgreSQL Sink (JDBC) — DES
+# connector.class: PostgresSink. connection.host sin jdbc://.
+# Egress Private Link (Flexible Server): sub-recurso postgresqlServer, antes del apply.
+# =============================================================================
+name: "peve-postgresql-sink-connector-01"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "peve-postgresql-sink-connector-01"
+  connector.class: "PostgresSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  input.data.format: "AVRO"
+  insert.mode: "INSERT"
+  auto.create: "true"
+  auto.evolve: "true"
+  db.timezone: "UTC"
+  ssl.mode: "prefer"
+  tasks.max: "1"
+  errors.tolerance: "all"
+  topics: "azc-peve-connect-postgres"
+  connection.host: "peve-postgres-des.postgres.database.azure.com"
+  connection.port: "5432"
+  db.name: "peve_connect"
+
+vault:
+  service_account: "SA_AZC_DES_PEVE_PGSNK_01"
+  api-key: "AK_AZC_DES_PEVE_PGSNK_01"
+  secrets:
+    connection.user:
+      path: "peve/data/dev/peve/ccloud/peve_ccloud_postgres_poc_dev"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/ccloud/peve_ccloud_postgres_poc_dev"
+      field: "password"
+
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud
