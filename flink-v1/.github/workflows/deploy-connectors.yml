@@ -28,6 +28,9 @@ on:
         type: string
         default: ''
 
+run-name: >
+  ${{ github.event.inputs.CODAPP }} ${{ github.workflow }} [${{ github.event.inputs.action }}]
+
 env:
   VAULT_ADDR: "https://vaultdev.lima.bcp.com.pe:443"
   CODAPP: ${{ github.event.inputs.CODAPP }}
@@ -35,48 +38,121 @@ env:
   ENVIRONMENT: "DES"
   ENV_FOLDER: "desa"
   VAULT_ENV_PATH: "dev"
-  TF_VAR_connectors_dir: "../../${{ github.event.inputs.CODAPP }}/desa/${{ github.event.inputs.use_case }}/connects"
-  TF_VAR_security_dir: "../../${{ github.event.inputs.CODAPP }}/desa/${{ github.event.inputs.use_case }}/security"
+  TF_VAR_connectors_dir: "../../externo/${{ github.event.inputs.CODAPP }}/desa/${{ github.event.inputs.use_case }}/connects"
+  TF_VAR_security_dir: "../../externo/${{ github.event.inputs.CODAPP }}/desa/${{ github.event.inputs.use_case }}/security"
   STORAGE_CONTAINER_NAME: tf-connect-dev
   RESOURCE_GROUP_NAME: RSGREU2PEVED01
-  KAFKA_CLUSTER_ID: "lkc-xzyppq"  # Actualizar con el cluster ID real
-  RESOURCES_BRANCH: feature/PEVE-5321 # develop-v2
+  KAFKA_CLUSTER_ID: "lkc-xzyppq"
   TERRAFORM_VERSION: "1.5.0"
   NODE_VERSION: "16.13.1"
   TERRAFORM_WORKDIR: terraform/ccloud-connectors
-  SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01 # SA para el API Key de Terraform
-  API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01   # API Key de Terraform
+  SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01
+  API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01
+  BRANCH_AUTOMATION: automation-v3-flink-stream-processing
+  GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
+  OWNER_EXTERNO: "BCP-Integration-Automation"
+  REPO_EXTERNO: "PEVE-kafka-connect-resources-v1"
+  RESOURCES_BRANCH_EXTERNO: master
 
 jobs:
-  deploy-connectors:
-    runs-on: arc-runner-desa-set
-    environment: APP_PEVE_CI_DESA  # Actualizar según entorno
-    
+  PREPARE:
+    name: "Prepare: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set
+    environment: APP_AUTOMATION_BOT
+    outputs:
+      CIPHER: ${{ steps.enc.outputs.CIPHER }}
+      HOST: ${{ steps.enc.outputs.HOST }}
     steps:
-      - name: Checkout main repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RESOURCES_BRANCH }}
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git tree dnsutils ca-certificates gettext -y  > /dev/null 2>&1
 
-      - name: Checkout ${{ env.CODAPP }} resources
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get GithubApp from Secrets HV
+        id: get-ghapp-peve-key
+        uses: hashicorp/vault-action@v3
+        with:
+          url: https://vault.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
+          secrets: |
+            cos/kv2/data/prod/peve/ccloud/ghapp_peve_self_service_pk secret | ghapp_peve_self_service_pk ;
+
+      - name: Generar token desde GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ env.GITHUB_APP_ID }}
+          private-key: ${{ steps.get-ghapp-peve-key.outputs.ghapp_peve_self_service_pk }}
+          owner: ${{ env.OWNER_EXTERNO }}
+          repositories: ${{ env.REPO_EXTERNO }}
+          skip-token-revoke: true
+
+      - name: Clone automation resources
         uses: actions/checkout@v4
         with:
-          ref: automation-v3-flink
+          ref: ${{ env.BRANCH_AUTOMATION }}
           path: resources
-      
+
+      - name: Cifrar token de sesion de githubapp
+        id: enc
+        uses: ./resources/.github/actions/single-encrypt
+        with:
+          plaintext: ${{ steps.app-token.outputs.token }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+  deploy-connectors:
+    name: "CI Connectors: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-desa-set
+    environment: APP_PEVE_CI_DESA
+    needs: PREPARE
+    steps:
+      - name: Checkout automation resources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: resources
+
+      - name: Descifrar token de sesion de githubapp
+        id: dec
+        uses: ./resources/.github/actions/single-decrypt
+        with:
+          ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
+          host: ${{ needs.PREPARE.outputs.HOST }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+      - name: set environment TOKEN de sesion para repo externo
+        run: |
+          echo "GHAPP_TOKEN_REPO_V3=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
+
+      - name: Checkout base del repo externo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
+          ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./externo
+
       - name: Move terraform to correct location
         run: |
           mv resources/terraform ./terraform
-          rm -rf resources
           echo "Ok terraform folder moved to workspace root"
+          echo "=== externo/${{ env.CODAPP }} ==="
+          ls -la "externo/${{ env.CODAPP }}" || echo "CODAPP no encontrado en repo externo"
 
       - name: Verify ${{ env.CODAPP }} folder structure
         run: |
           echo "=== Listing workspace root ==="
           ls -la
           echo ""
-          CONNECTORS_DIR="${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/${{ env.USE_CASE }}/connects"
-          SECURITY_DIR="${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/${{ env.USE_CASE }}/security"
+          CONNECTORS_DIR="externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/${{ env.USE_CASE }}/connects"
+          SECURITY_DIR="externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/${{ env.USE_CASE }}/security"
           ACTION="${{ github.event.inputs.action }}"
 
           echo "=== Listing ${CONNECTORS_DIR} ==="
@@ -207,7 +283,7 @@ jobs:
 
       - name: Fetch connector secrets from Vault
         run: |
-          CONNECTORS_DIR="${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/${{ env.USE_CASE }}/connects"
+          CONNECTORS_DIR="externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/${{ env.USE_CASE }}/connects"
           SECRETS_JSON="{}"
 
           if [ ! -d "${CONNECTORS_DIR}" ]; then

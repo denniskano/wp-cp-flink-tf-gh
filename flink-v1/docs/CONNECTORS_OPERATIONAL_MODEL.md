@@ -2,6 +2,8 @@
 
 Contrato para que una aplicación (**CODAPP**) declare conectores Kafka Connect full-managed en YAML, agrupados por **caso de uso**, y pida el despliegue con el workflow de GitHub Actions.
 
+El YAML vive en el repositorio externo `PEVE-kafka-connect-resources-v1` (`{CODAPP}/desa|{cert}|{prod}/{use-case}/`). El workflow (en el repo de automatización) lo clona a `./externo`, igual que statements Flink.
+
 RBAC de topics/subjects: [CONNECTOR_DLQ_PERMISSIONS.md](./CONNECTOR_DLQ_PERMISSIONS.md).
 
 > Alcance: Confluent Cloud Dedicated. El workflow actual despliega **solo DES** (`desa`). Las carpetas `cert/` y `prod/` se versionan para cuando existan los workflows de esos entornos.
