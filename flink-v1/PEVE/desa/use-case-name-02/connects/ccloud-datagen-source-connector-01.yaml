@@ -1,0 +1,26 @@
+# =============================================================================
+# Datagen Source — DES
+# Produce AVRO al topic que consume ccloud-postgresql-sink-connector-01.
+# El topic debe existir de antemano. Datagen no usa vault.secrets.
+# =============================================================================
+name: "peve-datagen-source-connector-01"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "peve-datagen-source-connector-01"
+  connector.class: "DatagenSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  kafka.topic: "azc-peve-connect-postgres"
+  output.data.format: "AVRO"
+  quickstart: "TRANSACTIONS"
+  max.interval: "1000"
+  iterations: "10000000"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_PEVE_DATAGEN_01"
+
+project: "PEVE"
+recipients: dennispaitan@bcp.com.pe
+hosted: ccloud

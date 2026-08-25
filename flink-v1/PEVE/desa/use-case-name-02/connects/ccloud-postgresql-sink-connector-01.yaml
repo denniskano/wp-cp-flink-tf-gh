@@ -25,7 +25,6 @@ config_nonsensitive:
 
 vault:
   service_account: "SA_AZC_DES_PEVE_PGSNK_01"
-  api-key: "AK_AZC_DES_PEVE_PGSNK_01"
   secrets:
     connection.user:
       path: "peve/data/dev/peve/ccloud/peve_ccloud_postgres_poc_dev"

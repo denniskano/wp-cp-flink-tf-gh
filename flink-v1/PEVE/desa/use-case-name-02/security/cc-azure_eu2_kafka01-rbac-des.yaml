@@ -1,0 +1,37 @@
+# RBAC del Service Account que usa el conector (mismo principal que vault.service_account).
+# Schema alineado a flink-v2 security YAML. Terraform solo aplica topic, subject y transactional-id.
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_DES_PEVE_DATAGEN_01
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-connect-postgres-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: 'azc-peve-connect-postgres'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_PEVE_PGSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-connect-postgres-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: 'azc-peve-connect-postgres'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: 'azc-peve-connect-postgres-dlq'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead

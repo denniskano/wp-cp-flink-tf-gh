@@ -102,7 +102,6 @@ config_nonsensitive:
 
 vault:
   service_account: "SA_AZC_DES_PEVE_BLOB_01"
-  api-key: "AK_AZC_DES_PEVE_BLOB_01"
   secrets:
     azblob.account.key:
       path: "peve/data/dev/peve/azure/ST_PEVE_CONNECT_DEV"
@@ -116,7 +115,6 @@ vault:
 | `status` | `RUNNING` o `PAUSED`. Fuente de verdad en el próximo `apply` |
 | `config_nonsensitive` | Propiedades del conector. `kafka.service.account.id` se inyecta desde `vault.service_account` |
 | `vault.service_account` | Display name del SA (debe existir). Kafka y Schema Registry usan **este mismo** SA |
-| `vault.api-key` | Nombre lógico del API key de cluster en Vault (`AK_AZC_...`). Inventario; el conector corre con `SERVICE_ACCOUNT`, no inyecta `kafka.api.key` |
 | `vault.secrets` | Mapa `config_key → { path, field }` en Vault. El workflow los lee e inyecta como `config_sensitive` |
 
 Si hay `errors.tolerance` y un topic (`topics` o `kafka.topic`), el módulo asigna `errors.deadletterqueue.topic.name` = `{primer-topic}-dlq`. Ese topic tiene que existir de antemano.
@@ -172,7 +170,6 @@ Borrar un YAML de `connects/` **no** quita estos bindings. Hay que editar o borr
 | Archivo del conector | `ccloud-{tipo}-{secuencia}.yaml` | `ccloud-azure-blob-storage-sink-connector-01.yaml` |
 | `name` en Cloud | sin prefijo de entorno | `peve-azure-blob-storage-sink-connector-01` |
 | Service Account | el que entregue el alta | `SA_AZC_DES_PEVE_BLOB_01` |
-| API key (inventario) | un AK de cluster por SA; no uno para topic y otro para SR | `AK_AZC_DES_PEVE_BLOB_01` |
 | `status` | `RUNNING` o `PAUSED` | `RUNNING` |
 
 ---
