@@ -1,0 +1,310 @@
+<mxfile host="app.diagrams.net" modified="2026-08-25T19:23:00.000Z" agent="Cursor Agent" version="24.0.0" etag="draw.io-cc-architecture" type="device">
+  <diagram name="Arquitectura de Conectores en Confluent Cloud" id="cc-arch">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Title -->
+        <mxCell id="title" value="Arquitectura de Conectores en Confluent Cloud" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="20" width="600" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Repositorio Git Container -->
+        <mxCell id="git-container" value="Repositorio Git" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1f5ff;strokeColor=#0066cc;fontSize=12;fontStyle=1;startSize=40;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="150" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="yaml-files" value="YAML Files&lt;br&gt;connects/ + security/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#0066cc;fontSize=11;fontStyle=1;" vertex="1" parent="git-container">
+          <mxGeometry x="40" y="60" width="220" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- CI/CD Pipeline Container -->
+        <mxCell id="cicd-container" value="CI/CD Pipeline" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;fontSize=12;fontStyle=1;startSize=40;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="300" height="280" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="gha" value="GitHub Actions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe1e1;strokeColor=#cc0000;fontSize=11;fontStyle=1;" vertex="1" parent="cicd-container">
+          <mxGeometry x="40" y="60" width="220" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="tf" value="Terraform" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0e1ff;strokeColor=#9933cc;fontSize=11;fontStyle=1;" vertex="1" parent="cicd-container">
+          <mxGeometry x="40" y="140" width="220" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="vault" value="HashiCorp Vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0e1ff;strokeColor=#9933cc;fontSize=11;fontStyle=1;" vertex="1" parent="cicd-container">
+          <mxGeometry x="40" y="220" width="220" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Confluent Cloud Container -->
+        <mxCell id="cc-container" value="Confluent Cloud" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e1ffe1;strokeColor=#339933;fontSize=14;fontStyle=1;startSize=50;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="480" y="80" width="1280" height="800" as="geometry"/>
+        </mxCell>
+        
+        <!-- RBAC Layer -->
+        <mxCell id="rbac-layer" value="RBAC Layer" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fff4e1;strokeColor=#ff9900;fontSize=12;fontStyle=1;startSize=30;" vertex="1" parent="cc-container">
+          <mxGeometry x="40" y="70" width="400" height="200" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sa" value="Service Account" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#ff9900;fontSize=11;fontStyle=1;" vertex="1" parent="rbac-layer">
+          <mxGeometry x="40" y="50" width="140" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="rbac" value="Role Bindings&lt;br&gt;Topics, Subjects, Groups" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#ff9900;fontSize=10;align=center;" vertex="1" parent="rbac-layer">
+          <mxGeometry x="220" y="50" width="150" height="130" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="arrow-sa-rbac" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ff9900;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="rbac-layer" source="sa" target="rbac">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow-sa-rbac-label" value="grants" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;fontColor=#ff9900;fontStyle=1;" vertex="1" connectable="0" parent="arrow-sa-rbac">
+          <mxGeometry x="-0.1" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Kafka Cluster Layer -->
+        <mxCell id="kafka-layer" value="Kafka Cluster" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#0066cc;fontSize=12;fontStyle=1;startSize=30;" vertex="1" parent="cc-container">
+          <mxGeometry x="480" y="70" width="360" height="400" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="topic-input" value="Topic: Input" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d9ff;strokeColor=#0066cc;fontSize=11;" vertex="1" parent="kafka-layer">
+          <mxGeometry x="40" y="50" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="topic-output" value="Topic: Output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d9ff;strokeColor=#0066cc;fontSize=11;" vertex="1" parent="kafka-layer">
+          <mxGeometry x="200" y="50" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="topic-dlq" value="Topic: DLQ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcccc;strokeColor=#cc0000;fontSize=11;" vertex="1" parent="kafka-layer">
+          <mxGeometry x="120" y="130" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="schema-registry" value="Schema Registry&lt;br&gt;Subjects" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d9ff;strokeColor=#0066cc;fontSize=11;" vertex="1" parent="kafka-layer">
+          <mxGeometry x="120" y="220" width="120" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- Connectors Layer -->
+        <mxCell id="connectors-layer" value="Connectors Layer" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#666;fontSize=12;fontStyle=1;startSize=30;" vertex="1" parent="cc-container">
+          <mxGeometry x="880" y="70" width="360" height="400" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="sink" value="Sink Connector&lt;br&gt;PostgreSQL, Azure Blob, etc." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#0066cc;fontSize=11;align=center;" vertex="1" parent="connectors-layer">
+          <mxGeometry x="40" y="70" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="source" value="Source Connector&lt;br&gt;Datagen, EventHub, etc." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#0066cc;fontSize=11;align=center;" vertex="1" parent="connectors-layer">
+          <mxGeometry x="200" y="70" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- External Systems -->
+        <mxCell id="ext-layer" value="External Systems" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffe6e6;strokeColor=#cc6666;fontSize=12;fontStyle=1;startSize=30;" vertex="1" parent="cc-container">
+          <mxGeometry x="40" y="520" width="1200" height="230" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ext1" value="PostgreSQL Database" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcccc;strokeColor=#cc0000;fontSize=11;" vertex="1" parent="ext-layer">
+          <mxGeometry x="80" y="80" width="200" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ext2" value="Azure Blob Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcccc;strokeColor=#cc0000;fontSize=11;" vertex="1" parent="ext-layer">
+          <mxGeometry x="330" y="80" width="200" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ext3" value="Azure Event Hub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcccc;strokeColor=#cc0000;fontSize=11;" vertex="1" parent="ext-layer">
+          <mxGeometry x="580" y="80" width="200" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ext-more" value="... otros sistemas externos" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=2;fontColor=#666;" vertex="1" parent="ext-layer">
+          <mxGeometry x="830" y="120" width="200" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrows from Git to CI/CD -->
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0066cc;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="yaml-files" target="gha">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow1-label" value="1. Push" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#0066cc;fontStyle=1;" vertex="1" connectable="0" parent="arrow1">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9933cc;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="gha" target="vault">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow2-label" value="2. Read secrets" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#9933cc;fontStyle=1;" vertex="1" connectable="0" parent="arrow2">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="-10" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9933cc;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="gha" target="tf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow3-label" value="3. Execute" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#9933cc;fontStyle=1;" vertex="1" connectable="0" parent="arrow3">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="-10" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ff9900;strokeWidth=2;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="tf" target="rbac">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="250" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow4-label" value="4. Apply RBAC" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#ff9900;fontStyle=1;" vertex="1" connectable="0" parent="arrow4">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="25" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0066cc;strokeWidth=2;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="tf" target="sink">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1360" y="300" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow5-label" value="5. Deploy" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#0066cc;fontStyle=1;" vertex="1" connectable="0" parent="arrow5">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="120" y="-100" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0066cc;strokeWidth=2;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="tf" target="source">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1680" y="300" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow6-label" value="6. Deploy" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#0066cc;fontStyle=1;" vertex="1" connectable="0" parent="arrow6">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="120" y="-100" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from RBAC to Topics -->
+        <mxCell id="arrow7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ff9900;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;" edge="1" parent="1" source="rbac" target="topic-input">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow7-label" value="permissions on" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;fontColor=#ff9900;" vertex="1" connectable="0" parent="arrow7">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="10" y="-5" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ff9900;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;" edge="1" parent="1" source="rbac" target="topic-output">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow8-label" value="permissions on" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;fontColor=#ff9900;" vertex="1" connectable="0" parent="arrow8">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="10" y="-5" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ff9900;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;" edge="1" parent="1" source="rbac" target="topic-dlq">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow9-label" value="permissions on" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;fontColor=#ff9900;" vertex="1" connectable="0" parent="arrow9">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="5" y="-5" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ff9900;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;" edge="1" parent="1" source="rbac" target="schema-registry">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow10-label" value="permissions on" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;fontColor=#ff9900;" vertex="1" connectable="0" parent="arrow10">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="5" y="-5" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from Topics to Sink -->
+        <mxCell id="arrow11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0066cc;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="topic-input" target="sink">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow11-label" value="reads" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#0066cc;fontStyle=1;" vertex="1" connectable="0" parent="arrow11">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from Sink to External -->
+        <mxCell id="arrow12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="sink" target="ext1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow12-label" value="writes to" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#cc0000;fontStyle=1;" vertex="1" connectable="0" parent="arrow12">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="-15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="sink" target="ext2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow13-label" value="writes to" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#cc0000;fontStyle=1;" vertex="1" connectable="0" parent="arrow13">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from Sink to DLQ -->
+        <mxCell id="arrow14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="sink" target="topic-dlq">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow14-label" value="errors to" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#cc0000;fontStyle=1;" vertex="1" connectable="0" parent="arrow14">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="-10" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from Source to Topic -->
+        <mxCell id="arrow15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0066cc;strokeWidth=2;endArrow=classic;endFill=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="source" target="topic-output">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow15-label" value="writes to" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#0066cc;fontStyle=1;" vertex="1" connectable="0" parent="arrow15">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="10" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from External to Source -->
+        <mxCell id="arrow16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="ext3" target="source">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow16-label" value="reads from" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#cc0000;fontStyle=1;" vertex="1" connectable="0" parent="arrow16">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="10" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from Source to DLQ -->
+        <mxCell id="arrow17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;strokeWidth=2;endArrow=classic;endFill=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="source" target="topic-dlq">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow17-label" value="errors to" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fillColor=#fff;fontColor=#cc0000;fontStyle=1;" vertex="1" connectable="0" parent="arrow17">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Arrows from Topics to Schema Registry (dashed) -->
+        <mxCell id="arrow18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0066cc;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;dashPattern=3 3;" edge="1" parent="1" source="topic-input" target="schema-registry">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow18-label" value="uses schema" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;fontColor=#0066cc;" vertex="1" connectable="0" parent="arrow18">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="-15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0066cc;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;dashPattern=3 3;" edge="1" parent="1" source="topic-output" target="schema-registry">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow19-label" value="uses schema" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;fontColor=#0066cc;" vertex="1" connectable="0" parent="arrow19">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint x="15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

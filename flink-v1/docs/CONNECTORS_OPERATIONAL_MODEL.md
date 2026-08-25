@@ -26,6 +26,65 @@ El YAML vive en el repositorio externo `PEVE-kafka-connect-resources-v1` (`{CODA
 
 ## Diagramas de Arquitectura y Flujo
 
+<<<<<<< HEAD
+Los diagramas de arquitectura están disponibles en formato editable draw.io en la carpeta `diagrams/`. Estos archivos pueden abrirse y editarse en [draw.io](https://app.diagrams.net/) o [diagrams.net](https://www.diagrams.net/).
+
+### Cómo abrir y editar los diagramas
+
+1. Visita [https://app.diagrams.net/](https://app.diagrams.net/)
+2. Selecciona "Open Existing Diagram"
+3. Navega a `flink-v1/docs/diagrams/` y selecciona el archivo correspondiente
+4. Edita el diagrama según tus necesidades
+5. Guarda el archivo en el mismo formato (.drawio)
+
+### Diagramas Disponibles
+
+| # | Diagrama | Archivo | Descripción |
+|---|----------|---------|-------------|
+| 1 | **Estructura de Repositorio y Componentes** | [`01-estructura-repositorio-componentes.drawio`](./diagrams/01-estructura-repositorio-componentes.drawio) | Organización de archivos YAML por `CODAPP/entorno/use-case`. Muestra la relación con HashiCorp Vault, Confluent Cloud y GitHub Actions. Código con colores para diferenciar componentes. |
+| 2 | **Flujo de Configuración de un Conector** | [`02-flujo-configuracion-conector.drawio`](./diagrams/02-flujo-configuracion-conector.drawio) | Proceso completo desde prerequisitos hasta despliegue. Incluye bifurcaciones para Sink vs Source connectors, validaciones y permisos RBAC específicos, flujo Git (commit → PR → review → merge). |
+| 3 | **Flujo de Despliegue via GitHub Actions** | [`03-flujo-despliegue-github-actions.drawio`](./diagrams/03-flujo-despliegue-github-actions.drawio) | Diagrama de secuencia que muestra interacciones entre Desarrollador → GitHub → Actions → Vault → Terraform → Confluent Cloud. Tres flujos: `plan`, `apply`, y `pause/resume`. |
+| 4 | **Arquitectura de Conectores en Confluent Cloud** | [`04-arquitectura-conectores-confluent-cloud.drawio`](./diagrams/04-arquitectura-conectores-confluent-cloud.drawio) | Arquitectura en capas: RBAC Layer → Kafka Cluster → Connectors → External Systems. Muestra el flujo de datos entre topics, conectores y sistemas externos, incluyendo Schema Registry y DLQ. |
+| 5 | **Ciclo de Vida de un Use-Case** | [`05-ciclo-vida-use-case.drawio`](./diagrams/05-ciclo-vida-use-case.drawio) | Máquina de estados completa con 5 fases: Preparación → Desarrollo → Validación → Desplegado → Eliminación. Incluye transiciones, operaciones en cada estado y notas sobre prerequisitos, versionado y monitoreo. |
+
+### Vista Previa de los Diagramas
+
+#### 1. Estructura de Repositorio y Componentes
+
+Muestra cómo se organizan los archivos YAML en el repositorio:
+- `connects/` - Configuración de conectores
+- `security/` - Permisos RBAC
+- Relación con componentes externos
+
+#### 2. Flujo de Configuración de un Conector
+
+Diagrama de flujo que guía el proceso de configuración:
+- ✅ Verificación de prerequisitos
+- 📝 Creación de archivos YAML
+- 🔐 Configuración de permisos RBAC
+- 🚀 Proceso Git hasta despliegue
+
+#### 3. Flujo de Despliegue via GitHub Actions
+
+Diagrama de secuencia del proceso de despliegue:
+- Interacciones entre sistemas
+- Flujos alternativos (plan/apply/pause/resume)
+- Comunicación con Vault y Confluent Cloud
+
+#### 4. Arquitectura de Conectores en Confluent Cloud
+
+Arquitectura completa de componentes:
+- Capas de RBAC, Kafka, Connectors y External Systems
+- Flujo de datos y permisos
+- Integración con Schema Registry
+
+#### 5. Ciclo de Vida de un Use-Case
+
+Estados y transiciones de un use-case:
+- Estados: Preparación, Desarrollo, Validación, Desplegado, Eliminación
+- Transiciones entre estados
+- Operaciones permitidas en cada estado
+=======
 ### 1. Estructura de Repositorio y Componentes
 
 ```mermaid
@@ -318,6 +377,7 @@ stateDiagram-v2
         Monitoreo continuo
     end note
 ```
+>>>>>>> origin/main
 
 ---
 
