@@ -18,7 +18,7 @@ config_nonsensitive:
   ssl.mode: "prefer"
   tasks.max: "1"
   errors.tolerance: "all"
-  topics: "azc-peve-connect-postgres"
+  topics: "azc-peve-transaction"
   connection.host: "peve-postgres-des.postgres.database.azure.com"
   connection.port: "5432"
   db.name: "peve_connect"

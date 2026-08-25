@@ -26,17 +26,17 @@ cluster:
     - principal: SA_AZC_DES_PEVE_PGSNK_01
       resources:
       - resource_type: subject
-        resource_name: 'azc-peve-connect-postgres-value'
+        resource_name: 'azc-peve-transaction-value'
         pattern_type: LITERAL
         role:
         - operation: DeveloperRead
       - resource_type: topic
-        resource_name: 'azc-peve-connect-postgres'
+        resource_name: 'azc-peve-transaction'
         pattern_type: LITERAL
         role:
         - operation: DeveloperRead
       - resource_type: topic
-        resource_name: 'azc-peve-connect-postgres-dlq'
+        resource_name: 'azc-peve-transaction-dlq'
         pattern_type: LITERAL
         role:
         - operation: DeveloperWrite

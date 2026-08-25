@@ -11,7 +11,7 @@ config_nonsensitive:
   connector.class: "DatagenSource"
   kafka.auth.mode: "SERVICE_ACCOUNT"
   schema.context.name: "default"
-  kafka.topic: "azc-peve-connect-postgres"
+  kafka.topic: "azc-peve-transaction"
   output.data.format: "AVRO"
   quickstart: "TRANSACTIONS"
   max.interval: "1000"
