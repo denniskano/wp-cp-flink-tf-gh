@@ -133,16 +133,19 @@ resource "terraform_data" "guards" {
 # -----------------------------------------------------------------------------
 # Full-Managed Kafka Connectors
 # -----------------------------------------------------------------------------
-# El topic DLQ debe existir de antemano. El SA necesita RBAC en topics/subjects
-# (ver YAML en security/, mismo módulo).
+# El topic DLQ debe existir de antemano. El SA necesita RBAC (topic, subject,
+# group connect-lcc- en sinks) antes de que Confluent provisione el conector.
 #
 # REGLA: no cambies 'name' ni el nombre del archivo YAML después del primer apply
 # (ForceNew / cambia la key del for_each → recreate y pérdida de offsets).
 # Borrar UN yaml destruye SOLO ese conector. Vaciar connects/ destruiría todos
 # (bloqueado por terraform_data.guards).
 resource "confluent_connector" "connectors" {
-  for_each   = local.connectors_processed
-  depends_on = [terraform_data.guards]
+  for_each = local.connectors_processed
+  depends_on = [
+    terraform_data.guards,
+    confluent_role_binding.connector_rbac,
+  ]
 
   environment {
     id = var.environment_id

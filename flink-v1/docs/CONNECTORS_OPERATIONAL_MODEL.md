@@ -110,7 +110,7 @@ vault:
 
 | Campo | Rol |
 |---|---|
-| Nombre del **archivo** | Key de Terraform. No lo cambies después del primer `apply` |
+| Nombre del **archivo** | Key de Terraform (`for_each`). No es un índice de lista. No lo cambies después del primer `apply` |
 | `name` / `config_nonsensitive.name` | Nombre en Confluent Cloud. Tampoco lo cambies después del primer `apply` |
 | `status` | `RUNNING` o `PAUSED`. Fuente de verdad en el próximo `apply` |
 | `config_nonsensitive` | Propiedades del conector. `kafka.service.account.id` se inyecta desde `vault.service_account` |
@@ -153,6 +153,11 @@ cluster:
         role:
         - operation: DeveloperWrite
         - operation: DeveloperRead
+      - resource_type: group
+        resource_name: 'connect-lcc-'
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
 ```
 
 Roles típicos: [CONNECTOR_DLQ_PERMISSIONS.md](./CONNECTOR_DLQ_PERMISSIONS.md).
@@ -269,7 +274,10 @@ El `apply` restauró el `status` del YAML. Deja `status: "PAUSED"` en el archivo
 Revisa `vault.secrets` (`path` + `field`). No pongas el secreto en el YAML.
 
 **RBAC / DLQ**  
-El SA necesita Read en el topic (sink) o Write (source), y Write en `{topic}-dlq`. Ver [CONNECTOR_DLQ_PERMISSIONS.md](./CONNECTOR_DLQ_PERMISSIONS.md).
+El SA necesita Read en el topic (sink) o Write (source), y Write en `{topic}-dlq`. Un sink además necesita `ResourceOwner` PREFIXED en `group` `connect-lcc-`. Ver [CONNECTOR_DLQ_PERMISSIONS.md](./CONNECTOR_DLQ_PERMISSIONS.md).
+
+**Failed: insufficient permissions on the consumer group (`connect-lcc-*`)**  
+Falta el binding `group` / `connect-lcc-` en `security/`, o el módulo Terraform aún no materializa `resource_type: group`. Publica `rbac.tf` y el YAML de `security/`, luego `apply`. Si el conector sigue Failed, `resume` o recrea.
 
 ---
 
