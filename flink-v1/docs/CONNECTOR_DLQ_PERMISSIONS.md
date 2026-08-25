@@ -4,161 +4,203 @@
 
 Los conectores full-managed de Confluent Cloud **requieren permisos RBAC** en los topics que utilizan (source, sink y DLQ). Estos permisos se otorgan al **Service Account** del conector **antes** (o en el mismo `apply`) del despliegue.
 
-El RBAC **no** va en el YAML del conector (`connects/`). Se declara en `{CODAPP}/{desa|cert|prod}/{use-case}/security/*.yaml`. Ver [CONNECTORS_OPERATIONAL_MODEL.md](./CONNECTORS_OPERATIONAL_MODEL.md).
+El RBAC **no** va en el YAML del conector (`connects/`). Se declara en archivos YAML dentro de `{CODAPP}/{desa|cert|prod}/{use-case}/security/*.yaml` usando el formato estructurado definido en este documento.
+
+Ver [CONNECTORS_OPERATIONAL_MODEL.md](./CONNECTORS_OPERATIONAL_MODEL.md) para el modelo operativo completo.
 
 > **Nota**: Confluent Cloud Dedicated (RBAC, no ACLs).
 
+## Formato de Declaración RBAC
+
+Los permisos RBAC se declaran en archivos YAML con la siguiente estructura:
+
+```yaml
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_NOMBRE_SERVICE_ACCOUNT
+      resources:
+      - resource_type: [topic|subject|group|transactional-id]
+        resource_name: 'nombre-del-recurso'
+        pattern_type: [LITERAL|PREFIXED]
+        role:
+        - operation: [DeveloperRead|DeveloperWrite|DeveloperManage|ResourceOwner]
+```
+
+| Campo | Descripción |
+|-------|-------------|
+| `principal` | Display name del Service Account (debe coincidir con `vault.service_account` del conector) |
+| `resource_type` | Tipo de recurso: `topic`, `subject`, `group`, `transactional-id` |
+| `resource_name` | Nombre del recurso (topic, subject, consumer group, etc.) |
+| `pattern_type` | `LITERAL` (nombre exacto) o `PREFIXED` (prefijo del nombre) |
+| `operation` | Operación RBAC permitida: `DeveloperRead`, `DeveloperWrite`, `DeveloperManage`, `ResourceOwner` |
+
 ## Prerequisitos: Roles RBAC Requeridos
 
-Antes de desplegar cualquier conector, el Service Account debe tener los siguientes roles RBAC:
+Antes de desplegar cualquier conector, el Service Account debe tener los siguientes roles RBAC declarados en el archivo `security/*.yaml` del use-case:
 
-### Para Conectores Sink (ej: MicrosoftSqlserverSink, AzureBlobStorageSink)
+### Para Conectores Sink (ej: PostgresSink, AzureBlobStorageSink)
 
-| Recurso | Rol Requerido | Operación | Descripción |
-|---------|---------------|-----------|-------------|
-| **Topics de entrada** (`topics`) | `DeveloperRead` o `ResourceOwner` | READ | Leer mensajes de los topics de entrada |
-| **Topic DLQ** (`[topic]-dlq`) | `DeveloperWrite` o `ResourceOwner` | WRITE | Escribir mensajes fallidos al DLQ |
-| **Schema Registry** | `DeveloperWrite` o `ResourceOwner` | READ/WRITE | Leer y escribir schemas Avro para topics normales y DLQ |
+| Recurso | Operación Requerida | Descripción |
+|---------|---------------------|-------------|
+| **Topic de entrada** (`topics`) | `DeveloperRead` | Leer mensajes del topic de entrada |
+| **Subject de entrada** (Schema Registry) | `DeveloperRead` | Leer el schema Avro del topic de entrada |
+| **Topic DLQ** (`[topic]-dlq`) | `DeveloperWrite` + `DeveloperRead` | Escribir mensajes fallidos al DLQ |
+| **Consumer Group** (`connect-lcc-`) | `ResourceOwner` (PREFIXED) | Gestionar el consumer group del conector |
 
-**Ejemplo de comandos:**
-```bash
-# Permiso de lectura en topics de entrada
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role DeveloperRead \
-  --resource Topic:poc-peve-badi-01 \
-  --kafka-cluster lkc-xxxxx \
-  --environment env-xxxxx
+**Ejemplo YAML para Sink Connector:**
 
-# Permiso de escritura en DLQ
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role DeveloperWrite \
-  --resource Topic:poc-peve-badi-01-dlq \
-  --kafka-cluster lkc-xxxxx \
-  --environment env-xxxxx
-
-# Permiso en Schema Registry (para schemas Avro)
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role DeveloperWrite \
-  --resource SchemaRegistry:env-xxxxx \
-  --environment env-xxxxx
+```yaml
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_DES_PEVE_PGSNK_01
+      resources:
+      # Schema Registry - lectura del schema del topic de entrada
+      - resource_type: subject
+        resource_name: 'azc-peve-transaction-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      # Topic de entrada - lectura de mensajes
+      - resource_type: topic
+        resource_name: 'azc-peve-transaction'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      # Topic DLQ - escritura de mensajes fallidos
+      - resource_type: topic
+        resource_name: 'azc-peve-transaction-dlq'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      # Consumer Group - requerido para todos los sink connectors
+      - resource_type: group
+        resource_name: 'connect-lcc-'
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
 ```
 
-### Para Conectores Source (ej: AzureEventHubsSource, IbmMQSource)
+### Para Conectores Source (ej: DatagenSource, AzureEventHubsSource)
 
-| Recurso | Rol Requerido | Operación | Descripción |
-|---------|---------------|-----------|-------------|
-| **Topic de salida** (`kafka.topic`) | `DeveloperWrite` o `ResourceOwner` | WRITE | Escribir mensajes al topic de salida |
-| **Topic DLQ** (`[topic]-dlq`) | `DeveloperWrite` o `ResourceOwner` | WRITE | Escribir mensajes fallidos al DLQ |
-| **Schema Registry** | `DeveloperWrite` o `ResourceOwner` | READ/WRITE | Leer y escribir schemas Avro para topics normales y DLQ |
+| Recurso | Operación Requerida | Descripción |
+|---------|---------------------|-------------|
+| **Topic de salida** (`kafka.topic`) | `DeveloperWrite` | Escribir mensajes al topic de salida |
+| **Subject de salida** (Schema Registry) | `DeveloperWrite` | Registrar el schema Avro del topic de salida |
+| **Topic DLQ** (`[topic]-dlq`) | `DeveloperWrite` | Escribir mensajes fallidos al DLQ (si aplica) |
 
-**Ejemplo de comandos:**
-```bash
-# Permiso de escritura en topic de salida
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role DeveloperWrite \
-  --resource Topic:dev-topic-name \
-  --kafka-cluster lkc-xxxxx \
-  --environment env-xxxxx
+**Ejemplo YAML para Source Connector:**
 
-# Permiso de escritura en DLQ
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role DeveloperWrite \
-  --resource Topic:dev-topic-name-dlq \
-  --kafka-cluster lkc-xxxxx \
-  --environment env-xxxxx
-
-# Permiso en Schema Registry (para schemas Avro)
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role DeveloperWrite \
-  --resource SchemaRegistry:env-xxxxx \
-  --environment env-xxxxx
+```yaml
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_DES_PEVE_DATAGEN_01
+      resources:
+      # Schema Registry - escritura del schema del topic de salida
+      - resource_type: subject
+        resource_name: 'azc-peve-transaction-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      # Topic de salida - escritura de mensajes
+      - resource_type: topic
+        resource_name: 'azc-peve-transaction'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      # Topic DLQ - escritura de mensajes fallidos (opcional, si el conector lo soporta)
+      # - resource_type: topic
+      #   resource_name: 'azc-peve-transaction-dlq'
+      #   pattern_type: LITERAL
+      #   role:
+      #   - operation: DeveloperWrite
 ```
 
-### Resumen de Roles RBAC
+### Resumen de Operaciones RBAC
 
-| Rol | Permisos | Uso Recomendado |
-|-----|----------|-----------------|
-| `ResourceOwner` | Lectura y escritura completas | Cuando necesitas permisos completos |
-| `DeveloperRead` | Solo lectura | Para topics de entrada en sinks |
-| `DeveloperWrite` | Solo escritura | Para topics de salida, DLQ y Schema Registry |
+| Operación | Permisos | Uso Recomendado |
+|-----------|----------|-----------------|
+| `ResourceOwner` | Lectura y escritura completas | Para consumer groups (`connect-lcc-`) en sink connectors |
+| `DeveloperRead` | Solo lectura | Para topics de entrada y subjects en sinks |
+| `DeveloperWrite` | Solo escritura | Para topics de salida, DLQ y subjects en sources |
+| `DeveloperManage` | Gestión de recursos | Para operaciones avanzadas de administración |
 
 ### Permisos de Schema Registry
 
-Los conectores que utilizan schemas Avro (configurados con `input.data.format: "JSON_SR"` o `output.data.format: "JSON_SR"`) necesitan permisos en Schema Registry para:
+Los conectores que utilizan schemas Avro (configurados con `input.data.format: "AVRO"` o `output.data.format: "AVRO"`) necesan permisos en **subjects** de Schema Registry para:
 
-1. **Leer schemas existentes** de los topics de entrada (sinks) o para validar schemas
-2. **Registrar nuevos schemas** cuando escriben a topics de salida o DLQ
+1. **Leer schemas existentes** de los topics de entrada (sinks): `DeveloperRead` en el subject
+2. **Registrar nuevos schemas** cuando escriben a topics de salida o DLQ (sources): `DeveloperWrite` en el subject
 3. **Gestionar versiones de schemas** para los subjects correspondientes a los topics
 
-**Rol recomendado**: `DeveloperWrite` o `ResourceOwner` en Schema Registry a nivel de Environment.
+**Formato del subject**: `{topic-name}-value` (ej: `azc-peve-transaction-value`)
 
-**Nota**: El formato del recurso para Schema Registry es `SchemaRegistry:env-xxxxx` (a nivel de environment, no de cluster).
+**Nota**: Los permisos de Schema Registry se declaran a nivel de **subject** (no a nivel de environment como en comandos CLI). Cada topic tiene su propio subject que debe declararse explícitamente en el YAML de seguridad.
 
 ## Service Account y Permisos
 
 ### 1. Service Account del Conector
 
-Cada conector utiliza el Service Account configurado en:
-```json
-{
-  "config_nonsensitive": {
-    "kafka.service.account.id": "sa-xxxxx"
-  }
-}
+Cada conector utiliza el Service Account configurado en la sección `vault` del YAML:
+
+```yaml
+vault:
+  service_account: "SA_AZC_DES_PEVE_PGSNK_01"
+  secrets:
+    connection.password:
+      path: "peve/data/dev/peve/postgresql/DB_PEVE_CONNECT_DEV"
+      field: "password"
 ```
 
-Este Service Account es el que se pasa como variable `principal_id` en Terraform.
+El `service_account` especificado aquí es el que Terraform inyecta automáticamente como `kafka.service.account.id` en la configuración del conector.
 
-**⚠️ IMPORTANTE**: Los permisos RBAC se otorgan al Service Account **ANTES** del despliegue del conector. **NO se configuran en el JSON del conector**.
+**⚠️ IMPORTANTE**: Los permisos RBAC se otorgan al Service Account **ANTES** del despliegue del conector, declarándolos en el archivo `security/*.yaml` del mismo use-case. **NO se configuran en el YAML del conector**.
 
 ### 2. Permisos Requeridos para DLQ (RBAC)
 
-En Confluent Cloud dedicado, los permisos se gestionan mediante **RBAC (Role-Based Access Control)**. El Service Account del conector necesita un **rol RBAC** que le otorgue permisos de escritura al topic DLQ.
+En Confluent Cloud dedicado, los permisos se gestionan mediante **RBAC (Role-Based Access Control)**. El Service Account del conector necesita permisos declarados en el archivo YAML de seguridad que le otorguen acceso de escritura al topic DLQ.
 
-> **Nota**: Además de los permisos del DLQ, el Service Account también necesita permisos en los topics source/sink. Ver la sección [Prerequisitos](#prerequisitos-roles-rbac-requeridos) arriba.
+> **Nota**: Además de los permisos del DLQ, el Service Account también necesita permisos en los topics source/sink y subjects de Schema Registry. Ver la sección [Prerequisitos](#prerequisitos-roles-rbac-requeridos) arriba.
 
-#### Rol Recomendado:
-- **Rol**: `ResourceOwner` o `DeveloperWrite`
-- **Recurso**: Topic DLQ (formato: `[nombre-topic]-dlq`)
-- **Scope**: Cluster específico o Environment
+#### Permisos Típicos para DLQ:
 
-#### Opción 1: Rol `ResourceOwner` (Recomendado)
-Otorga permisos completos de lectura y escritura al topic DLQ:
-
-```bash
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role ResourceOwner \
-  --resource Topic:poc-peve-badi-01-dlq \
-  --kafka-cluster lkc-xxxxx \
-  --environment env-xxxxx
+**Para Sink Connectors:**
+```yaml
+- resource_type: topic
+  resource_name: 'azc-peve-transaction-dlq'
+  pattern_type: LITERAL
+  role:
+  - operation: DeveloperWrite
+  - operation: DeveloperRead
 ```
 
-#### Opción 2: Rol `DeveloperWrite` (Más restrictivo)
-Otorga solo permisos de escritura al topic DLQ:
-
-```bash
-confluent iam rbac role-binding create \
-  --principal User:sa-xxxxx \
-  --role DeveloperWrite \
-  --resource Topic:poc-peve-badi-01-dlq \
-  --kafka-cluster lkc-xxxxx \
-  --environment env-xxxxx
+**Para Source Connectors (si el conector soporta DLQ):**
+```yaml
+- resource_type: topic
+  resource_name: 'azc-peve-transaction-dlq'
+  pattern_type: LITERAL
+  role:
+  - operation: DeveloperWrite
 ```
+
+**Nota**: `DeveloperRead` en el DLQ es útil para monitoreo pero no es estrictamente necesario. `DeveloperWrite` es obligatorio para que el conector pueda enviar mensajes fallidos al DLQ.
 
 ### 3. ¿Se Necesita un API Key Adicional?
 
 **NO**, no se requiere un API Key adicional para el DLQ. Los conectores full-managed de Confluent Cloud:
 
-1. **Usan el Service Account configurado** (`kafka.service.account.id`)
-2. **Confluent Cloud gestiona automáticamente** la autenticación del conector
-3. **Solo necesitas otorgar permisos RBAC** al Service Account en el topic DLQ mediante roles
+1. **Usan el Service Account configurado** (`vault.service_account`)
+2. **Confluent Cloud gestiona automáticamente** la autenticación del conector mediante el parámetro `kafka.auth.mode: "SERVICE_ACCOUNT"`
+3. **Solo necesitas declarar permisos RBAC** al Service Account en el archivo YAML de seguridad
 
 ### 4. Proceso de Configuración Completo
 
@@ -166,90 +208,146 @@ confluent iam rbac role-binding create \
 Todos los topics (source, sink y DLQ) deben crearse previamente por otro proceso externo.
 
 **Para Sink Connectors:**
-- Topic de entrada: `poc-peve-badi-01` (configurado en `topics` del JSON)
-- Topic DLQ: `poc-peve-badi-01-dlq` (generado automáticamente)
+- Topic de entrada: `azc-peve-transaction` (configurado en `topics` del YAML)
+- Topic DLQ: `azc-peve-transaction-dlq` (generado automáticamente si `errors.tolerance` está configurado)
 
 **Para Source Connectors:**
-- Topic de salida: `dev-topic-name` (configurado en `kafka.topic` del JSON)
-- Topic DLQ: `dev-topic-name-dlq` (generado automáticamente)
+- Topic de salida: `azc-peve-transaction` (configurado en `kafka.topic` del YAML)
+- Topic DLQ: `azc-peve-transaction-dlq` (generado automáticamente si el conector lo soporta)
 
-#### Paso 2: Otorgar Permisos RBAC al Service Account
+#### Paso 2: Crear el archivo YAML del conector
 
-**Para Sink Connectors:**
-```bash
-SERVICE_ACCOUNT_ID="sa-xxxxx"
-KAFKA_CLUSTER_ID="lkc-xxxxx"
-ENVIRONMENT_ID="env-xxxxx"
-INPUT_TOPIC="poc-peve-badi-01"
-DLQ_TOPIC="${INPUT_TOPIC}-dlq"
+En `{CODAPP}/{desa|cert|prod}/{use-case}/connects/{connector-name}.yaml`:
 
-# 1. Permiso de lectura en topic de entrada
-confluent iam rbac role-binding create \
-  --principal User:$SERVICE_ACCOUNT_ID \
-  --role DeveloperRead \
-  --resource Topic:$INPUT_TOPIC \
-  --kafka-cluster $KAFKA_CLUSTER_ID \
-  --environment $ENVIRONMENT_ID
+**Ejemplo Sink Connector (PostgreSQL):**
+```yaml
+name: "peve-postgresql-sink-connector-01"
+status: "RUNNING"
 
-# 2. Permiso de escritura en DLQ
-confluent iam rbac role-binding create \
-  --principal User:$SERVICE_ACCOUNT_ID \
-  --role DeveloperWrite \
-  --resource Topic:$DLQ_TOPIC \
-  --kafka-cluster $KAFKA_CLUSTER_ID \
-  --environment $ENVIRONMENT_ID
+config_nonsensitive:
+  name: "peve-postgresql-sink-connector-01"
+  connector.class: "PostgresSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  input.data.format: "AVRO"
+  insert.mode: "INSERT"
+  auto.create: "true"
+  auto.evolve: "true"
+  tasks.max: "1"
+  errors.tolerance: "all"
+  topics: "azc-peve-transaction"
+  connection.host: "peved02server.postgres.database.azure.com"
+  connection.port: "5432"
+  db.name: "postgres"
 
-# 3. Permiso en Schema Registry (para schemas Avro)
-confluent iam rbac role-binding create \
-  --principal User:$SERVICE_ACCOUNT_ID \
-  --role DeveloperWrite \
-  --resource SchemaRegistry:$ENVIRONMENT_ID \
-  --environment $ENVIRONMENT_ID
+config_sensitive:
+  connection.user: "USREJDBCONNECTDES"
+  connection.password: "CHANGE_ME"
+
+vault:
+  service_account: "SA_AZC_DES_PEVE_PGSNK_01"
 ```
 
-**Para Source Connectors:**
-```bash
-SERVICE_ACCOUNT_ID="sa-xxxxx"
-KAFKA_CLUSTER_ID="lkc-xxxxx"
-ENVIRONMENT_ID="env-xxxxx"
-OUTPUT_TOPIC="dev-topic-name"
-DLQ_TOPIC="${OUTPUT_TOPIC}-dlq"
+**Ejemplo Source Connector (Datagen):**
+```yaml
+name: "peve-datagen-source-connector-01"
+status: "RUNNING"
 
-# 1. Permiso de escritura en topic de salida
-confluent iam rbac role-binding create \
-  --principal User:$SERVICE_ACCOUNT_ID \
-  --role DeveloperWrite \
-  --resource Topic:$OUTPUT_TOPIC \
-  --kafka-cluster $KAFKA_CLUSTER_ID \
-  --environment $ENVIRONMENT_ID
+config_nonsensitive:
+  name: "peve-datagen-source-connector-01"
+  connector.class: "DatagenSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  kafka.topic: "azc-peve-transaction"
+  output.data.format: "AVRO"
+  quickstart: "TRANSACTIONS"
+  max.interval: "1000"
+  iterations: "10000000"
+  tasks.max: "1"
 
-# 2. Permiso de escritura en DLQ
-confluent iam rbac role-binding create \
-  --principal User:$SERVICE_ACCOUNT_ID \
-  --role DeveloperWrite \
-  --resource Topic:$DLQ_TOPIC \
-  --kafka-cluster $KAFKA_CLUSTER_ID \
-  --environment $ENVIRONMENT_ID
-
-# 3. Permiso en Schema Registry (para schemas Avro)
-confluent iam rbac role-binding create \
-  --principal User:$SERVICE_ACCOUNT_ID \
-  --role DeveloperWrite \
-  --resource SchemaRegistry:$ENVIRONMENT_ID \
-  --environment $ENVIRONMENT_ID
+vault:
+  service_account: "SA_AZC_DES_PEVE_DATAGEN_01"
 ```
 
-#### Paso 3: Desplegar el Conector
+#### Paso 3: Declarar Permisos RBAC en el archivo de seguridad
+
+En `{CODAPP}/{desa|cert|prod}/{use-case}/security/cc-azure_eu2_kafka01-rbac-des.yaml`:
+
+**Para Sink Connector:**
+```yaml
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_DES_PEVE_PGSNK_01
+      resources:
+      # Schema Registry - lectura del schema del topic de entrada
+      - resource_type: subject
+        resource_name: 'azc-peve-transaction-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      # Topic de entrada - lectura de mensajes
+      - resource_type: topic
+        resource_name: 'azc-peve-transaction'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      # Topic DLQ - escritura de mensajes fallidos
+      - resource_type: topic
+        resource_name: 'azc-peve-transaction-dlq'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      # Consumer Group - requerido para todos los sink connectors
+      - resource_type: group
+        resource_name: 'connect-lcc-'
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+```
+
+**Para Source Connector:**
+```yaml
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_DES_PEVE_DATAGEN_01
+      resources:
+      # Schema Registry - escritura del schema del topic de salida
+      - resource_type: subject
+        resource_name: 'azc-peve-transaction-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      # Topic de salida - escritura de mensajes
+      - resource_type: topic
+        resource_name: 'azc-peve-transaction'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+```
+
+#### Paso 4: Desplegar el Conector
+
 Una vez que:
 1. ✅ Todos los topics existen (source/sink y DLQ)
-2. ✅ El Service Account tiene todos los permisos RBAC necesarios
-3. ✅ El JSON del conector está configurado correctamente
+2. ✅ El archivo YAML del conector está en `connects/`
+3. ✅ Los permisos RBAC están declarados en `security/`
+4. ✅ Los secretos están en HashiCorp Vault (si aplica)
 
-El conector puede desplegarse normalmente mediante Terraform.
+Ejecutar el workflow de GitHub Actions con:
+- `action: plan` (para revisar cambios)
+- `action: apply` (para desplegar)
+- `CODAPP`: código de la aplicación (ej: `PEVE`)
+- `use_case`: nombre del caso de uso (ej: `use-case-name-02`)
 
 ### 5. Verificación de Permisos RBAC
 
-Para verificar que el Service Account tiene los permisos RBAC correctos:
+Para verificar que el Service Account tiene los permisos RBAC correctos usando el CLI de Confluent:
 
 ```bash
 # Listar role bindings del Service Account
@@ -258,125 +356,158 @@ confluent iam rbac role-binding list \
   --environment env-xxxxx
 ```
 
-Deberías ver una entrada como:
+Deberías ver entradas como:
 ```
-Principal      | Role          | Resource Type | Resource Name        | Pattern Type
-User:sa-xxxxx  | ResourceOwner | Topic         | poc-peve-badi-01-dlq | LITERAL
-```
-
-O si usaste `DeveloperWrite`:
-```
-Principal      | Role          | Resource Type | Resource Name        | Pattern Type
-User:sa-xxxxx  | DeveloperWrite| Topic         | poc-peve-badi-01-dlq | LITERAL
+Principal      | Role          | Resource Type | Resource Name               | Pattern Type
+User:sa-xxxxx  | DeveloperRead | Topic         | azc-peve-transaction        | LITERAL
+User:sa-xxxxx  | DeveloperWrite| Topic         | azc-peve-transaction-dlq    | LITERAL
+User:sa-xxxxx  | ResourceOwner | Group         | connect-lcc-                | PREFIXED
 ```
 
 ### 6. Consideraciones Importantes
 
-1. **Los permisos RBAC NO se configuran en el JSON del conector** - Se otorgan al Service Account antes del despliegue
+1. **Los permisos RBAC NO se configuran en el YAML del conector** - Se declaran en el archivo `security/*.yaml` del mismo use-case antes del despliegue
 2. **Todos los topics deben existir antes** de desplegar el conector (source, sink y DLQ)
-3. **Los permisos RBAC deben otorgarse antes** del despliegue
-4. **El mismo Service Account** usado en `kafka.service.account.id` es el que necesita permisos
-5. **No se requiere API Key adicional** - Confluent Cloud gestiona la autenticación automáticamente
+3. **Los permisos RBAC se declaran en formato YAML** - Ver ejemplos en las secciones anteriores
+4. **El mismo Service Account** declarado en `vault.service_account` es el que necesita los permisos RBAC
+5. **No se requiere API Key adicional** - Confluent Cloud gestiona la autenticación automáticamente con `kafka.auth.mode: "SERVICE_ACCOUNT"`
 6. **RBAC es obligatorio en Confluent Cloud dedicado** - No se pueden usar ACLs
-7. **El formato del principal es `User:sa-xxxxx`** - Incluye el prefijo `User:`
-8. **El JSON del conector solo contiene configuración** - Nombres de topics, formatos, etc., pero NO permisos
+7. **El `principal` debe coincidir exactamente** con el `vault.service_account` del conector
+8. **El YAML del conector solo contiene configuración** - Nombres de topics, formatos, etc., pero NO permisos
+9. **Los sink connectors SIEMPRE necesitan** el permiso `ResourceOwner` PREFIXED en el consumer group `connect-lcc-`
+10. **Los permisos de subjects son a nivel de subject individual** - No se declaran a nivel de environment
 
-### 7. Automatización con Terraform (Opcional)
+### 7. Estructura de Directorios y Despliegue
 
-Si deseas automatizar la creación de role bindings RBAC, puedes usar el recurso `confluent_rbac_role_binding`:
+Los conectores y sus permisos RBAC se organizan por caso de uso:
 
-```hcl
-# Para Sink Connector - Permiso de lectura en topic de entrada
-resource "confluent_rbac_role_binding" "input_topic_read" {
-  principal   = "User:${var.principal_id}"
-  role_name   = "DeveloperRead"
-  
-  crn_pattern = "crn://confluent.cloud/kafka=${var.kafka_cluster_id}/topic=[nombre-topic-entrada]"
-  
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-# Permiso de escritura en DLQ
-resource "confluent_rbac_role_binding" "dlq_write" {
-  principal   = "User:${var.principal_id}"
-  role_name   = "DeveloperWrite"
-  
-  crn_pattern = "crn://confluent.cloud/kafka=${var.kafka_cluster_id}/topic=[nombre-topic]-dlq"
-  
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-# Para Source Connector - Permiso de escritura en topic de salida
-resource "confluent_rbac_role_binding" "output_topic_write" {
-  principal   = "User:${var.principal_id}"
-  role_name   = "DeveloperWrite"
-  
-  crn_pattern = "crn://confluent.cloud/kafka=${var.kafka_cluster_id}/topic=[nombre-topic-salida]"
-  
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-# Permiso en Schema Registry (para schemas Avro)
-resource "confluent_rbac_role_binding" "schema_registry_write" {
-  principal   = "User:${var.principal_id}"
-  role_name   = "DeveloperWrite"
-  
-  crn_pattern = "crn://confluent.cloud/schema-registry=${var.environment_id}"
-  
-  lifecycle {
-    prevent_destroy = false
-  }
-}
+```
+{CODAPP}/
+├── desa/
+│   └── {use-case}/
+│       ├── connects/
+│       │   └── {connector-name}.yaml     # Configuración del conector
+│       └── security/
+│           └── cc-azure_eu2_kafka01-rbac-des.yaml  # Permisos RBAC
+├── cert/
+│   └── {use-case}/
+│       ├── connects/
+│       └── security/
+└── prod/
+    └── {use-case}/
+        ├── connects/
+        └── security/
 ```
 
-**Nota**: El formato del CRN puede variar según tu configuración. Verifica la documentación de Confluent Cloud para el formato exacto en tu entorno.
+**Proceso de despliegue:**
+1. Crear el archivo YAML del conector en `connects/`
+2. Declarar los permisos RBAC en `security/`
+3. Ejecutar workflow con `action: plan` para revisar
+4. Ejecutar workflow con `action: apply` para desplegar
+
+**Nota**: El `plan` y `apply` se ejecutan por **use-case completo**, no por conector individual. Terraform aplica todos los conectores y permisos RBAC declarados en los archivos YAML del use-case.
 
 ## Resumen de Respuesta
 
-**¿Los permisos RBAC se configuran en el JSON del conector?**
-- ❌ **NO** - Los permisos RBAC se otorgan al Service Account **ANTES** del despliegue, no se configuran en el JSON
+**¿Los permisos RBAC se configuran en el YAML del conector?**
+- ❌ **NO** - Los permisos RBAC se declaran en el archivo `security/*.yaml` del use-case, **NO** en el YAML del conector en `connects/`
+
+**¿Dónde se declaran los permisos RBAC?**
+- ✅ En archivos YAML dentro de `{CODAPP}/{desa|cert|prod}/{use-case}/security/*.yaml`
+- ✅ Usando el formato estructurado: `principal`, `resources`, `resource_type`, `pattern_type`, `role`, `operation`
+- ✅ Se aplican mediante el workflow de GitHub Actions junto con el conector
 
 **¿El conector necesita un API Key adicional?**
-- ❌ **NO** - No se requiere API Key adicional. El conector usa el Service Account configurado en `kafka.service.account.id`
+- ❌ **NO** - No se requiere API Key adicional. El conector usa el Service Account configurado en `vault.service_account`
 
 **¿El conector necesita permisos RBAC en los topics?**
-- ✅ **SÍ** - El Service Account necesita roles RBAC en:
-  - **Sink Connectors**: `DeveloperRead` en topics de entrada + `DeveloperWrite` en DLQ
-  - **Source Connectors**: `DeveloperWrite` en topics de salida + `DeveloperWrite` en DLQ
-  - **Para ambos (si usan Avro)**: `DeveloperWrite` en Schema Registry
+- ✅ **SÍ** - El Service Account necesita operaciones RBAC en:
+  - **Sink Connectors**: 
+    - `DeveloperRead` en topic de entrada
+    - `DeveloperRead` en subject de entrada
+    - `DeveloperWrite` + `DeveloperRead` en topic DLQ
+    - `ResourceOwner` PREFIXED en consumer group `connect-lcc-`
+  - **Source Connectors**: 
+    - `DeveloperWrite` en topic de salida
+    - `DeveloperWrite` en subject de salida
+    - `DeveloperWrite` en topic DLQ (si aplica)
 
 **¿Cómo se otorgan los permisos?**
-- Mediante **RBAC (Role-Based Access Control)** usando el comando `confluent iam rbac role-binding create`
-- Roles recomendados: 
-  - `ResourceOwner` (permisos completos) - Para máxima flexibilidad
-  - `DeveloperRead` (solo lectura) - Para topics de entrada en sinks
-  - `DeveloperWrite` (solo escritura) - Para topics de salida y DLQ
-- También se puede automatizar con Terraform usando el recurso `confluent_rbac_role_binding`
+- Mediante archivos YAML declarativos en la carpeta `security/`
+- Los permisos se aplican automáticamente mediante Terraform cuando se ejecuta el workflow
+- Opcionalmente, también se pueden gestionar manualmente con el comando `confluent iam rbac role-binding create`
 
 **¿Por qué RBAC y no ACLs?**
 - En **Confluent Cloud dedicado**, RBAC es el método obligatorio de control de acceso
 - RBAC proporciona mayor granularidad y mejor gestión de permisos a nivel de organización
 
+**¿Qué pasa con el topic DLQ?**
+- El topic DLQ se nombra automáticamente como `{topic}-dlq` cuando el conector tiene `errors.tolerance` configurado
+- El topic DLQ **debe ser creado manualmente** antes del despliegue (Terraform no lo crea automáticamente)
+- El conector necesita permisos de escritura (`DeveloperWrite`) en el topic DLQ
+
 ## Checklist de Prerequisitos
 
 Antes de desplegar un conector, verifica:
 
-- [ ] Service Account creado y configurado en `kafka.service.account.id`
-- [ ] Todos los topics creados (source/sink y DLQ)
-- [ ] Schema Registry configurado y accesible
-- [ ] Permisos RBAC otorgados al Service Account:
-  - [ ] Para Sink: `DeveloperRead` en topics de entrada
-  - [ ] Para Source: `DeveloperWrite` en topics de salida
-  - [ ] Para ambos: `DeveloperWrite` en topic DLQ
-  - [ ] **Para ambos: `DeveloperWrite` en Schema Registry** (si usan schemas Avro)
-- [ ] JSON del conector configurado correctamente (sin permisos, solo configuración):
-  - [ ] `input.data.format: "JSON_SR"` o `output.data.format: "JSON_SR"` configurado
-  - [ ] `schema.context.name` configurado (generalmente `"default"`)
-- [ ] Variables de Terraform configuradas (`principal_id`, `environment_id`, etc.)
+### Recursos Previos
+- [ ] Service Account creado (el nombre va en `vault.service_account`)
+- [ ] Todos los topics creados (source/sink y DLQ con sufijo `-dlq`)
+- [ ] Secretos almacenados en HashiCorp Vault (si el conector necesita credenciales)
+
+### Archivos YAML Preparados
+- [ ] Archivo del conector creado en `{CODAPP}/{desa|cert|prod}/{use-case}/connects/{connector-name}.yaml`
+  - [ ] Campo `vault.service_account` configurado
+  - [ ] Campo `kafka.auth.mode: "SERVICE_ACCOUNT"` configurado
+  - [ ] Campo `errors.tolerance: "all"` configurado (si se requiere DLQ)
+  - [ ] Formato de datos configurado (`input.data.format` / `output.data.format`)
+  - [ ] Campo `schema.context.name: "default"` configurado (si usa Avro)
+
+### Permisos RBAC Declarados en `security/*.yaml`
+
+**Para Sink Connectors:**
+- [ ] `DeveloperRead` en subject del topic de entrada (`{topic-name}-value`)
+- [ ] `DeveloperRead` en topic de entrada
+- [ ] `DeveloperWrite` + `DeveloperRead` en topic DLQ (`{topic-name}-dlq`)
+- [ ] `ResourceOwner` PREFIXED en consumer group (`connect-lcc-`)
+
+**Para Source Connectors:**
+- [ ] `DeveloperWrite` en subject del topic de salida (`{topic-name}-value`)
+- [ ] `DeveloperWrite` en topic de salida
+- [ ] `DeveloperWrite` en topic DLQ (si el conector lo soporta)
+
+### Validación
+- [ ] El `principal` en `security/*.yaml` coincide exactamente con `vault.service_account` del conector
+- [ ] Los nombres de topics en el YAML de seguridad coinciden con los del YAML del conector
+- [ ] La carpeta `security/` existe (incluso si está vacía)
+
+### Despliegue
+- [ ] Ejecutar workflow con `action: plan` para revisar cambios
+- [ ] Ejecutar workflow con `action: apply` para desplegar
+- [ ] Especificar `CODAPP` y `use_case` correctos
+
+## Referencias Adicionales
+
+### Formato del Subject en Schema Registry
+
+Para topics que usan Avro, el subject sigue el formato:
+- **Key subject**: `{topic-name}-key` (raramente usado en conectores)
+- **Value subject**: `{topic-name}-value` (más común)
+
+Ejemplo: para el topic `azc-peve-transaction`, el subject es `azc-peve-transaction-value`.
+
+### Consumer Group de Sink Connectors
+
+Los sink connectors crean automáticamente un consumer group con el formato `connect-lcc-{connector-id}`. Por eso necesitan el permiso `ResourceOwner` PREFIXED en `connect-lcc-` para poder:
+- Leer mensajes (READ)
+- Describir el grupo (DESCRIBE)
+- Gestionar offsets (DELETE)
+
+### Nomenclatura de Topics DLQ
+
+Cuando el conector tiene `errors.tolerance` configurado, el sistema asigna automáticamente:
+- `errors.deadletterqueue.topic.name = {primer-topic}-dlq`
+
+Para un sink con `topics: "azc-peve-transaction"`, el DLQ será `azc-peve-transaction-dlq`.
+Para un source con `kafka.topic: "azc-peve-transaction"`, el DLQ será `azc-peve-transaction-dlq`.
 
