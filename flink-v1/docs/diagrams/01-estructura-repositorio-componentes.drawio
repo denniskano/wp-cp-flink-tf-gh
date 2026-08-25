@@ -1,0 +1,173 @@
+<mxfile host="app.diagrams.net" modified="2026-08-25T19:23:00.000Z" agent="Cursor Agent" version="24.0.0" etag="draw.io-connector-architecture" type="device">
+  <diagram name="Estructura de Repositorio y Componentes" id="estructura-repo">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Repositorio PEVE-kafka-connect-resources-v1 -->
+        <mxCell id="repo-container" value="Repositorio PEVE-kafka-connect-resources-v1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5ff;strokeColor=#0066cc;verticalAlign=top;fontSize=14;fontStyle=1;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="720" height="480" as="geometry"/>
+        </mxCell>
+        
+        <!-- CODAPP Container -->
+        <mxCell id="codapp-container" value="CODAPP (ej: PEVE)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#0066cc;verticalAlign=top;fontSize=12;fontStyle=1;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="680" height="420" as="geometry"/>
+        </mxCell>
+        
+        <!-- Entorno: desa/ -->
+        <mxCell id="desa-container" value="Entorno: desa/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d9ff;strokeColor=#0066cc;verticalAlign=top;fontSize=11;fontStyle=1;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="300" height="180" as="geometry"/>
+        </mxCell>
+        
+        <!-- use-case-name-01 -->
+        <mxCell id="usecase01" value="use-case-name-01/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#0066cc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="100" y="160" width="120" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- connects/ -->
+        <mxCell id="connects-folder" value="connects/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1f5ff;strokeColor=#0066cc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="120" y="200" width="100" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- connector YAML files -->
+        <mxCell id="yaml1" value="ccloud-postgresql-sink-connector-01.yaml" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#666;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="140" y="240" width="240" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="yaml2" value="ccloud-datagen-source-connector-01.yaml" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#666;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="140" y="270" width="240" height="20" as="geometry"/>
+        </mxCell>
+        
+        <!-- security/ -->
+        <mxCell id="security-folder" value="security/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4e1;strokeColor=#ff9900;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="240" y="200" width="100" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- security YAML -->
+        <mxCell id="sec-yaml" value="cc-azure_eu2_kafka01-rbac-des.yaml" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#ff9900;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="140" y="310" width="240" height="20" as="geometry"/>
+        </mxCell>
+        
+        <!-- Entorno: cert/ -->
+        <mxCell id="cert-env" value="Entorno: cert/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d9ff;strokeColor=#0066cc;verticalAlign=top;fontSize=11;fontStyle=1;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="420" y="120" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="cert-usecase" value="use-case-name-01/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#0066cc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="160" width="100" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Entorno: prod/ -->
+        <mxCell id="prod-env" value="Entorno: prod/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b3d9ff;strokeColor=#0066cc;verticalAlign=top;fontSize=11;fontStyle=1;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="420" y="220" width="140" height="80" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="prod-usecase" value="use-case-name-01/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#0066cc;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="440" y="260" width="100" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Componentes Externos -->
+        <mxCell id="externos-container" value="Componentes Externos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#666;verticalAlign=top;fontSize=14;fontStyle=1;align=left;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="840" y="40" width="360" height="480" as="geometry"/>
+        </mxCell>
+        
+        <!-- HashiCorp Vault -->
+        <mxCell id="vault" value="HashiCorp Vault&lt;br&gt;Secretos + Service Accounts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0e1ff;strokeColor=#9933cc;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="100" width="280" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Confluent Cloud -->
+        <mxCell id="confluent" value="Confluent Cloud&lt;br&gt;Cluster + Topics + Schema Registry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1ffe1;strokeColor=#339933;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="220" width="280" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- GitHub Actions -->
+        <mxCell id="github-actions" value="GitHub Actions&lt;br&gt;Workflow de Despliegue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe1e1;strokeColor=#cc0000;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="340" width="280" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Flechas de referencia -->
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeColor=#9933cc;fontSize=10;" edge="1" parent="1" source="yaml1" target="vault">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow1-label" value="referencia" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;" vertex="1" connectable="0" parent="arrow1">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeColor=#339933;fontSize=10;" edge="1" parent="1" source="sec-yaml" target="confluent">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow2-label" value="permisos RBAC" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;" vertex="1" connectable="0" parent="arrow2">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;fontSize=10;" edge="1" parent="1" source="connects-folder" target="github-actions">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow3-label" value="lee" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;" vertex="1" connectable="0" parent="arrow3">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;fontSize=10;" edge="1" parent="1" source="security-folder" target="github-actions">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow4-label" value="lee" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;" vertex="1" connectable="0" parent="arrow4">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;fontSize=10;" edge="1" parent="1" source="github-actions" target="vault">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow5-label" value="obtiene secretos" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;" vertex="1" connectable="0" parent="arrow5">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cc0000;fontSize=10;" edge="1" parent="1" source="github-actions" target="confluent">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow6-label" value="despliega via Terraform" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=9;fillColor=#fff;" vertex="1" connectable="0" parent="arrow6">
+          <mxGeometry x="-0.2" y="1" relative="1" as="geometry">
+            <mxPoint as="offset"/>
+          </mxGeometry>
+        </mxCell>
+        
+        <!-- Leyenda -->
+        <mxCell id="legend" value="LEYENDA" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666;verticalAlign=top;fontSize=11;fontStyle=1;align=left;spacingLeft=5;spacingTop=5;" vertex="1" parent="1">
+          <mxGeometry x="40" y="560" width="400" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="leg1" value="Archivos de Configuración (connects/)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1f5ff;strokeColor=#0066cc;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="50" y="590" width="180" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="leg2" value="Archivos de Seguridad (security/)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff4e1;strokeColor=#ff9900;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="240" y="590" width="180" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="leg3" value="HashiCorp Vault" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f0e1ff;strokeColor=#9933cc;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="50" y="625" width="120" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="leg4" value="Confluent Cloud" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1ffe1;strokeColor=#339933;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="180" y="625" width="120" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="leg5" value="GitHub Actions" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe1e1;strokeColor=#cc0000;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="310" y="625" width="110" height="25" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
