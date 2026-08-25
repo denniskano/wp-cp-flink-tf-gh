@@ -48,11 +48,11 @@ env:
   TERRAFORM_WORKDIR: terraform/ccloud-connectors
   SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01
   API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01
-  BRANCH_AUTOMATION: automation-v3-flink-stream-processing
+  BRANCH_AUTOMATION: automation-v3-flink
   GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
   OWNER_EXTERNO: "BCP-Integration-Automation"
   REPO_EXTERNO: "PEVE-kafka-connect-resources-v1"
-  RESOURCES_BRANCH_EXTERNO: master
+  RESOURCES_BRANCH_EXTERNO: develop
 
 jobs:
   PREPARE:

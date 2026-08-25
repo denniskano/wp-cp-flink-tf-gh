@@ -20,7 +20,3 @@ config_nonsensitive:
 
 vault:
   service_account: "SA_AZC_DES_PEVE_DATAGEN_01"
-
-project: "PEVE"
-recipients: dennispaitan@bcp.com.pe
-hosted: ccloud

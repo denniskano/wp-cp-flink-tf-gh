@@ -1,7 +1,8 @@
 # =============================================================================
 # RBAC de Kafka Connect
 # Bindings del SA de cada conector desde {use-case}/security/*.yaml
-# (cluster.cc.rbac). Recursos: topic, subject, transactional-id.
+# (cluster.cc.rbac). Recursos: topic, subject, group, transactional-id.
+# Sink: group PREFIXED connect-lcc- (READ/DESCRIBE/DELETE del consumer group).
 # =============================================================================
 
 locals {
@@ -33,7 +34,7 @@ locals {
   # Cualquier otro resource_type del YAML no se materializa.
   rbac_supported = [
     for e in local.rbac_entries : e
-    if contains(["topic", "subject", "transactional-id"], e.resource_type)
+    if contains(["topic", "subject", "group", "transactional-id"], e.resource_type)
   ]
 
   rbac_map = {
@@ -66,6 +67,8 @@ resource "confluent_role_binding" "connector_rbac" {
       "${local.kafka_rbac_crn}/kafka=${var.kafka_cluster_id}/topic=${each.value.resource_name}${each.value.pattern_type == "PREFIXED" ? "*" : ""}"
     ) : each.value.resource_type == "subject" ? (
       "${local.sr_rbac_crn}/subject=${each.value.resource_name}${each.value.pattern_type == "PREFIXED" ? "*" : ""}"
+    ) : each.value.resource_type == "group" ? (
+      "${local.kafka_rbac_crn}/kafka=${var.kafka_cluster_id}/group=${each.value.resource_name}${each.value.pattern_type == "PREFIXED" ? "*" : ""}"
     ) : (
       "${local.kafka_rbac_crn}/kafka=${var.kafka_cluster_id}/transactional-id=${each.value.resource_name}${each.value.pattern_type == "PREFIXED" ? "*" : ""}"
     )

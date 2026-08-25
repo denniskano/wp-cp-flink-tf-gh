@@ -1,6 +1,8 @@
 # =============================================================================
 # PostgreSQL Sink (JDBC) — DES
 # connector.class: PostgresSink. connection.host sin jdbc://.
+# db.name debe ser una database existente (Azure no crea una DB con el nombre
+# del server). auto.create solo crea tablas, no la database.
 # Egress Private Link (Flexible Server): sub-recurso postgresqlServer, antes del apply.
 # =============================================================================
 name: "peve-postgresql-sink-connector-01"
@@ -15,24 +17,18 @@ config_nonsensitive:
   auto.create: "true"
   auto.evolve: "true"
   db.timezone: "UTC"
-  ssl.mode: "prefer"
+  ssl.mode: "require"
   tasks.max: "1"
   errors.tolerance: "all"
   topics: "azc-peve-transaction"
-  connection.host: "peve-postgres-des.postgres.database.azure.com"
+  connection.host: "peved02server.postgres.database.azure.com"
   connection.port: "5432"
-  db.name: "peve_connect"
+  db.name: "postgres"
+
+# Pruebas: user/password en claro. No usar en cert/prod; Terraform lo manda como config_sensitive.
+config_sensitive:
+  connection.user: "USREJDBCONNECTDES"
+  connection.password: "CHANGE_ME"
 
 vault:
   service_account: "SA_AZC_DES_PEVE_PGSNK_01"
-  secrets:
-    connection.user:
-      path: "peve/data/dev/peve/ccloud/peve_ccloud_postgres_poc_dev"
-      field: "username"
-    connection.password:
-      path: "peve/data/dev/peve/ccloud/peve_ccloud_postgres_poc_dev"
-      field: "password"
-
-project: "PEVE"
-recipients: dennispaitan@bcp.com.pe
-hosted: ccloud

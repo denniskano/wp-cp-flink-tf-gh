@@ -28,7 +28,3 @@ vault:
     azblob.account.key:
       path: "peve/data/dev/peve/azure/ST_PEVE_CONNECT_DEV"
       field: "access_key"
-
-project: "PEVE"
-recipients: dennispaitan@bcp.com.pe
-hosted: ccloud

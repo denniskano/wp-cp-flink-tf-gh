@@ -1,5 +1,6 @@
 # RBAC del Service Account de Kafka Connect (mismo principal que vault.service_account).
-# Recursos: topic, subject, transactional-id.
+# Recursos: topic, subject, group, transactional-id.
+# Sink: ResourceOwner PREFIXED connect-lcc- (consumer group connect-lcc-<connector-id>).
 cluster:
   cc:
     properties:
@@ -35,3 +36,8 @@ cluster:
         role:
         - operation: DeveloperWrite
         - operation: DeveloperRead
+      - resource_type: group
+        resource_name: 'connect-lcc-'
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner

@@ -125,9 +125,9 @@ Path de Vault: se admite `{mount}/data/...`; el workflow lo traduce a `{mount}/k
 
 ## YAML de RBAC (`security/`)
 
-YAML `cluster.cc.rbac` en `security/`. El módulo aplica **topic**, **subject** y **transactional-id** al SA del conector.
+YAML `cluster.cc.rbac` en `security/`. El módulo aplica **topic**, **subject**, **group** y **transactional-id** al SA del conector.
 
-El `principal` debe coincidir con `vault.service_account` del conector.
+El `principal` debe coincidir con `vault.service_account` del conector. Un **sink** necesita `ResourceOwner` PREFIXED en `connect-lcc-` (consumer group `connect-lcc-<id>`: READ, DESCRIBE, DELETE). Un source (Datagen) no.
 
 ```yaml
 cluster:
