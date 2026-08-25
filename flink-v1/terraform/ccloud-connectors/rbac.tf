@@ -1,6 +1,7 @@
 # =============================================================================
-# RBAC — mismo schema YAML que flink-v2 (cluster.cc.rbac)
-# Aplica topic, subject y transactional-id. Ignora compute-pool / FlinkDeveloper.
+# RBAC de Kafka Connect
+# Bindings del SA de cada conector desde {use-case}/security/*.yaml
+# (cluster.cc.rbac). Recursos: topic, subject, transactional-id.
 # =============================================================================
 
 locals {
@@ -29,6 +30,7 @@ locals {
     ]
   ])
 
+  # Cualquier otro resource_type del YAML no se materializa.
   rbac_supported = [
     for e in local.rbac_entries : e
     if contains(["topic", "subject", "transactional-id"], e.resource_type)

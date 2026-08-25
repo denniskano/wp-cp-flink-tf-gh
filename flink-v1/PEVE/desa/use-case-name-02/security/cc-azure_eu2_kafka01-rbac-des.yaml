@@ -1,5 +1,5 @@
-# RBAC del Service Account que usa el conector (mismo principal que vault.service_account).
-# Schema alineado a flink-v2 security YAML. Terraform solo aplica topic, subject y transactional-id.
+# RBAC del Service Account de Kafka Connect (mismo principal que vault.service_account).
+# Recursos: topic, subject, transactional-id.
 cluster:
   cc:
     properties:

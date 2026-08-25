@@ -125,7 +125,7 @@ Path de Vault: se admite `{mount}/data/...`; el workflow lo traduce a `{mount}/k
 
 ## YAML de RBAC (`security/`)
 
-Mismo schema que Flink v2 (`cluster.cc.rbac`). Este módulo aplica **topic**, **subject** y **transactional-id**. Ignora `compute-pool` / `FlinkDeveloper`.
+YAML `cluster.cc.rbac` en `security/`. El módulo aplica **topic**, **subject** y **transactional-id** al SA del conector.
 
 El `principal` debe coincidir con `vault.service_account` del conector.
 
