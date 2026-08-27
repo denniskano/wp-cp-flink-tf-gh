@@ -206,24 +206,44 @@ Los conectores que utilizan schemas Avro (configurados con `input.data.format: "
 
 ### Service Account y Autenticación
 
-Cada conector utiliza el Service Account configurado en la sección `vault` del YAML:
+Cada conector utiliza el Service Account configurado en la sección `vault` del YAML. Ahí van dos cosas distintas:
+
+1. **`vault.service_account`** — display name del SA que habla con Kafka / Schema Registry. Terraform lo resuelve y lo inyecta como `kafka.service.account.id`.
+2. **`vault.secrets`** — credenciales del **destino** (Postgres, Blob, etc.). No van en claro en el YAML: el workflow las lee de HashiCorp Vault y las pasa a Terraform como `config_sensitive`.
+
+#### `vault.secrets`: un bloque por cada secreto
+
+El mapa es `config_key → { path, field }`. La **clave** (`connection.user`, `connection.password`, `azblob.account.key`, …) es el nombre de la propiedad que Confluent espera en el conector. Por **cada** secreto hay que declarar:
+
+| Campo | Qué es |
+|---|---|
+| `path` | Ruta KV en HashiCorp Vault donde está el secreto (el *secret engine path* + el nombre del secret) |
+| `field` | Campo **dentro** de ese secreto cuyo valor se inyecta (un mismo `path` puede tener varios fields: `username`, `password`, …) |
+
+Hay que repetir el par `path` + `field` **por cada** propiedad sensible. Si el conector necesita usuario y password, son **dos** entradas, aunque vivan en el mismo secret de Vault (mismo `path`, `field` distinto).
 
 ```yaml
 vault:
   service_account: "SA_AZC_DES_PEVE_PGSNK_01"
   secrets:
+    connection.user:
+      path: "peve/data/dev/peve/postgresql/DB_PEVE_CONNECT_DEV"
+      field: "username"
     connection.password:
       path: "peve/data/dev/peve/postgresql/DB_PEVE_CONNECT_DEV"
       field: "password"
 ```
 
-El `service_account` especificado aquí es el que Terraform inyecta automáticamente como `kafka.service.account.id` en la configuración del conector.
+Path: se admite `{mount}/data/...` (ej. `peve/data/dev/...`); el workflow lo traduce a `{mount}/kv2/data/...` si hace falta. Si el YAML ya trae `/kv2/data/`, no se modifica.
 
-**⚠️ IMPORTANTE**: 
+**No** pongas el valor del secreto en `config_sensitive` salvo pruebas locales. En desa/cert/prod el valor sale de Vault. Un `path` o `field` mal puesto (o `null`) hace fallar el job: `vault.secrets.<key> debe tener path y field`.
+
+**⚠️ IMPORTANTE**:
 - Los permisos RBAC se declaran en el archivo `security/*.yaml` del mismo use-case antes del despliegue
 - **NO** se configuran en el YAML del conector
 - El `principal` en `security/*.yaml` debe coincidir exactamente con `vault.service_account`
-- No se requiere API Key adicional - Confluent Cloud gestiona la autenticación automáticamente con `kafka.auth.mode: "SERVICE_ACCOUNT"`
+- No se requiere API Key adicional: Confluent Cloud autentica Kafka con `kafka.auth.mode: "SERVICE_ACCOUNT"`
+- `vault.secrets` no autentica contra Kafka; solo rellena propiedades sensibles del connector (SQL, storage, …)
 
 ### Permisos para Dead Letter Queue (DLQ)
 
@@ -386,7 +406,7 @@ vault:
 | `status` | `RUNNING` o `PAUSED`. Fuente de verdad en el próximo `apply` |
 | `config_nonsensitive` | Propiedades del conector. `kafka.service.account.id` se inyecta desde `vault.service_account` |
 | `vault.service_account` | Display name del SA (debe existir). Kafka y Schema Registry usan **este mismo** SA |
-| `vault.secrets` | Mapa `config_key → { path, field }` en Vault. El workflow los lee e inyecta como `config_sensitive` |
+| `vault.secrets` | Un mapa **por cada** secreto: clave = propiedad del conector (`connection.user`, `connection.password`, `azblob.account.key`, …); valor = `{ path, field }` en Vault. El workflow los lee e inyecta como `config_sensitive`. Ver [Service Account y Autenticación](#service-account-y-autenticación) |
 
 Si hay `errors.tolerance` y un topic (`topics` o `kafka.topic`), el módulo asigna `errors.deadletterqueue.topic.name` = `{primer-topic}-dlq`. Ese topic tiene que existir de antemano.
 
@@ -560,5 +580,6 @@ Falta el binding `group` / `connect-lcc-` en `security/`, o el módulo Terraform
 
 ## Changelog
 
+- **2026-08-27**: `vault.secrets`: documentados `path` y `field` por cada secreto; ejemplo Postgres con `connection.user` y `connection.password`.
 - **2026-08-25**: Integración completa de permisos RBAC en el documento principal. Agregados diagramas de arquitectura y flujo.
 - **2026-08-20**: Modelo por use-case (`connects/` + `security/`). Despliegue por `use_case`; `pause`/`resume` por conector. Se retira el layout `ccloud-connectors/{connector}/{env}-*.json`.
