@@ -1,0 +1,26 @@
+name: conector-mqzos-cert
+on:
+  workflow_dispatch:
+    inputs:
+      conector_accion:
+        description: "[CERT] Selecciona la accion a realizar:"
+        required: true
+        type: choice
+        options:
+          - list
+        default: "list"
+jobs:
+  CI_HV:
+    name: "CI/CD - ${{ github.event.inputs.conector_region }}/${{ github.event.inputs.conector_accion }}"
+    runs-on: "arc-runner-cert-set" #self-hosted
+    environment: APP_PEVE_CD_CERT
+    
+    steps:
+
+      - name: Install basic tools
+        run: |
+          if [[ "${{ vars.BRANCH_TARGET }}" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido para ${{ vars.BRANCH_TARGET }}"
+            exit 1
+          fi
+

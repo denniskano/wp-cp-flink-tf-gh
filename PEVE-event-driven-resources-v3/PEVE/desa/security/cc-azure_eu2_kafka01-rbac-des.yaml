@@ -1,0 +1,24 @@
+cluster:
+  cc:
+    properties:
+      - name: azure_eu2_kafka01
+    rbac:
+      - principal: SA_AZC_DES_PEVE_CORE_01
+        resources:
+          - resource_type: topic
+            resource_name: azc-peve-transaction
+            pattern_type: LITERAL
+            role:
+              - operation: DeveloperRead
+              - operation: DeveloperWrite
+          - resource_type: topic
+            resource_name: azc-peve-transaction-dlq
+            pattern_type: LITERAL
+            role:
+              - operation: DeveloperWrite
+          - resource_type: subject
+            resource_name: azc-peve-transaction-value
+            pattern_type: LITERAL
+            role:
+              - operation: DeveloperRead
+              - operation: DeveloperWrite

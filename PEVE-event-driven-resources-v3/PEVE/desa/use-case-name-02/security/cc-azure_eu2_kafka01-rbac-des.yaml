@@ -1,0 +1,5 @@
+# RBAC de cluster / SA del use-case (no el del conector: eso vive en kafka-connect-resources).
+# Esqueleto hasta que stacks/eda-core materialice estos YAML.
+cluster:
+  cc:
+    rbac: []

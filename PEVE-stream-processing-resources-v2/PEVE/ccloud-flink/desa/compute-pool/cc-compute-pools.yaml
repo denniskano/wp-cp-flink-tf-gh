@@ -1,0 +1,13 @@
+compute_pools:
+  - cloud: "AZURE"
+    region: "eastus2"
+    max_cfu: 10
+    pool_name: "CP_AZC_EU2_DES_PEVE_01"
+  - cloud: "AZURE"
+    region: "eastus2"
+    max_cfu: 10
+    pool_name: "CP_AZC_EU2_DES_PEVE_02"
+  - cloud: "AZURE"
+    region: "eastus2"
+    max_cfu: 10
+    pool_name: "CP_AZC_EU2_DES_PEVE_03"

@@ -1,0 +1,16 @@
+name: peve-util-test
+on:
+  workflow_dispatch:
+      inputs:
+        name_topic:
+          description: 'Nombre del topico para visualizar eventos'
+          required: true
+jobs:
+  PREPARE:
+    runs-on: arc-runner-desa-set #self-hosted
+    steps:
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1 
+

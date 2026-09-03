@@ -1,0 +1,25 @@
+name: "peve-postgresql-sink-connector-01"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "peve-postgresql-sink-connector-01"
+  connector.class: "PostgresSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  input.data.format: "AVRO"
+  tasks.max: "1"
+  errors.tolerance: "all"
+  topics: "azc-peve-transaction"
+  connection.host: "peved02server.postgres.database.azure.com"
+  connection.port: "5432"
+  db.name: "postgres"
+  ssl.mode: "require"
+
+vault:
+  service_account: "SA_AZC_DES_PEVE_PGSNK_01"
+  secrets:
+    connection.user:
+      path: "peve/data/dev/peve/postgresql/DB_PEVE_CONNECT_DEV"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/postgresql/DB_PEVE_CONNECT_DEV"
+      field: "password"

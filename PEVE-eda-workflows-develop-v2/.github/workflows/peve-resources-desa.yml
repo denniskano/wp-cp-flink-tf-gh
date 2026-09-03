@@ -1,0 +1,541 @@
+name: peve-resources-desa
+on:
+  workflow_dispatch:
+      inputs:
+        CODAPP:
+          description: 'codigo de applicación de 4 letras'
+          required: true
+
+env:
+  TERRAFORM_VERSION: "1.12.2"
+  BRANCH_AUTOMATION: "v1.0.6-DEV-Automation"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  CFK_SR_ID: "schema-registry-mrc"
+  PATH_CAROOT: "/tmp/certs/ca.crt"
+  TF_RELATIVE_SUBPATH: ".."
+  RELATIVE_SUBPATH_SRC: "."
+
+  HV_ADDRESS: "https://vaultdev.lima.bcp.com.pe:443"
+
+#  GH_CLI_VERSION: "2.52.0"
+#  TF_LOG: "DEBUG"
+  BASE_DIR_FUNCTIONS: "./base-functions-v2"
+  WORKING_DIR_SCRIPT: "./base-functions-v2/EDA-AUTOMATION"
+  
+jobs:
+  PREPARE:
+    name: "Prepare ${{ github.ref_name }}"
+    runs-on: arc-runner-desa-set #self-hosted
+    environment: APP_PEVE_CI_DESA
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          echo "ejecutando rama ${{ github.ref_name }}"
+          echo "PR description: ${{ github.event.pull_request.title }}"
+          echo "PR description: ${{ github.event.pull_request.base.ref }}"
+          if [[ "${{ vars.BRANCH_TARGET }}" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido para ${{ vars.BRANCH_TARGET }}"
+            exit 1
+          fi
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git tree dnsutils ca-certificates gettext -y  > /dev/null 2>&1
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1 
+
+
+
+  CI_cc_sr:
+    name: "CI Job Schema Registry ${{ github.event.inputs.CODAPP }}"
+    runs-on: "arc-runner-desa-set"
+    environment: APP_PEVE_CI_DESA
+    needs: PREPARE
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+      
+      - name: terraform plan - schema registry
+        uses: ./.github/actions/eda-schema-registry
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          JOB_STAGE : "CI"
+          cfk_sr_id: ${{ env.CFK_SR_ID }}
+          cfk_sr_rest_endpoint: ${{ vars.CFK_SR_URL }}
+          cfk_sr_api_key: ${{ vars.CFK_MDS_USERNAME }}
+
+  CD_cc_sr:
+    name: "CD Job Schema Registry ${{ github.event.inputs.CODAPP }}"
+    needs: CI_cc_sr
+    runs-on: "arc-runner-desa-set" #self-hosted
+    environment: APP_PEVE_CD_DESA
+
+    steps:
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+      
+      - name: terraform apply - schema registry
+        uses: ./.github/actions/eda-schema-registry
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          JOB_STAGE : "CD"
+          cfk_sr_id: ${{ env.CFK_SR_ID }}
+          cfk_sr_rest_endpoint: ${{ vars.CFK_SR_URL }}
+          cfk_sr_api_key: ${{ vars.CFK_MDS_USERNAME }}
+
+  CI_cc:
+    name: "CI Job CC Resources ${{ github.event.inputs.CODAPP }}"
+    runs-on: "arc-runner-desa-set" #self-hosted
+    environment: APP_PEVE_CI_DESA
+    needs: PREPARE
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree make ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v3 repository
+        uses: actions/checkout@v4
+
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+
+
+      - name: Clone repository EDA-AUTOMATION
+        uses: actions/checkout@v4
+        with:
+          ref: EDA-AUTOMATION
+          path: ${{ env.BASE_DIR_FUNCTIONS }}
+
+      - name: Dar permisos de ejecución a los scripts - EDA-AUTOMATION
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        run: |
+          chmod -R +rx ./devops/scripts
+
+      - name: COPY YAML
+        env: 
+          AMBIENTE: ${{ vars.ENV }}
+        shell: bash
+        run: |
+            mkdir -p ${{ env.WORKING_DIR_SCRIPT }}/${{ env.CODAPP }}/"$AMBIENTE"
+            cp -r ./${{ env.CODAPP }}/* ${{ env.WORKING_DIR_SCRIPT }}/${{ env.CODAPP }}/"$AMBIENTE"
+
+      - name: Validar estructura yaml topicos
+        env: 
+          RELATIVE_SUBPATH_SRC: "."
+          AMBIENTE: ${{ vars.ENV }}
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        shell: bash
+        run: make validar_estructura_topicos
+
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+
+      - name: terraform plan - CC Resources
+        uses: ./.github/actions/eda-resources
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_PROPERTIES: ${{ vars.CC_PROPERTIES }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          CLUSTER_TYPE: "cc"
+          JOB_STAGE : "CI"
+
+
+  CD_cc:
+    name: "CD Job CC Resources ${{ github.event.inputs.CODAPP }}"
+    needs: CI_cc
+    runs-on: "arc-runner-desa-set" #self-hosted
+    environment: APP_PEVE_CD_DESA
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+      
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+
+      - name: terraform apply - CC Resources
+        uses: ./.github/actions/eda-resources
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_PROPERTIES: ${{ vars.CC_PROPERTIES }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          CLUSTER_TYPE: "cc"
+          JOB_STAGE : "CD"
+
+  CI_cc_rbac:
+    name: "CI Job CC RBAC ${{ github.event.inputs.CODAPP }}"
+    runs-on: "arc-runner-desa-set" #self-hosted
+    environment: APP_PEVE_CI_DESA
+    needs: PREPARE
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_GLOBAL_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+
+      - name: terraform plan - CC RBAC
+        uses: ./.github/actions/eda-resources
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_PROPERTIES: ${{ vars.CC_PROPERTIES }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          CLUSTER_TYPE: "cc"
+          JOB_STAGE : "CI"
+          SPECIFIC_RESOURCES: "RBAC"
+
+  CD_cc_rbac:
+    name: "CD Job CC RBAC ${{ github.event.inputs.CODAPP }}"
+    needs: CI_cc_rbac
+    runs-on: "arc-runner-desa-set" #self-hosted
+    environment: APP_PEVE_CD_DESA
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CC_GLOBAL_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+
+      - name: terraform apply - CC RBAC
+        uses: ./.github/actions/eda-resources
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_PROPERTIES: ${{ vars.CC_PROPERTIES }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          CLUSTER_TYPE: "cc"
+          JOB_STAGE : "CD"
+          SPECIFIC_RESOURCES: "RBAC"
+

@@ -1,0 +1,18 @@
+name: ccloud-create-sa-apikey-crq-auto-desa
+on:
+  workflow_dispatch:
+jobs:
+  PREPARE:
+    name: "Prepare ${{ github.ref_name }}"
+    runs-on: "arc-runner-desa-set" #self-hosted
+    environment: APP_SECURITY_CI_DESA
+    steps:
+
+      - name: Validar Rama
+        run: |
+          echo "ejecutando rama ${{ github.ref_name }}"
+          if [[ "${{ vars.BRANCH_TARGET_SECURITY }}" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido para ${{ vars.BRANCH_TARGET_SECURITY }}"
+            exit 1
+          fi
+

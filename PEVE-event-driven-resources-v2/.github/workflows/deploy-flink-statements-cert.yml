@@ -1,0 +1,239 @@
+name: Deploy Flink Statements
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+          - plan
+      CODAPP:
+        description: 'codigo de applicación de 4 letras'
+        required: true
+        type: string
+
+env:
+  VAULT_ADDR: "https://vaultcert.lima.bcp.com.pe:443"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  TF_VAR_statements_dir: "../../${{ github.event.inputs.CODAPP }}/ccloud-flink-statements"
+  CATALOG_NAME: "bcp_cert"
+  CLUSTER_NAME: "AZURE_EU2_CERT_KAFKA01"
+  RESOURCES_REPO: BCP-Integration-Automation/peve-ccloud-flink-template
+  RESOURCES_BRANCH: release-v2
+  TERRAFORM_VERSION: "1.5.0"
+  NODE_VERSION: "16.13.1"
+  TERRAFORM_WORKDIR: terraform/ccloud-flink-statements
+  RESOURCE_GROUP_NAME: RSGREU2PEVEC01
+  STORAGE_CONTAINER_NAME: tf-flink-stm-cert
+  FLINK_PRIVATE_REST_ENDPOINT: "https://flink.az1.domqwx2oq4p.eastus2.azure.confluent.cloud"
+  SERVICE_ACCOUNT: SA_AZC_CER_PEVE_FLK_01
+  API_KEY_TERRAFORM: AK_AZC_CER_PEVE_CRMAN_COMPPOOL_01
+  API_KEY_FLINK: AK_AZC_CER_PEVE_FLINK_STATEMEN_01
+  ENVIRONMENT: CER
+
+jobs:
+  deploy-flink-statements:
+    runs-on: arc-runner-cert-set
+    environment: APP_PEVE_CI_CERT
+    
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RESOURCES_BRANCH }}
+
+      - name: Checkout ${{ env.CODAPP }} resources
+        uses: actions/checkout@v4
+        with:
+          ref: automation-v3-flink
+          path: resources
+      
+      - name: Move terraform to correct location
+        run: |
+          mv resources/terraform ./terraform
+          rm -rf resources
+          echo "✅ terraform folder moved to workspace root"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Install yq
+        run: |
+          echo "=== Installing yq ==="
+          sudo curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+          echo "✅ yq installed successfully"
+      
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Extract Environment ID and Organization ID from CC_PROPERTIES
+        id: extract-env
+        run: |
+          echo "CC_PROPERTIES raw content:"
+          echo '${{ vars.CC_PROPERTIES }}'
+          
+          # Extraer environment_id y organization_id del JSON
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          ORGANIZATION_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.organization_id')
+          
+          echo "Extracted ENVIRONMENT_ID: '$ENVIRONMENT_ID'"
+          echo "Extracted ORGANIZATION_ID: '$ORGANIZATION_ID'"
+          
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          
+          if [ -z "$ORGANIZATION_ID" ] || [ "$ORGANIZATION_ID" == "null" ]; then
+            echo "Error: Could not extract organization_id from CC_PROPERTIES"
+            exit 1
+          fi
+          
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> $GITHUB_ENV
+          echo "ORGANIZATION_ID=$ORGANIZATION_ID" >> $GITHUB_ENV
+          echo "✅ Environment ID configured: $ENVIRONMENT_ID"
+          echo "✅ Organization ID configured: $ORGANIZATION_ID"
+
+      - name: Setup Confluent CLI
+        run: |
+          curl -sL --http1.1 https://cnfl.io/cli | sh -s -- latest
+          sudo mv ./bin/confluent /usr/local/bin/
+
+      - name: Get Secrets for Flink Statements
+        id: get-secrets-fs
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          # namespace: admin
+          roleId: ${{ secrets.APP_ROLEID_PEVE_CERT }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_CERT }}
+          secrets: |
+            cos/kv2/data/cert/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            cos/kv2/data/cert/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            cos/kv2/data/cert/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} username | CONFLUENT_FLINK_API_KEY ;
+            cos/kv2/data/cert/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} password | CONFLUENT_FLINK_API_SECRET ;
+            cos/kv2/data/cert/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+
+      - name: Configure Azure Storage Access Key
+        run: |
+          echo "Configuring Azure Storage Access Key"
+          export ARM_ACCESS_KEY=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+          echo "✅ Azure Storage Access Key configured"
+
+      - name: Terraform Init - Compute Pools
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=cert/${{ env.CODAPP }}/tf-flink.tfstate" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+
+      - name: Terraform Plan - Statements
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform plan
+        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_catalog_name: ${{ env.CATALOG_NAME }}
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
+          TF_VAR_environment: ${{ env.ENVIRONMENT }}
+          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_sa_name: ${{ env.SERVICE_ACCOUNT }}
+      
+      - name: Configure DNS for Confluent Flink
+        run: |
+          echo "🔧 Configurando DNS temporal para Confluent Flink..."
+          chmod +x ./terraform/ccloud-flink-statements/scripts/*.sh
+          sudo ./terraform/ccloud-flink-statements/scripts/configure-dns.sh
+
+      - name: Terraform Apply - Statements
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform apply -auto-approve
+        if: github.event.inputs.action == 'apply'
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_catalog_name: ${{ env.CATALOG_NAME }}
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
+          TF_VAR_environment: ${{ env.ENVIRONMENT }}
+          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_sa_name: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Restore DNS Configuration
+        if: always()
+        run: |
+          echo "🔄 Restaurando DNS original..."
+          sudo ./terraform/ccloud-flink-statements/scripts/restore-dns.sh
+
+      - name: Configure DNS for Confluent Flink (Destroy)
+        run: |
+          echo "🔧 Configurando DNS temporal para Confluent Flink (Destroy)..."
+          chmod +x ./terraform/ccloud-flink-statements/scripts/*.sh
+          sudo ./terraform/ccloud-flink-statements/scripts/configure-dns.sh
+        if: github.event.inputs.action == 'destroy'
+
+      - name: Terraform Destroy - Statements
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform destroy -auto-approve
+        if: github.event.inputs.action == 'destroy'
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_organization_id: ${{ env.ORGANIZATION_ID }}
+          TF_VAR_statements_dir: ${{ env.TF_VAR_statements_dir }}
+          TF_VAR_catalog_name: ${{ env.CATALOG_NAME }}
+          TF_VAR_cluster_name: ${{ env.CLUSTER_NAME }}
+          TF_VAR_environment: ${{ env.ENVIRONMENT }}
+          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          TF_VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          TF_VAR_sa_name: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Restore DNS Configuration (Destroy)
+        if: always() && github.event.inputs.action == 'destroy'
+        run: |
+          echo "🔄 Restaurando DNS original (Destroy)..."
+          sudo ./terraform/ccloud-flink-statements/scripts/restore-dns.sh
+
+      - name: Output Statements
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            echo "=== DDL Statements ==="
+            terraform output -json ddl_statements || echo "No DDL statements found"
+            echo "=== DML Statements ==="
+            terraform output -json dml_statements || echo "No DML statements found"
+            echo "=== All Statements ==="
+            terraform output -json all_statements || echo "No statements found"
+          fi
+
+

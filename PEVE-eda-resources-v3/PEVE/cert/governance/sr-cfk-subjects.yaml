@@ -1,0 +1,7 @@
+environment:
+  schema_registry:
+    properties:
+      - name: "cfk"
+    subjects:
+#      - name: "peve-local-topic3-value"
+

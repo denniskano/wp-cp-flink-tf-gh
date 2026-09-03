@@ -1,0 +1,14 @@
+name: "peve-datagen-source-connector-01"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "peve-datagen-source-connector-01"
+  connector.class: "DatagenSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  kafka.topic: "azc-peve-transaction"
+  output.data.format: "AVRO"
+  quickstart: "TRANSACTIONS"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_PEVE_DATAGEN_01"

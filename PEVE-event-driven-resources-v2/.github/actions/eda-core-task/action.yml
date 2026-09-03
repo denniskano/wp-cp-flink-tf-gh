@@ -1,0 +1,108 @@
+name: eda-core-task
+description: Arma ./automation desde IaC y corre terraform_task.sh (codegen core).
+inputs:
+  job_fn:
+    required: true
+    description: eda_resource_terraform_plan | eda_resource_terraform_apply | eda_schemaregistry_terraform_plan | eda_schemaregistry_terraform_apply
+  specific_resources:
+    required: false
+    default: ""
+  hv_peve_secrets:
+    required: true
+  storage_account_name:
+    required: true
+  cc_properties:
+    required: true
+  cc_sr_properties:
+    required: true
+  env:
+    required: true
+  name_dir_app:
+    required: true
+  relative_subpath_src:
+    required: false
+    default: "./externo"
+  cluster_type:
+    required: false
+    default: "cc"
+  cfk_sr_id:
+    required: false
+    default: ""
+  cfk_sr_rest_endpoint:
+    required: false
+    default: ""
+  cfk_sr_api_key:
+    required: false
+    default: ""
+  github_token:
+    required: true
+  owner:
+    required: true
+  repo_iac:
+    required: true
+  iac_ref:
+    required: true
+  repo_externo:
+    required: true
+  resources_branch:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout IaC (PEVE-event-driven-automation)
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.owner }}/${{ inputs.repo_iac }}
+        ref: ${{ inputs.iac_ref }}
+        token: ${{ inputs.github_token }}
+        path: ./iac
+
+    - name: Checkout core resources (PEVE-event-driven-resources-v3)
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.owner }}/${{ inputs.repo_externo }}
+        ref: ${{ inputs.resources_branch }}
+        token: ${{ inputs.github_token }}
+        path: ./externo
+
+    - name: Layout codegen (./automation + ./scripts)
+      shell: bash
+      run: |
+        mkdir -p ./automation ./scripts/validate_yaml
+        cp ./iac/stacks/eda-core/*.tf ./automation/
+        cp ./iac/resources/template/topics.tf.tpl \
+           ./iac/resources/template/topics_tag.tf.tpl \
+           ./iac/resources/template/rbac.tf.tpl \
+           ./iac/resources/template/data_sa.tf.tpl \
+           ./iac/resources/template/schema_registry.tf.tpl \
+           ./iac/resources/template/schema_registry_mode.tf.tpl \
+           ./iac/resources/template/confluent_subject_config.tf.tpl \
+           ./iac/resources/template/catalog_mgmt_tag.tf.tpl \
+           ./automation/
+        cp ./iac/scripts/generate_topic_dinamic.sh \
+           ./iac/scripts/generate_schema_registry_dinamic.sh \
+           ./iac/scripts/generate_rbac_dinamic.sh \
+           ./iac/scripts/terraform_task.sh \
+           ./iac/scripts/terraform_custom_plan_guard.sh \
+           ./scripts/
+        cp ./iac/scripts/validate_yaml/*.sh ./scripts/validate_yaml/
+        chmod +x ./scripts/*.sh ./scripts/validate_yaml/*.sh
+
+    - name: Run terraform_task.sh
+      shell: bash
+      env:
+        NAME_DIR_APP: ${{ inputs.name_dir_app }}
+        RELATIVE_SUBPATH_SRC: ${{ inputs.relative_subpath_src }}
+        ENV: ${{ inputs.env }}
+        CLUSTER_TYPE: ${{ inputs.cluster_type }}
+        SPECIFIC_RESOURCES: ${{ inputs.specific_resources }}
+        HV_PEVE_SECRETS: ${{ inputs.hv_peve_secrets }}
+        CC_PROPERTIES: ${{ inputs.cc_properties }}
+        CC_SR_PROPERTIES: ${{ inputs.cc_sr_properties }}
+        STORAGE_ACCOUNT_NAME: ${{ inputs.storage_account_name }}
+        cfk_sr_id: ${{ inputs.cfk_sr_id }}
+        cfk_sr_rest_endpoint: ${{ inputs.cfk_sr_rest_endpoint }}
+        cfk_sr_api_key: ${{ inputs.cfk_sr_api_key }}
+      run: |
+        ./scripts/terraform_task.sh "${{ inputs.job_fn }}"

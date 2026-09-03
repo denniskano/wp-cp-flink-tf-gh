@@ -1,0 +1,177 @@
+name: "event driven resources"
+description: "Event Driven Resources"
+inputs:
+  HV_PEVE_SECRETS:
+    required: true
+  PATH_CAROOT:
+    required: true
+  CODAPP:
+    required: true
+  TF_RELATIVE_SUBPATH:
+    required: true
+  RELATIVE_SUBPATH_SRC:
+    required: true
+  ENV:
+    required: true
+  STORAGE_ACCOUNT_NAME:
+    required: true
+  CC_PROPERTIES:
+    required: true
+  CC_SR_PROPERTIES:
+    required: true
+  CLUSTER_TYPE:
+    required: true
+  JOB_STAGE:
+    required: true
+  SPECIFIC_RESOURCES:
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: terraform Job
+      shell: bash
+      env:
+        SSL_CERT_FILE: ${{ inputs.PATH_CAROOT }}
+      run: |
+        yq --version
+        mkdir -p "${{ inputs.RELATIVE_SUBPATH_SRC }}/${{ inputs.CODAPP }}/topics"
+        mkdir -p "${{ inputs.RELATIVE_SUBPATH_SRC }}/${{ inputs.CODAPP }}/security"
+        pwd
+
+        if [ "${{ inputs.SPECIFIC_RESOURCES }}" == "RBAC" ]; then
+          AMBIENTE=$(echo "${{ inputs.ENV }}" | cut -c1-3 | tr '[:upper:]' '[:lower:]')
+          echo "************************** AMBIENTE: $AMBIENTE ************************** "
+          files=$(ls "${{ inputs.RELATIVE_SUBPATH_SRC }}/${{ inputs.CODAPP }}/security/"cc-*-rbac-$AMBIENTE.yaml 2>/dev/null || echo "")
+          if [ -z "$files" ]; then
+            echo "No se encontraron archivos que coincidan con el patrón './security/cc-*-rbac-$AMBIENTE.yaml'."
+            exit 0
+          fi
+        else
+          files=$(ls "${{ inputs.RELATIVE_SUBPATH_SRC }}/${{ inputs.CODAPP }}/topics/"cc-*-topics.yaml 2>/dev/null || echo "")
+          if [ -z "$files" ]; then
+            echo "No se encontraron archivos que coincidan con el patrón './topics/cc-*-topics.yaml'."
+            exit 0
+          fi
+        fi
+
+
+
+        export HV_PEVE_SECRETS='${{ inputs.HV_PEVE_SECRETS }}'
+        export ARM_ACCESS_KEY=$( echo $HV_PEVE_SECRETS |jq -r ".PEVE_GHA_ARM_ACCESS_KEY")
+
+        for file in $files; do
+          echo ""
+          echo ""
+          echo ""
+          echo "********************************************************************************************************************************* "
+
+          content=$(cat $file)
+          properties_name=$(echo "$content" | yq '.cluster.cc.properties[0].name')
+          echo '${{ inputs.CC_PROPERTIES}}' > cc_properties.json
+          echo "Imprimir contenido del archivo cc_properties.json"
+          cat cc_properties.json
+          echo "validar JSON cc_properties.json"
+          cat cc_properties.json | jq .
+          cluster_id=$(jq -r ".${properties_name}.cluster_id" cc_properties.json)
+          environment_id=$(jq -r ".${properties_name}.environment_id" cc_properties.json)
+          organization_id=$(jq -r ".${properties_name}.organization_id" cc_properties.json)
+          cluster_endpoint=$(jq -r ".${properties_name}.cluster_endpoint" cc_properties.json)
+          sr_properties=$(jq -r ".${properties_name}.sr_properties" cc_properties.json)
+
+
+          export baseFilename=$(basename "$file")
+          echo "baseFilename: $baseFilename"
+
+          ls -lia ./automation
+          rm -rf ./automation/topics.tf
+          rm -rf ./automation/rbac.tf
+          rm -rf ./automation/data_sa.tf
+
+          if [ "${{ inputs.SPECIFIC_RESOURCES }}" == "RBAC" ]; then
+            export TS_STATE_NAME="tf-${properties_name}-rbac.tfstate"
+
+            export global_hv_key=$(jq -r ".${properties_name}.global_hv_key" cc_properties.json)
+
+            echo "Obtener API KEY tipo Cloud resource management para Crear RBAC - Properties: .${global_hv_key}"
+            export CONFLUENT_CLOUD_API_KEY=$( echo $HV_PEVE_SECRETS |jq -r ".${global_hv_key}_api_key")
+            export CONFLUENT_CLOUD_API_SECRET=$( echo $HV_PEVE_SECRETS |jq -r ".${global_hv_key}_api_secret")
+
+            echo "TS_STATE_NAME - RBAC: $TS_STATE_NAME"
+
+            chmod +x ./automation/scripts/gen_rbac_dinamic.sh
+            ./automation/scripts/gen_rbac_dinamic.sh "${{ inputs.CODAPP }}" "${{ inputs.RELATIVE_SUBPATH_SRC }}" "$baseFilename"
+
+          else
+            chmod +x ./automation/scripts/gen_topic_dinamic.sh
+            ./automation/scripts/gen_topic_dinamic.sh "${{ inputs.CODAPP }}" "${{ inputs.RELATIVE_SUBPATH_SRC }}" "$baseFilename"
+
+            export TS_STATE_NAME="tf-${properties_name}.tfstate"
+            echo "TS_STATE_NAME: $TS_STATE_NAME"
+          fi
+
+
+          echo "Obtener el SR API KEY SECRET PARA CLUSTER KAFKA - Properties: .${properties_name}"
+          kafka_api_key=$( echo $HV_PEVE_SECRETS |jq -r ".${properties_name}_api_key")
+          kafka_api_secret=$( echo $HV_PEVE_SECRETS |jq -r ".${properties_name}_api_secret")
+
+          echo "Obtener API KEY SCHEMA REGISTRY"
+          echo '${{ inputs.CC_SR_PROPERTIES}}' > cc_sr_properties.json
+          echo "Imprimir contenido del archivo cc_sr_properties.json"
+          cat cc_sr_properties.json
+          echo "validar JSON cc_sr_properties.json"
+          cat cc_sr_properties.json | jq .
+          schema_registry_id=$(jq -r ".${sr_properties}.schema_registry_id" cc_sr_properties.json)
+          schema_registry_rest_endpoint=$(jq -r ".${sr_properties}.schema_registry_rest_endpoint" cc_sr_properties.json)
+
+          echo "Obtener el SR API KEY SECRET SCHEMA REGISTRY - Properties: .${sr_properties}"
+          schema_registry_api_key=$( echo $HV_PEVE_SECRETS |jq -r ".${sr_properties}_api_key")
+          schema_registry_api_secret=$( echo $HV_PEVE_SECRETS |jq -r ".${sr_properties}_api_secret")
+
+          export TF_VAR_cluster_id=$cluster_id
+          export TF_VAR_environment_id=$environment_id
+          export TF_VAR_organization_id=$organization_id
+          export TF_VAR_mds_host=$cluster_endpoint
+          export TF_VAR_sr_id=$schema_registry_id
+          export TF_VAR_sr_rest_endpoint=$schema_registry_rest_endpoint
+          export TF_VAR_sr_api_key=$schema_registry_api_key
+          export TF_VAR_sr_api_secret=$schema_registry_api_secret
+          export TF_VAR_mds_username=$kafka_api_key
+          export TF_VAR_mds_password=$kafka_api_secret
+
+          echo "Archivo: $file"
+          echo "properties_name: $properties_name"
+          echo "cluster_id: $TF_VAR_cluster_id"
+          echo "environment_id: $TF_VAR_environment_id"
+          echo "organization_id: $TF_VAR_organization_id"
+          echo "cluster_endpoint: $cluster_endpoint"
+          echo "schema_registry_id: $schema_registry_id"
+          echo "schema_registry_rest_endpoint: $schema_registry_rest_endpoint"
+          echo "kafka_api_key: $kafka_api_key"
+
+          pwd
+          rm -f ./automation/backend.hcl
+          rm -f ./automation/.terraform.lock.hcl
+          rm -rf ./automation/.terraform
+          
+
+        cat <<EOF > ./automation/backend.hcl
+        storage_account_name   = "${{ inputs.STORAGE_ACCOUNT_NAME }}"
+        container_name         = "tf-peve-resources"
+        key                    = "${{ inputs.ENV }}/${{ inputs.CODAPP }}/${{ inputs.CLUSTER_TYPE }}/${TS_STATE_NAME}"
+        EOF
+          ls -lia ./automation
+          cat ./automation/backend.hcl
+          terraform -chdir=./automation init -backend-config=backend.hcl 
+          terraform -chdir=./automation validate
+
+          if [[ ${{ inputs.JOB_STAGE }} == "CD" ]]; then
+            echo "**********************  CD  **********************"
+            terraform -chdir=./automation apply --auto-approve
+          elif [[ ${{ inputs.JOB_STAGE }} == "CI" ]]; then
+            terraform -chdir=./automation plan
+          fi
+
+        done
+

@@ -1,0 +1,3 @@
+subject: azc-peve-transaction-value
+format: AVRO
+# El schema (AVRO/JSON) lo versiona este repo cuando eda-core esté implementado.

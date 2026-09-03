@@ -1,0 +1,4 @@
+name: azc-peve-transaction
+partitions: 6
+config:
+  cleanup.policy: delete

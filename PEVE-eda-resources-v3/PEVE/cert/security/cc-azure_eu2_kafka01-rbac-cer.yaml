@@ -1,0 +1,35 @@
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_CER_PEVE_MQZ_01
+      resources:
+      - resource_type: subject
+        resource_name: '*'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: connect-peve-dedicated-cluster-mqzos-source-
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+      - resource_type: topic
+        resource_name: azc-
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+      - resource_type: topic
+        resource_name: cfg-azc-connect-peve-dedicated-cluster-mqzos-source
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_CER_PEVE_GHA_01
+      resources:
+      - resource_type: subject
+        resource_name: '*'
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+#####FIN#####

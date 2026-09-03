@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "Transaction",
+  "namespace": "peve",
+  "fields": [
+    { "name": "id", "type": "string" },
+    { "name": "amount", "type": "double" }
+  ]
+}

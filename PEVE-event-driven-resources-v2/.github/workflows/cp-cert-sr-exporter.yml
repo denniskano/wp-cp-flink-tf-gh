@@ -1,0 +1,295 @@
+name: cp-cert-sr-exporter
+on:
+  workflow_dispatch:
+env:
+  CODAPP: "SR-EXPORTER"
+  CFK_SR_ID: "schema-registry-mrc"
+  PATH_CAROOT: "/tmp/certs/ca.crt"
+  TF_RELATIVE_SUBPATH: ".."
+  RELATIVE_SUBPATH_SRC: "."
+
+#  GH_CLI_VERSION: "2.52.0"
+#  TF_LOG: "DEBUG"
+
+jobs:
+  CI_sr_exporter:
+    name: "CI Job Confluent Schema Exporter"
+    runs-on: "arc-runner-cert-set" #self-hosted
+    environment: APP_PEVE_CI_CERT
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates -y  > /dev/null 2>&1
+          if [[ "${{ vars.BRANCH_TARGET_SR_EXPORTER }}" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido para ${{ vars.BRANCH_TARGET_SR_EXPORTER }}"
+            exit 1
+          fi
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: https://vaultcert.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_CERT }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_CERT }}
+          secrets: |
+            cos/kv2/data/cert/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            cos/kv2/data/cert/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            cos/kv2/data/cert/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.1"
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: automation
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: terraform plan - schema confluent exporter
+        env:
+          ARM_ACCESS_KEY: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_ARM_ACCESS_KEY }}
+          SSL_CERT_FILE: ${{ env.PATH_CAROOT }}
+          TF_VAR_codapp: ${{ env.CODAPP }}
+          TF_VAR_relative_subpath: ${{ env.TF_RELATIVE_SUBPATH }}
+          TF_VAR_path_caroot: ${{ env.PATH_CAROOT }}
+          TF_VAR_cluster_id: ${{ vars.CFK_KAFKA_CLUSTER_ID }}
+          TF_VAR_mds_host: ${{ vars.CFK_MDS_HOST }}
+          TF_VAR_mds_username: ${{ vars.CFK_MDS_USERNAME }}
+          TF_VAR_mds_password: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_CFK_MDS_ACCESS_KEY }}
+          TF_VAR_sr_id: ${{ env.CFK_SR_ID }}
+          TF_VAR_sr_rest_endpoint: ${{ vars.CFK_SR_URL }}
+          TF_VAR_sr_api_key: ${{ vars.CFK_MDS_USERNAME }}
+          TF_VAR_sr_api_secret: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_CFK_MDS_ACCESS_KEY }}
+          TF_VAR_cluster_type: "cfk"
+          CODAPP: ${{ env.CODAPP }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+        run: |
+          mv ./automation/providers/.terraform.d ~/.terraform.d
+          chmod -R 776 ~/.terraform.d/
+          ls -lia ~/.terraform.d/
+          sudo wget -qO /tmp/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /tmp/yq
+          export PATH=$PATH:/tmp
+          yq --version
+          mkdir -p "${{ env.RELATIVE_SUBPATH_SRC }}/${{ env.CODAPP }}"
+          pwd
+          files=$(ls "${{ env.RELATIVE_SUBPATH_SRC }}/${{ env.CODAPP }}/"sr-*.yaml 2>/dev/null || echo "")
+          if [ -z "$files" ]; then
+            echo "No se encontraron archivos que coincidan con el patrón 'sr-*.yaml'."
+            exit 0
+          fi
+
+          export HV_PEVE_SECRETS='${{ toJson(steps.get-secrets-hv.outputs) }}'
+          
+          for file in $files; do
+            content=$(cat $file)
+            properties_name=$(echo "$content" | yq '.cluster.cfk.properties[0].name')
+            
+            echo '${{ env.CC_SR_PROPERTIES}}' > cc_sr_properties.json
+            echo "Imprimir contenido del archivo cc_sr_properties.json"
+            cat cc_sr_properties.json
+            echo "validar JSON cc_sr_properties.json"
+            cat cc_sr_properties.json | jq .
+            schema_registry_id=$(jq -r ".${properties_name}.schema_registry_id" cc_sr_properties.json)
+            schema_registry_rest_endpoint=$(jq -r ".${properties_name}.schema_registry_rest_endpoint" cc_sr_properties.json)
+
+            echo "Obtener el SR API KEY SECRET .${properties_name}"
+            schema_registry_api_key=$( echo $HV_PEVE_SECRETS |jq -r ".${properties_name}_api_key")
+            schema_registry_api_secret=$( echo $HV_PEVE_SECRETS |jq -r ".${properties_name}_api_secret")
+
+            export TF_VAR_cluster_properties_name=$properties_name
+
+            name_exporter="-"
+            if [[ "$properties_name" != "azcceu2peve01_bcp" ]]; then
+              name_exporter="${{ env.CODAPP }}-$properties_name"
+            fi
+              echo "Name SR Exporter: $name_exporter"
+              export TF_VAR_name_exporter=$name_exporter
+
+            export TF_VAR_sr_rest_endpoint_dest=$schema_registry_rest_endpoint
+            export TF_VAR_sr_api_key_dest=$schema_registry_api_key
+            export TF_VAR_sr_api_secret_dest=$schema_registry_api_secret
+
+            echo "Archivo: $file"
+            echo "properties_name: $properties_name"
+            echo "schema_registry_id: $schema_registry_id"
+            echo "schema_registry_rest_endpoint: $schema_registry_rest_endpoint"
+
+            pwd
+            rm -f ./automation/backend.hcl
+            rm -f ./automation/.terraform.lock.hcl
+            rm -rf ./automation/.terraform
+          cat <<EOF > ./automation/backend.hcl
+          storage_account_name   = "${{ vars.STORAGE_ACCOUNT_NAME }}"
+          container_name         = "tf-peve-resources"
+          key                    = "${{ vars.ENV }}/${{ env.CODAPP }}/${{ env.TF_VAR_cluster_type }}/tf-$properties_name.tfstate"
+          EOF
+            ls -lia ./automation
+            cat ./automation/backend.hcl
+            terraform -chdir=./automation init -backend-config=backend.hcl 
+            terraform -chdir=./automation validate
+            terraform -chdir=./automation plan
+          done
+
+  CD_sr_exporter:
+    name: "CD Job Confluent Schema Exporter"
+    needs: CI_sr_exporter
+    runs-on: "arc-runner-cert-set" #self-hosted
+    environment: APP_PEVE_CD_CERT
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: https://vaultcert.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_CERT }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_CERT }}
+          secrets: |
+            cos/kv2/data/cert/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            cos/kv2/data/cert/peve/ccloud/PEVE_GHA_CFK_MDS_ACCESS_KEY secret | PEVE_GHA_CFK_MDS_ACCESS_KEY ;
+            cos/kv2/data/cert/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.1"
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: automation
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: terraform apply - schema confluent exporter
+        env:
+          ARM_ACCESS_KEY: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_ARM_ACCESS_KEY }}
+          SSL_CERT_FILE: ${{ env.PATH_CAROOT }}
+          TF_VAR_codapp: ${{ env.CODAPP }}
+          TF_VAR_relative_subpath: ${{ env.TF_RELATIVE_SUBPATH }}
+          TF_VAR_path_caroot: ${{ env.PATH_CAROOT }}
+          TF_VAR_cluster_id: ${{ vars.CFK_KAFKA_CLUSTER_ID }}
+          TF_VAR_mds_host: ${{ vars.CFK_MDS_HOST }}
+          TF_VAR_mds_username: ${{ vars.CFK_MDS_USERNAME }}
+          TF_VAR_mds_password: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_CFK_MDS_ACCESS_KEY }}
+          TF_VAR_sr_id: ${{ env.CFK_SR_ID }}
+          TF_VAR_sr_rest_endpoint: ${{ vars.CFK_SR_URL }}
+          TF_VAR_sr_api_key: ${{ vars.CFK_MDS_USERNAME }}
+          TF_VAR_sr_api_secret: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_CFK_MDS_ACCESS_KEY }}
+          TF_VAR_cluster_type: "cfk"
+          CODAPP: ${{ env.CODAPP }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+        run: |
+          mv ./automation/providers/.terraform.d ~/.terraform.d
+          chmod -R 776 ~/.terraform.d/
+          ls -lia ~/.terraform.d/
+          sudo wget -qO /tmp/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /tmp/yq
+          export PATH=$PATH:/tmp
+          yq --version
+          mkdir -p "${{ env.RELATIVE_SUBPATH_SRC }}/${{ env.CODAPP }}"
+          pwd
+          files=$(ls "${{ env.RELATIVE_SUBPATH_SRC }}/${{ env.CODAPP }}/"sr-*.yaml 2>/dev/null || echo "")
+          if [ -z "$files" ]; then
+            echo "No se encontraron archivos que coincidan con el patrón 'sr-*.yaml'."
+            exit 0
+          fi
+
+          export HV_PEVE_SECRETS='${{ toJson(steps.get-secrets-hv.outputs) }}'
+
+          for file in $files; do
+            content=$(cat $file)
+            properties_name=$(echo "$content" | yq '.cluster.cfk.properties[0].name')
+            
+            echo '${{ env.CC_SR_PROPERTIES}}' > cc_sr_properties.json
+            echo "Imprimir contenido del archivo cc_sr_properties.json"
+            cat cc_sr_properties.json
+            echo "validar JSON cc_sr_properties.json"
+            cat cc_sr_properties.json | jq .
+            schema_registry_id=$(jq -r ".${properties_name}.schema_registry_id" cc_sr_properties.json)
+            schema_registry_rest_endpoint=$(jq -r ".${properties_name}.schema_registry_rest_endpoint" cc_sr_properties.json)
+
+            echo "Obtener el SR API KEY SECRET .${properties_name}"
+            schema_registry_api_key=$( echo $HV_PEVE_SECRETS |jq -r ".${properties_name}_api_key")
+            schema_registry_api_secret=$( echo $HV_PEVE_SECRETS |jq -r ".${properties_name}_api_secret")
+
+            export TF_VAR_cluster_properties_name=$properties_name
+
+            name_exporter="-"
+            if [[ "$properties_name" != "azcceu2peve01_bcp" ]]; then
+              name_exporter="${{ env.CODAPP }}-$properties_name"
+            fi
+              echo "Name SR Exporter: $name_exporter"
+              export TF_VAR_name_exporter=$name_exporter
+
+            export TF_VAR_sr_rest_endpoint_dest=$schema_registry_rest_endpoint
+            export TF_VAR_sr_api_key_dest=$schema_registry_api_key
+            export TF_VAR_sr_api_secret_dest=$schema_registry_api_secret
+
+            echo "Archivo: $file"
+            echo "properties_name: $properties_name"
+            echo "schema_registry_id: $schema_registry_id"
+            echo "schema_registry_rest_endpoint: $schema_registry_rest_endpoint"
+
+            pwd
+            rm -f ./automation/backend.hcl
+            rm -f ./automation/.terraform.lock.hcl
+            rm -rf ./automation/.terraform
+          cat <<EOF > ./automation/backend.hcl
+          storage_account_name   = "${{ vars.STORAGE_ACCOUNT_NAME }}"
+          container_name         = "tf-peve-resources"
+          key                    = "${{ vars.ENV }}/${{ env.CODAPP }}/${{ env.TF_VAR_cluster_type }}/tf-$properties_name.tfstate"
+          EOF
+            ls -lia ./automation
+            cat ./automation/backend.hcl
+            terraform -chdir=./automation init -backend-config=backend.hcl 
+            terraform -chdir=./automation validate
+            terraform -chdir=./automation apply --auto-approve
+          done
+

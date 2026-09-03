@@ -1,0 +1,97 @@
+# =============================================================================
+# DDL STATEMENT - DATA DEFINITION LANGUAGE
+# =============================================================================
+# =============================================================================
+# STATEMENT METADATA
+# =============================================================================
+statement-name: "statement-ddl-create-azc-appv-partner-pos-transaction-create"
+statement-description: "Create azc-appv-partner-pos-transaction table for APPV application"
+flink-compute-pool: "CP_AZC_EU2_DES_APPV_PARTNER_01"
+service-account: "SA_AZC_DES_APPV_PEVEMQFL_02"
+api-key: "AK_AZC_DES_APPV_FLINK_PEVEMQFL_01"
+# =============================================================================
+# SQL STATEMENT
+# =============================================================================
+
+statement: |
+  CREATE TABLE IF NOT EXISTS `azc-appv-partner-pos-transaction` (
+  transactionDetail ROW<
+    mti STRING,
+    transactionId STRING,
+    approvalCode STRING,
+    processCode STRING,
+    transactionType STRING,
+    `date` STRING,
+    `time` STRING,
+    flagReverseIndicator STRING,
+    opnNumber STRING,
+    opnReverseNumber STRING,
+    originalDataElements STRING
+  >,
+  cardDetail ROW<
+    cic4 STRING
+  >,
+  productDetail ROW<
+    familyCode STRING,
+    currencyCode STRING
+  >,
+  transactionAmount ROW<
+    amountTransaction DECIMAL(12, 2),
+    currencyTransaction STRING,
+    amountBilling DECIMAL(12, 2),
+    currencyBilling STRING,
+    cashbackAmount DECIMAL(12, 2),
+    replacementAmount DECIMAL(12, 2),
+    exchangeRateDetail ROW<
+      clasificatioCode STRING,
+      rate DECIMAL(12, 4),
+      dealType STRING
+    >,
+    affectationAmount DECIMAL(12, 2),
+    affectationCurrency STRING
+  >,
+  customer ROW<
+    segment STRING,
+    cic STRING
+  >,
+  merchantDetail ROW<
+    merchantType STRING,
+    acquirerCountryCode STRING,
+    acquirerId STRING,
+    terminalId STRING,
+    cardAcceptorID STRING,
+    merchantName STRING,
+    merchantCity STRING,
+    merchantCountry STRING
+  >,
+  authorizationDetail ROW<
+    referenceNumber STRING,
+    responseCode STRING,
+    authorizationSource STRING
+  >,
+  additionalDetail ROW<
+    flagFastPayment STRING,
+    flagQrYape STRING,
+    businessApplicationId STRING,
+    senderName STRING,
+    senderCountry STRING,
+    recipientName STRING,
+    tokenDetail ROW<
+      tokenAssuranceMethod STRING,
+      tokenRequestorID STRING,
+      tokenExpirationDate STRING,
+      tokenType STRING
+    >,
+    posEnvironment STRING,
+    applicationUser STRING,
+    operationTerminal STRING,
+    flagStoreForward STRING
+  >,
+  headers MAP<BYTES, BYTES> METADATA
+  ) DISTRIBUTED INTO 6 BUCKETS
+  WITH (
+    'changelog.mode' = 'append',
+    'kafka.retention.time' = '1 d',
+    'value.format' = 'avro-registry'
+  );
+

@@ -1,0 +1,15 @@
+cluster:
+  cc:
+    properties:
+      - name: azure_eu2_kafka01
+    topics:
+      - name: azc-peve-transaction
+        partitions: 6
+        config:
+          cleanup.policy: delete
+          min.insync.replicas: 2
+      - name: azc-peve-transaction-dlq
+        partitions: 6
+        config:
+          cleanup.policy: delete
+          min.insync.replicas: 2

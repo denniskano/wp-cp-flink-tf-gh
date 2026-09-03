@@ -1,0 +1,8 @@
+environment:
+  catalog_management:
+    properties:
+      - name: "azccdeu2peve02_bcp"
+    tags:
+      - name: BIG8
+        description: Recursos de aplicaciones BIG8
+

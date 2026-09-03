@@ -1,0 +1,120 @@
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+    - principal: SA_AZC_DES_PEVE_PRUEBALOCAL_01
+      resources:
+#AVRO TENER EN CUENTA QUE ES A NIVEL DE ENVIRONMENT
+      - resource_type: subject
+        resource_name: azc-peve-partner-pruebalocal-value
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+#A NIVEL CLUSTER
+      - resource_type: group
+        resource_name: azc-async-peve-partner-pruebalocal-cg01
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+#      - resource_type: topic
+#        resource_name: azc-peve-partner-pruebalocal
+#        pattern_type: LITERAL
+#        role:
+#        - operation: DeveloperRead
+      - resource_type: compute-pool
+        resource_name: lfcp-027r19
+        resource_region: AZURE.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+#
+#
+#
+#TO FLINK
+    - principal: SA_AZC_DES_APPV_CDPEVEFL_01
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: compute-pool
+        resource_name: lfcp-p79k9m
+        resource_region: AZURE.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+#
+    - principal: SA_AZC_DES_APPV_PEVEMQFL_02
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: compute-pool
+        resource_name: lfcp-p79k9m
+        resource_region: AZURE.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+#
+    - principal: SA_AZC_DES_PEVE_PEVEMQFL_03
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: compute-pool
+        resource_name: lfcp-xj7r7g
+        resource_region: AZURE.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper        
+#
+    - principal: SA_AZC_DES_PEVE_CDPEVEFL_04
+      resources:
+      - resource_type: subject
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: 'azc-peve-terraform-'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: compute-pool
+        resource_name:  lfcp-vxn1n0
+        resource_region: AZURE.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper        
+#
+#####FIN#####
+

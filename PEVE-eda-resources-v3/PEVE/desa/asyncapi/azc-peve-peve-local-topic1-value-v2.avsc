@@ -1,0 +1,19 @@
+{
+  "doc": "Sample schema to help you get started.",
+  "fields": [
+    {
+      "doc": "The int type is a 32-bit signed integer.",
+      "name": "my_field1",
+      "type": "int"
+    },
+    {
+      "doc": "The string is a unicode luchito otra vez",
+      "name": "my_field_extra_2",
+      "type": "string",
+      "default": ""
+    }
+  ],
+  "name": "peve.local.topic1",
+  "namespace": "com.mycorp.peve.local.topic1.mynamespace",
+  "type": "record"
+}

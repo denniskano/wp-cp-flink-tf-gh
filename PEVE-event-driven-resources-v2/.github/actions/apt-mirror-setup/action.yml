@@ -1,0 +1,148 @@
+name: "APT Mirror Setup (Ubuntu) - AKS ephemeral runners"
+description: "Configure APT sources with HTTPS mirrors + runtime codename + optional security repo + disable existing sources to avoid duplicates"
+inputs:
+  disable_existing_sources:
+    description: "Move existing /etc/apt/sources* to /root/apt-disabled to avoid duplicates"
+    required: false
+    default: "true"
+  include_security:
+    description: "Include security.ubuntu.com (${codename}-security)"
+    required: false
+    default: "true"
+  mirrors:
+    description: "Space-separated list of mirror base URIs (must end with /ubuntu/ path). Example: 'https://archive.ubuntu.com/ubuntu/ https://mirrors.edge.kernel.org/ubuntu/'"
+    required: false
+    default: "https://archive.ubuntu.com/ubuntu/ https://mirrors.edge.kernel.org/ubuntu/ https://mirror.math.princeton.edu/pub/ubuntu/ https://mirrors.ocf.berkeley.edu/ubuntu/"
+  security_uri:
+    description: "Security repository base URI"
+    required: false
+    default: "https://security.ubuntu.com/ubuntu/"
+  force_ipv4:
+    description: "Force APT to use IPv4"
+    required: false
+    default: "true"
+  apt_timeout_seconds:
+    description: "APT HTTP/HTTPS timeout seconds"
+    required: false
+    default: "10"
+  apt_retries:
+    description: "APT retries count"
+    required: false
+    default: "3"
+  debug_print:
+    description: "Print sources after writing"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure APT mirrors
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # Decide sudo usage
+        SUDO=""
+        if command -v sudo >/dev/null 2>&1; then
+          SUDO="sudo"
+          echo "use $SUDO"
+        fi
+
+        echo "==> Detectando codename en runtime..."
+        codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+        if [[ -z "${codename}" ]]; then
+          codename="$(. /etc/os-release && echo "${UBUNTU_CODENAME:-}")"
+        fi
+        if [[ -z "${codename}" ]]; then
+          codename="$(lsb_release -cs 2>/dev/null || true)"
+        fi
+        if [[ -z "${codename}" ]]; then
+          echo "::error::No pude detectar el codename (VERSION_CODENAME/UBUNTU_CODENAME/lsb_release)."
+          cat /etc/os-release || true
+          exit 2
+        fi
+        echo "==> codename detectado: ${codename}"
+
+        # APT hardening (ForceIPv4, retries, timeouts)
+        force_ipv4="${{ inputs.force_ipv4 }}"
+        apt_timeout="${{ inputs.apt_timeout_seconds }}"
+        apt_retries="${{ inputs.apt_retries }}"
+
+        $SUDO tee /etc/apt/apt.conf.d/99-hardening >/dev/null <<EOF
+        Acquire::Retries "${apt_retries}";
+        Acquire::http::Timeout "${apt_timeout}";
+        Acquire::https::Timeout "${apt_timeout}";
+        EOF
+
+        if [[ "${force_ipv4}" == "true" ]]; then
+          $SUDO tee /etc/apt/apt.conf.d/99force-ipv4 >/dev/null <<'EOF'
+        Acquire::ForceIPv4 "true";
+        EOF
+
+          echo "==> cat /etc/apt/apt.conf.d/99force-ipv4" 
+          cat /etc/apt/apt.conf.d/99force-ipv4
+        fi
+
+        echo "==> cat /etc/apt/apt.conf.d/99-hardening" 
+        cat /etc/apt/apt.conf.d/99-hardening
+
+        # Optionally disable existing sources to avoid duplicates
+        if [[ "${{ inputs.disable_existing_sources }}" == "true" ]]; then
+          echo "==> Deshabilitando sources existentes para evitar duplicados..."
+          $SUDO mkdir -p /root/apt-disabled
+          for f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [[ -e "$f" ]] || continue
+            $SUDO mv "$f" /root/apt-disabled/ 2>/dev/null || true
+          done
+        fi
+
+        # Build URIs block (multi-URI deb822)
+        mirrors="${{ inputs.mirrors }}"
+        include_security="${{ inputs.include_security }}"
+        security_uri="${{ inputs.security_uri }}"
+
+        echo "==> Creando /etc/apt/sources.list.d/ubuntu.sources (HTTPS + mirrors)..."
+        $SUDO tee /etc/apt/sources.list.d/ubuntu.sources >/dev/null <<EOF
+        Types: deb
+        URIs:
+        EOF
+
+        # Add each mirror as a URI line
+        # NOTE: mirrors passed as space-separated strings
+        for m in $mirrors; do
+          $SUDO bash -lc "printf '  %s\n' '$m' >> /etc/apt/sources.list.d/ubuntu.sources"
+        done
+
+        $SUDO tee -a /etc/apt/sources.list.d/ubuntu.sources >/dev/null <<EOF
+        Suites: ${codename} ${codename}-updates ${codename}-backports
+        Components: main universe restricted multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        EOF
+
+        if [[ "${include_security}" == "true" ]]; then
+          $SUDO tee -a /etc/apt/sources.list.d/ubuntu.sources >/dev/null <<EOF
+        #Dejar un salto de Linea (obligatorio)
+        
+        Types: deb
+        URIs:
+          ${security_uri}
+        Suites: ${codename}-security
+        Components: main universe restricted multiverse
+        Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+        EOF
+
+        else
+          echo "==> include_security=false: omitiendo ${codename}-security"
+        fi
+
+        if [[ "${{ inputs.debug_print }}" == "true" ]]; then
+          echo " "
+          echo "==> ls -liah /etc/apt/sources.list.d/"
+          ls -liah /etc/apt/sources.list.d/ || true
+
+          echo " "
+          echo "==> cat /etc/apt/sources.list.d/ubuntu.sources"
+          cat /etc/apt/sources.list.d/ubuntu.sources || true
+        fi
+

@@ -1,0 +1,52 @@
+name: "Encriptar una cadena"
+description: "Cifra un texto usando una llave. Expone outputs: cipher, host."
+inputs:
+  plaintext:
+    description: "Texto en claro a cifrar"
+    required: true
+  extra_key:
+    description: "PARTE 2 de la llave usado para cifrar"
+    required: true
+  openssl_alg:
+    description: "Algoritmo OpenSSL"
+    required: false
+    default: "aes-256-cbc"
+  openssl_iter:
+    description: "Iteraciones PBKDF2"
+    required: false
+    default: "200000"
+
+outputs:
+  CIPHER:
+    description: "Ciphertext (Base64 una sola línea)"
+    value: ${{ steps.encrypt.outputs.CIPHER }}
+  HOST:
+    description: "HOSTNAME usado en el cifrado, PARTE 1 de la llave"
+    value: ${{ steps.encrypt.outputs.HOST }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Encrypt
+      id: encrypt
+      shell: bash
+      env:
+        PLAINTEXT: ${{ inputs.plaintext }}
+        KEY_PART2: ${{ inputs.extra_key }}
+        ALG: ${{ inputs.openssl_alg }}
+        ITER: ${{ inputs.openssl_iter }}
+      run: |
+        set -euo pipefail
+        HOST_EPHEMERAL="$(hostname)"
+        KEY="${HOST_EPHEMERAL}${KEY_PART2}"
+        echo "::add-mask::${PLAINTEXT}"
+        echo "::add-mask::${KEY}"
+
+        CT="$(printf '%s' "${PLAINTEXT}" \
+              | openssl enc -"${ALG}" -pbkdf2 -iter "${ITER}" -md sha256 \
+                            -salt -base64 -A -pass pass:"${KEY}")"
+
+        {
+          echo "CIPHER=${CT}"
+          echo "HOST=${HOST_EPHEMERAL}"
+        } >> "${GITHUB_OUTPUT}"

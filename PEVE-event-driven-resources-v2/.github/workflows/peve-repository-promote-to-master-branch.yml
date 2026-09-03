@@ -1,0 +1,424 @@
+name: peve-repository-promote-to-master-branch
+on:
+  workflow_dispatch:
+      inputs:
+        jira_issue:
+          description: 'Numero/OCD jira_issue. Ejemplo: OCD-XXX, ITSM-XXX'
+          required: true
+        CODAPP:
+          description: 'CODAPP=codigo de applicación de 4 letras relacionado con el merge. Ej. PEVE, MBBK, SCRE...'
+          required: true
+        REPOSITOY:
+          description: 'Nombre del repositorio dentro de la organizacion de Automation. Ejemplo: PEVE-event-driven-resources-v3'
+          required: true
+        NUM_PR:
+          description: 'Numero identificador de Pull request. Ejemplo: 1, 23, 7'
+          required: true
+        COMMIT_ID:
+          description: 'Numero de commit completo. Ejemplo: 3cfb81a96d8794c56ab947936ac196920d469b23'
+          required: true
+
+env:
+  
+  #NOTA: TODAS ESTAS VARIABLES GLOBALES SON TOMADAS EN LOS SCRIPT SHELL
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  NUM_PR: ${{ github.event.inputs.NUM_PR }}
+  COMMIT_ID: ${{ github.event.inputs.COMMIT_ID }}
+  JIRA_ISSUE: ${{ github.event.inputs.jira_issue }}
+
+#  TF_LOG: "DEBUG"
+#  GITHUB_APP_ID: "1765397"
+  GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
+
+  TF_CLI_ARGS: "-no-color"
+  AMBIENTE: "desa"
+  SECURITY_ENV: "des"
+  OWNER_REPO: "BCP-Integration-Automation/${{ github.event.inputs.REPOSITOY }}"
+
+  TERRAFORM_VERSION: "1.12.2"
+  BASE_DIR_FUNCTIONS: "./base-functions-v2"
+  WORKING_DIR_SCRIPT: "./base-functions-v2/EDA-AUTOMATION"
+  WORKING_DIR_RESOURCE_PRE_MERGE: "resources-pre-merge"
+
+jobs:
+
+  PREPARE:
+    name: "Prepare ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set #self-hosted
+    environment: APP_MERGE
+
+    outputs:
+      CIPHER: ${{ steps.enc.outputs.CIPHER }}
+      HOST:   ${{ steps.enc.outputs.HOST }}
+
+
+    steps:
+      - name: Validate Branch Workflow
+        run: |
+          echo "ejecutando rama ${{ github.ref_name }}"
+          echo "PR description: ${{ github.event.pull_request.title }}"
+          echo "PR description: ${{ github.event.pull_request.base.ref }}"
+          if [[ "master" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido en la rama master"
+            exit 1
+          fi
+    
+      - name: Get GithubApp from Secrets HV
+        id: get-ghapp-peve-key
+        uses: hashicorp/vault-action@v2
+        with:
+          url: https://vault.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
+          secrets: |
+            cos/kv2/data/prod/peve/ccloud/ghapp_peve_self_service_pk secret | ghapp_peve_self_service_pk ;
+
+      - name: Generar token desde GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ env.GITHUB_APP_ID }}
+          private-key: ${{ steps.get-ghapp-peve-key.outputs.ghapp_peve_self_service_pk }}
+          owner: BCP-Integration-Automation
+          repositories: ${{ github.event.inputs.REPOSITOY }}
+          skip-token-revoke: true
+
+      - name: Clone current repository
+        uses: actions/checkout@v4
+        
+
+      - name: Cifrar token de sesion de githubapp
+        id: enc
+        uses: ./.github/actions/single-encrypt
+        with:
+          plaintext: ${{ steps.app-token.outputs.token }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+      - name: Console
+        run: |
+          echo "Usuario: ${{ github.actor }}" 2>&1 | tee -a /tmp/validate-user-console-out.txt
+      
+      - name: Upload output CI
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validate-user-console-out.txt
+          path: /tmp/validate-user-console-out.txt
+
+  CI_PLAN:
+    name: "CI  ${{ github.event.inputs.CODAPP }}  ${{ github.event.inputs.jira_issue }} ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set #self-hosted
+    environment: APP_MERGE
+    needs: PREPARE
+
+    steps:
+
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          ref: EDA-AUTOMATION
+          path: ${{ env.BASE_DIR_FUNCTIONS }}
+
+      - name: Descifrar token de sesion de githubapp
+        id: dec
+        uses: ./base-functions-v2/.github/actions/single-decrypt
+        with:
+          ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
+          host: ${{ needs.PREPARE.outputs.HOST }}
+          extra_key:  ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+      - name: set environment TOKEN de sesion para repo-v2
+        run: |
+          echo "GHAPP_TOKEN_REPO_V2=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
+
+
+
+      - name: Dar permisos de ejecución a todos los scripts
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        run: |
+          sudo sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu/|g' /etc/apt/sources.list
+          sudo apt-get update || true > /dev/null 2>&1; sudo apt-get install tree make -y
+          chmod -R +rx ./devops/scripts
+
+      - name:  Validar CODAPP + NUM_PR + COMMIT_ID
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        shell: bash
+        run: |
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+          echo "*** INICIO - Validando inputs ***"
+          echo "#####  ℹ️ Validar CODAPP + NUM_PR + COMMIT_ID" >> /tmp/console-out.txt
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+
+          echo "\`\`\`" >> /tmp/console-out.txt
+          make validar_datos_entrada 2>&1 | tee -a /tmp/console-out.txt
+          echo "\`\`\`" >> /tmp/console-out.txt
+
+          echo "" >> /tmp/console-out.txt
+
+      - name: Validar que el COMMIT_ID pertenece al PR
+        id: validate_pr
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        env:
+          TOKEN: ${{ env.GHAPP_TOKEN_REPO_V2 }}
+        shell: bash
+        run: |
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+          echo "#####  ℹ️ Validar que el COMMIT_ID pertenece al PR " >> /tmp/console-out.txt
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+
+          echo "\`\`\`" >> /tmp/console-out.txt
+          make validar_pull_request 2>&1 | tee -a /tmp/console-out.txt
+          echo "\`\`\`" >> /tmp/console-out.txt
+
+          echo "" >> /tmp/console-out.txt
+
+      - name: rename file console-out
+        if: always()
+        run: |
+          [ -f /tmp/console-out.txt ] || touch /tmp/console-out.txt
+          mv /tmp/console-out.txt /tmp/ci-console-out.txt
+
+      - name: Upload output CI
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-console-out.txt
+          path: /tmp/ci-console-out.txt
+
+  CD_APPLY:
+    name: "CI Job CC Resources ${{ github.event.inputs.CODAPP }}  ${{ github.event.inputs.jira_issue }} "
+    runs-on: arc-runner-prod-set #self-hosted
+    environment: APP_MERGE
+    needs: [PREPARE, CI_PLAN]
+
+    steps:
+
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          ref: EDA-AUTOMATION
+          path: ${{ env.BASE_DIR_FUNCTIONS }}
+
+      - name: Descifrar token de sesion de githubapp
+        id: dec
+        uses: ./base-functions-v2/.github/actions/single-decrypt
+        with:
+          ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
+          host: ${{ needs.PREPARE.outputs.HOST }}
+          extra_key:  ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+      - name: set environment TOKEN de sesion para repo-v3
+        run: |
+          echo "GHAPP_TOKEN_REPO_V2=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
+
+
+      - name: Install basic tools
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        run: |
+          sudo sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu/|g' /etc/apt/sources.list
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree make ca-certificates gettext -y  > /dev/null 2>&1
+          chmod -R +rx ./devops/scripts
+
+      - name: Instalar yq
+        uses: ./base-functions-v2/.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+
+      - name: Checkout base del repo externo para merge
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_REPO }}
+          fetch-depth: 0
+          ref: master
+          token: ${{ env.GHAPP_TOKEN_REPO_V2 }}
+          path: ${{ env.WORKING_DIR_SCRIPT }}/${{ env.WORKING_DIR_RESOURCE_PRE_MERGE }}
+
+      - name: Obtener y verificar merge simulado
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        shell: bash
+        run: |
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+          echo "#####  ℹ️ Obtener y verificar merge simulado" >> /tmp/console-out.txt
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+
+          echo "\`\`\`" >> /tmp/console-out.txt
+          make obtener_verificar_merge_simulado 2>&1 | tee -a /tmp/console-out.txt
+          echo "\`\`\`" >> /tmp/console-out.txt
+
+          echo "" >> /tmp/console-out.txt
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: View directory and tree
+        shell: bash
+        run: |
+          echo "Directiroo actual"
+          pwd
+          echo "********* Arbol *********"
+          tree
+          
+#ACCIONES DE APROBAR Y HACER MERGE
+
+      - name: Agregar comentario antes de aprobar pr
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        env:
+          TOKEN: ${{ env.GHAPP_TOKEN_REPO_V2 }}
+        shell: bash
+        run: |
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+          echo "#####  ℹ️ Agregar comentario antes de aprobar pr" >> /tmp/console-out.txt
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+
+          make comments_pull_request
+
+          echo "\`\`\`" >> /tmp/console-out.txt
+          echo "✅ Comments realizado correctamente." 2>&1 | tee -a /tmp/console-out.txt
+          echo "\`\`\`" >> /tmp/console-out.txt
+
+          echo "" >> /tmp/console-out.txt
+
+      - name: Aprobar PR
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        env:
+          TOKEN: ${{ env.GHAPP_TOKEN_REPO_V2 }}
+        shell: bash
+        run: |
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+          echo "#####  ℹ️ Aprobar pull request" >> /tmp/console-out.txt
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+
+          make approve_pull_request
+
+          echo "\`\`\`" >> /tmp/console-out.txt
+          echo "✅ Approve realizado correctamente." 2>&1 | tee -a /tmp/console-out.txt
+          echo "\`\`\`" >> /tmp/console-out.txt
+
+          echo "" >> /tmp/console-out.txt
+
+      - name: Merge PR
+        working-directory: ${{ env.WORKING_DIR_SCRIPT }}
+        env:
+          TOKEN: ${{ env.GHAPP_TOKEN_REPO_V2 }}
+        shell: bash
+        run: |
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+          echo "#####  ℹ️ Merge pull request" >> /tmp/console-out.txt
+          echo "********************************************************************************************************************************* " >> /tmp/console-out.txt
+
+          make merge_pull_request
+
+          echo "\`\`\`" >> /tmp/console-out.txt
+          echo "✅ Merge realizado correctamente." 2>&1 | tee -a /tmp/console-out.txt
+          echo "\`\`\`" >> /tmp/console-out.txt
+
+          echo "" >> /tmp/console-out.txt
+
+
+
+
+      - name: rename file console-out
+        if: always()
+        run: |
+          [ -f /tmp/console-out.txt ] || touch /tmp/console-out.txt
+          mv /tmp/console-out.txt /tmp/cd-console-out.txt
+
+      - name: Upload output CD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cd-console-out.txt
+          path: /tmp/cd-console-out.txt
+  
+
+
+  Report:
+    runs-on: arc-runner-prod-set #self-hosted
+    outputs:
+      issue_id: ${{ steps.crear.outputs.issue_id }}
+    needs: [PREPARE, CI_PLAN, CD_APPLY]
+    if: always()
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: View and list directory
+        shell: bash
+        run: |
+          echo "*** Directiroo actual ***"
+          pwd
+          ls -lia
+          echo "*** listar .github ***"
+          ls -lia ./.github
+
+      - name: Descargar validate-user-console-out.txt
+        if: needs.PREPARE.result != 'success'
+        uses: actions/download-artifact@v5
+        with:
+          name: validate-user-console-out.txt
+          path: /tmp
+      - name: Descargar ci-console-out.txt
+        if: needs.PREPARE.result == 'success'
+        uses: actions/download-artifact@v5
+        with:
+          name: ci-console-out.txt
+          path: /tmp
+      - name: Descargar cd-console-out.txt
+        if: needs.CI_PLAN.result == 'success'
+        uses: actions/download-artifact@v5
+        with:
+          name: cd-console-out.txt
+          path: /tmp
+
+      - name: Construir cuerpo del issue CI/CD
+        id: body
+        shell: bash
+        env:
+          CASO_USO: "Promocionar ${{ github.event.inputs.REPOSITOY }} a la rama master"
+        run: |
+          ls -Rliah /tmp
+          VALIDATE_USER="${{ needs.PREPARE.result }}"
+          CI_RESULT="${{ needs.CI_PLAN.result }}"
+          CD_RESULT="${{ needs.CD_APPLY.result }}"
+
+          echo "VALIDATE_USER => $VALIDATE_USER"
+          echo "CI => $CI_RESULT"
+          echo "CD => $CD_RESULT"
+
+          [ -f /tmp/validate-user-console-out.txt  ] || touch /tmp/validate-user-console-out.txt
+          [ -f /tmp/ci-console-out.txt  ] || touch /tmp/ci-console-out.txt
+          [ -f /tmp/cd-console-out.txt  ] || touch /tmp/cd-console-out.txt
+
+          if [[ "$VALIDATE_USER" != "success" ]]; then
+            echo "### USER-ERROR: ${{ github.event.inputs.CODAPP }} - $CASO_USO" > /tmp/merge-out.txt
+          elif [[ "$CI_RESULT" == "success" && "$CD_RESULT" == "success" ]]; then
+            echo "### SCRIPT-SUCCESSFUL: ${{ github.event.inputs.CODAPP }} - $CASO_USO" > /tmp/merge-out.txt
+          else
+            echo "### USER-ERROR: ${{ github.event.inputs.CODAPP }} - $CASO_USO" > /tmp/merge-out.txt
+          fi
+
+          cat /tmp/validate-user-console-out.txt /tmp/ci-console-out.txt /tmp/cd-console-out.txt >> /tmp/merge-out.txt
+          ls -liah /tmp/merge-out.txt
+          jq --version
+          echo "content=$(jq -Rs . < /tmp/merge-out.txt)" >> $GITHUB_OUTPUT
+
+
+      - name: Create Issue in PEVE-event-driven-resources-v2
+        uses: ./.github/actions/create-issue-gh
+        with: 
+          owner: ${{ github.event.repository.owner.login }}
+          repo: ${{ github.event.repository.name }}
+          labels: "PROMOTE_TO_MASTER"
+          jira_issue: ${{ github.event.inputs.jira_issue }}
+          CONTENT: ${{ steps.body.outputs.content }}
+          CASO_USO: "Promocionar ${{ github.event.inputs.REPOSITOY }} a la rama master"
+          ITSM_ENV: ${{ github.ref_name == 'master' && 'JIRA' || 'SANDBOX' }}
+          Environment: ${{ env.SECURITY_ENV }}
+          CODAPP: ${{ env.CODAPP }}

@@ -1,0 +1,36 @@
+{
+  "doc": "Sample schema to help you get started.",
+  "fields": [
+    {
+      "doc": "The int type is a 32-bit signed integer.",
+      "name": "my_field1",
+      "type": "int"
+    },
+    {
+      "doc": "The double type is a double precision (64-bit) IEEE 754 floating-point number.",
+      "name": "my_field2",
+      "type": "double"
+    },
+    {
+      "doc": "The string is a unicode character sequence.",
+      "name": "my_field3",
+      "type": "string"
+    },
+    {
+      "doc": "The string is a unicode character sequence. 4",
+      "name": "my_fieldwil4",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "doc": "The string is a unicode luchito otra vez",
+      "name": "my_field_luchito1",
+      "type": "string",
+      "default": ""
+    }
+  ],
+  "name": "cloudglbpevedemo05",
+  "namespace": "com.mycorp.mynamespace",
+  "type": "record"
+}
+

@@ -1,0 +1,54 @@
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    topics:
+      - name: "cfg-azc-connect-peve-dedicated-cluster-mqzos-source-cho-offset"
+        partitions: 25
+        config:
+          cleanup.policy: "compact"
+          min.insync.replicas: 1
+          retention.ms: 86400000
+      - name: "cfg-azc-connect-peve-dedicated-cluster-mqzos-source-cho-config"
+        partitions: 1
+        config:
+          cleanup.policy: "compact"
+          min.insync.replicas: 1
+          retention.ms: 86400000
+      - name: "cfg-azc-connect-peve-dedicated-cluster-mqzos-source-cho-status"
+        partitions: 3
+        config:
+          cleanup.policy: "compact"
+          min.insync.replicas: 1
+          retention.ms: 86400000
+      - name: "cfg-azc-connect-peve-dedicated-cluster-mqzos-source-lmo-offset"
+        partitions: 25
+        config:
+          cleanup.policy: "compact"
+          min.insync.replicas: 1
+          retention.ms: 86400000
+      - name: "cfg-azc-connect-peve-dedicated-cluster-mqzos-source-lmo-config"
+        partitions: 1
+        config:
+          cleanup.policy: "compact"
+          min.insync.replicas: 1
+          retention.ms: 86400000
+      - name: "cfg-azc-connect-peve-dedicated-cluster-mqzos-source-lmo-status"
+        partitions: 3
+        config:
+          cleanup.policy: "compact"
+          min.insync.replicas: 1
+          retention.ms: 86400000
+      - name: "azc-peve-account-movements-test"
+        partitions: 6
+        config:
+          cleanup.policy: "delete"
+          min.insync.replicas: 1
+          retention.ms: 86400000
+      - name: "_confluent-command"
+        partitions: 1
+        config:
+          cleanup.policy: "compact"
+          min.insync.replicas: 2
+          retention.ms: 604800000     
+##### FIN #####

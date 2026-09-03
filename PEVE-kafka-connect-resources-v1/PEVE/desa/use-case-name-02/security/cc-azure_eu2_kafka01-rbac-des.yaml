@@ -1,0 +1,39 @@
+# principal = vault.service_account. Sink: group PREFIXED connect-lcc-.
+cluster:
+  cc:
+    rbac:
+    - principal: SA_AZC_DES_PEVE_DATAGEN_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-peve-transaction-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-peve-transaction"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_PEVE_PGSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-peve-transaction-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-peve-transaction"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-peve-transaction-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner

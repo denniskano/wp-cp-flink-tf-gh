@@ -1,0 +1,75 @@
+{
+  "fields": [
+    {
+      "name": "messages",
+      "type": {
+        "items": {
+          "fields": [
+            {
+              "name": "repositionCard",
+              "type": {
+                "fields": [
+                  {
+                    "name": "repositionCardId",
+                    "type": "string"
+                  },
+                  {
+                    "name": "expirationDate",
+                    "type": "string"
+                  }
+                ],
+                "name": "repositionCard",
+                "type": "record"
+              }
+            },
+            {
+              "name": "card",
+              "type": {
+                "fields": [
+                  {
+                    "name": "cardId",
+                    "type": "string"
+                  },
+                  {
+                    "name": "expirationDate",
+                    "type": "string"
+                  }
+                ],
+                "name": "card",
+                "type": "record"
+              }
+            },
+            {
+              "name": "operation",
+              "type": {
+                "fields": [
+                  {
+                    "name": "operationType",
+                    "type": "string"
+                  },
+                  {
+                    "name": "operationDate",
+                    "type": "string"
+                  },
+                  {
+                    "name": "lockingCode",
+                    "type": "string"
+                  }
+                ],
+                "name": "operation",
+                "type": "record"
+              }
+            }
+          ],
+          "name": "messages_record",
+          "type": "record"
+        },
+        "type": "array"
+      }
+    }
+  ],
+  "name": "AvroCard",
+  "namespace": "com.bcp.atlas.core.starter.audit.model.avro",
+  "type": "record"
+}
+

@@ -1,0 +1,171 @@
+name: peve-util-ccd-consumer-topic
+on:
+  workflow_dispatch:
+      inputs:
+        name_topic:
+          description: 'Nombre del topico para visualizar eventos'
+          required: true
+        timeout_ms:
+          description: "Numero de milisegundos de inactividad antes de desconectar el consumidor"
+          required: true
+          default: "15000"
+        from_beginning:
+          description: 'from-beginning'
+          required: true
+          type: boolean
+          default: true
+env:
+  PATH_CAROOT: "/tmp/certs/ca.crt"
+
+#  TF_LOG: "DEBUG"
+
+jobs:
+  import:
+    name: "Topico: ${{ github.event.inputs.name_topic }}"
+    runs-on: arc-runner-desa-set #self-hosted
+    environment: PEVE_DESA_UTIL
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          if [[ "${{ vars.BRANCH_TARGET }}" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido para ${{ vars.BRANCH_TARGET }}"
+            exit 1
+          fi
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install wget unzip git tree ca-certificates dnsutils jq -y  > /dev/null 2>&1
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin' # Se puedes usar 'zulu', 'adopt', etc.
+          java-version: '17'      # versión
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: Cache de Binario KafkaClient
+        id: cache-kafkaClient
+        uses: actions/cache@v4
+        with:
+          path: ~/kafka_2.13-4.0.0.tgz
+          key: kafka-2.13-4.0.0
+
+      - name: Descargar KafkaClient sino existe en Cache
+        if: steps.cache-kafkaClient.outputs.cache-hit != 'true'
+        run: |
+          wget https://downloads.apache.org/kafka/4.0.0/kafka_2.13-4.0.0.tgz -O ~/kafka_2.13-4.0.0.tgz
+
+      - name: Instalar KafkaClient
+        run: |
+          tar -xzf ~/kafka_2.13-4.0.0.tgz -C ~/
+          echo "$HOME/kafka_2.13-4.0.0/bin" >> $GITHUB_PATH
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: https://vaultdev.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CCD_UTIL_CLUSTER_PROPERTIES_KEY_SECRETS secret | PEVE_GHA_CCD_UTIL_CLUSTER_PROPERTIES_KEY_SECRETS ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_CCD_UTIL_SR_PROPERTIES_KEY_SECRETS secret | PEVE_GHA_CCD_UTIL_SR_PROPERTIES_KEY_SECRETS ;
+  
+      - name: "Leer eventos topico: ${{ github.event.inputs.name_topic }}"
+        env:
+          SSL_CERT_FILE: ${{ env.PATH_CAROOT }}
+#CLUSTER
+          CCD_UTIL_CLUSTER_PROPERTIES: ${{ vars.PEVE_GHA_CCD_UTIL_CLUSTER_PROPERTIES }}
+          CCD_UTIL_CLUSTER_PROPERTIES_KEY_SECRETS: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_CCD_UTIL_CLUSTER_PROPERTIES_KEY_SECRETS }}          
+#SCHEMA REGISTRY
+          CCD_UTIL_SR_PROPERTIES: ${{ vars.PEVE_GHA_CCD_UTIL_SR_PROPERTIES }}
+          CCD_UTIL_SR_PROPERTIES_KEY_SECRETS: ${{ steps.get-secrets-hv.outputs.PEVE_GHA_CCD_UTIL_SR_PROPERTIES_KEY_SECRETS }}
+        run: |
+          pwd
+          kafka-topics.sh --version
+
+          properties_name="CCD_UTIL_CLUSTER_PROPERTIES"
+
+          echo '${{ env.CCD_UTIL_CLUSTER_PROPERTIES}}' > cc_properties.json
+          echo "Imprimir contenido del archivo cc_properties.json"
+          cat cc_properties.json
+          echo "validar JSON cc_properties.json"
+          cat cc_properties.json | jq .
+          cluster_id=$(jq -r ".${properties_name}.cluster_id" cc_properties.json)
+          cluster_endpoint=$(jq -r ".${properties_name}.cluster_endpoint" cc_properties.json)
+          cluster_bootstrap_server=$(jq -r ".${properties_name}.cluster_bootstrap_server" cc_properties.json)
+          sr_propertiesName=$(jq -r ".${properties_name}.sr_properties" cc_properties.json)
+          
+          echo "Obtener el API KEY SECRET"
+          kafka_api_key=$( echo '${{ env.CCD_UTIL_CLUSTER_PROPERTIES_KEY_SECRETS }}'|jq -r ".${properties_name}.kafka_api_key")
+          kafka_api_secret=$( echo '${{ env.CCD_UTIL_CLUSTER_PROPERTIES_KEY_SECRETS }}'|jq -r ".${properties_name}.kafka_api_secret")
+
+          echo "Obtener API KEY SCHEMA REGISTRY"
+          echo '${{ env.CCD_UTIL_SR_PROPERTIES}}' > cc_sr_properties.json
+          echo "Imprimir contenido del archivo cc_sr_properties.json"
+          cat cc_sr_properties.json
+          echo "validar JSON cc_sr_properties.json"
+          cat cc_sr_properties.json | jq .
+          schema_registry_id=$(jq -r ".${sr_propertiesName}.schema_registry_id" cc_sr_properties.json)
+          schema_registry_rest_endpoint=$(jq -r ".${sr_propertiesName}.schema_registry_rest_endpoint" cc_sr_properties.json)
+
+          echo "Obtener el SR API KEY SECRET"
+          schema_registry_api_key=$( echo '${{ env.CCD_UTIL_SR_PROPERTIES_KEY_SECRETS }}'|jq -r ".${sr_propertiesName}.schema_registry_api_key")
+          schema_registry_api_secret=$( echo '${{ env.CCD_UTIL_SR_PROPERTIES_KEY_SECRETS }}'|jq -r ".${sr_propertiesName}.schema_registry_api_secret")
+
+
+          cat <<EOF > ~/client.properties
+          bootstrap.servers=$cluster_bootstrap_server
+          security.protocol=SASL_SSL
+          sasl.mechanism=PLAIN
+          sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="$kafka_api_key" password="$kafka_api_secret";
+          EOF
+
+          echo "cluster_name: $properties_name"
+          echo "cluster_endpoint: $cluster_endpoint"
+          echo "cluster_bootstrap_server: $cluster_bootstrap_server"
+
+          echo "schema_registry_id: $schema_registry_id"
+          echo "schema_registry_rest_endpoint: $schema_registry_rest_endpoint"
+          echo "kafka_api_key: $kafka_api_key"
+
+          fromBeginning=""
+          if [ "${{ github.event.inputs.from_beginning }}" = "true" ]; then
+            fromBeginning="--from-beginning"
+          fi
+
+          kafka-topics.sh --bootstrap-server $cluster_bootstrap_server --command-config ~/client.properties --list
+
+          echo " "
+          echo " "
+          echo "********** EMPEZANDO A LEER EVENTOS ${{ github.event.inputs.name_topic }} **********************"
+          echo "kafka-console-consumer.sh --bootstrap-server $cluster_bootstrap_server --consumer.config ~/client.properties --topic ${{ github.event.inputs.name_topic }} $fromBeginning --timeout-ms ${{ github.event.inputs.timeout_ms }} --property print.timestamp=true --property print.key=true --property print.value=true --property print.headers=true  --property print.offset=true --property headers.separator=\" | \" \n"
+          kafka-console-consumer.sh --bootstrap-server $cluster_bootstrap_server --consumer.config ~/client.properties --topic "${{ github.event.inputs.name_topic }}" "$fromBeginning" --timeout-ms "${{ github.event.inputs.timeout_ms }}" --property print.timestamp=true --property print.key=true --property print.value=true --property print.headers=true  --property print.offset=true --property headers.separator=" | " | while read -r line; do
+            if [[ "$line" =~ CreateTime:([0-9]+) ]]; then
+              ts_ms="${BASH_REMATCH[1]}"
+              ts_sec=$((ts_ms / 1000))
+              ts_fmt=$(TZ="America/Lima" date -d @"$ts_sec" +"%Y-%m-%d %H:%M:%S")
+              echo -e "\033[0;32mFechaHora: $ts_fmt\033[0m $line\n"
+            else
+              echo "$line\n"
+            fi
+          done
+
+
+#          curl -v -k --max-time 10 telnet://bc23.lima.bcp.com.pe:38084 || echo "Curl command failed mainframe zos"
+

@@ -1,0 +1,9 @@
+environment:
+  schema_registry:
+    properties:
+      - name: azccdeu2peve02_bcp
+    subjects:
+      - name: azc-peve-transaction-value
+        format: AVRO
+        compatibility_mode: BACKWARD
+        context: default

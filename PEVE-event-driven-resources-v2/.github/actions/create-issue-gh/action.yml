@@ -1,0 +1,118 @@
+name: Crear Issue en GitHub
+description: Crear Issue en GitHub
+
+inputs:
+  owner:
+    description: Nombre de la organización
+    required: true
+  repo:
+    description: Nombre del repositorio
+    required: true
+  labels:
+    description: Nombre de Etiquetas
+    required: false
+  jira_issue:
+    description: jira_issue Issue
+    required: true
+  CONTENT:
+    description: Cuerpo del Issue
+    required: true
+  CASO_USO:
+    description: Caso de uso
+    required: true
+  ITSM_ENV:
+    description: Ambiente
+    required: true
+  Environment:
+    description: Codigo de Ambiente
+    required: true
+  CODAPP:
+    description: Codigo aplicacion
+    required: true
+  github-token:
+    description: Cuerpo del Issue
+    required: false
+
+outputs:
+  issue_id:
+    description: Número de Issue Generado.
+    value: ${{ steps.create_issue_gh.outputs.issue_id }}
+
+runs:
+  using: composite
+  steps:
+      - name: Process Labels
+        id: generate_labels
+        shell: bash
+        run: |
+          labels="${{ inputs.labels }}"
+          if [ -z "$labels" ]; then
+            echo "labels=['${{ inputs.Environment }}', '${{ inputs.ITSM_ENV }}', '${{ inputs.jira_issue }}', '${{ inputs.CODAPP }}']" >> $GITHUB_OUTPUT
+          else
+            labels=$(echo "$labels" | tr ';' '\n' | sed '/^\s*$/d' | tr '\n' ',' | sed 's/,/, /g')
+            labels=$(echo "$labels" | sed 's/, $//')  # Eliminar la última coma
+            echo "labels=['${{ inputs.Environment }}', '${{ inputs.ITSM_ENV }}', '${{ inputs.jira_issue }}', '${{ inputs.CODAPP }}', \"$(echo $labels | sed 's/, /\",\"/g')\"]" >> $GITHUB_OUTPUT
+          fi
+
+
+      - name: Create Issue
+        id: create_issue_gh
+        uses: actions/github-script@v7
+        env:
+          CONTENT: ${{ inputs.content }}
+        with:
+          github-token: ${{ inputs.github-token != '' && inputs.github-token || github.token }}
+          script: |
+
+            const title = "${{ inputs.jira_issue }} ${{ inputs.CASO_USO }} ${{ inputs.CODAPP }}"
+
+            let raw = process.env.CONTENT;
+            let body;
+
+            // Intentar parsear como JSON
+            try {
+              body = JSON.parse(raw);
+            } catch {
+              // Si falla, usar texto plano
+              body = raw;
+            }
+
+            // Si body no es texto, convertirlo a string
+            if (typeof body !== 'string') {
+              body = JSON.stringify(body, null, 2);
+            }
+
+            const MAX = 65000;
+            if (body.length > MAX) {
+              body = body.slice(0, MAX) + '… (contenido truncado)';
+            }
+
+            const { data: newIssue } = await github.rest.issues.create({
+              owner: '${{ inputs.owner }}',
+              repo: '${{ inputs.repo }}',
+              title: title,
+              body: body
+            });
+
+            const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+            await sleep(40000);
+
+            const labels = ${{ steps.generate_labels.outputs.labels}}
+            await github.rest.issues.addLabels({
+              owner: '${{ inputs.owner }}',
+              repo: '${{ inputs.repo }}',
+              issue_number: newIssue.number,
+              labels: labels
+            });
+
+            await sleep(40000);
+
+            await github.rest.issues.update({
+              owner: '${{ inputs.owner }}',
+              repo: '${{ inputs.repo }}',
+              issue_number: newIssue.number,
+              state: "closed"
+            });
+
+
+            core.setOutput("issue_id", newIssue.number);

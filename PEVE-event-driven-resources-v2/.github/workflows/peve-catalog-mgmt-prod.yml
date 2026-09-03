@@ -1,0 +1,191 @@
+name: peve-catalog-mgmt-prod
+on:
+  workflow_dispatch:
+      inputs:
+        CODAPP:
+          description: 'codigo de applicación de 4 letras'
+          required: true
+
+env:
+  TERRAFORM_VERSION: "1.12.2"
+  BRANCH_AUTOMATION: "automation-v3"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  PATH_CAROOT: "/tmp/certs/ca.crt"
+  TF_RELATIVE_SUBPATH: ".."
+  RELATIVE_SUBPATH_SRC: "."
+
+  HV_ADDRESS: "https://vault.lima.bcp.com.pe:443"
+
+#  GH_CLI_VERSION: "2.52.0"
+#  TF_LOG: "DEBUG"
+
+jobs:
+  PREPARE:
+    name: "Prepare ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set #self-hosted
+    environment: APP_PEVE_CI_PROD
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          echo "ejecutando rama ${{ github.ref_name }}"
+          echo "PR description: ${{ github.event.pull_request.title }}"
+          echo "PR description: ${{ github.event.pull_request.base.ref }}"
+          if [[ "${{ vars.BRANCH_TARGET }}" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido para ${{ vars.BRANCH_TARGET }}"
+            exit 1
+          fi
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git tree dnsutils ca-certificates gettext -y  > /dev/null 2>&1
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1 
+
+
+
+  CI_cc_tag:
+    name: "CI Job Tag ${{ github.event.inputs.CODAPP }}"
+    runs-on: "arc-runner-prod-set"
+    environment: APP_PEVE_CI_PROD
+    needs: PREPARE
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
+          secrets: |
+            cos/kv2/data/prod/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            cos/kv2/data/prod/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            cos/kv2/data/prod/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+      
+      - name: terraform plan - Tag
+        uses: ./.github/actions/eda-catalog-mgmt
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          JOB_STAGE : "CI"
+
+  CD_cc_tag:
+    name: "CD Job Tag ${{ github.event.inputs.CODAPP }}"
+    needs: CI_cc_tag
+    runs-on: "arc-runner-prod-set" #self-hosted
+    environment: APP_PEVE_CD_PROD
+
+    steps:
+      - name: Install basic tools
+        run: |
+          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
+
+      - name: Install NodeJs
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.13.1
+
+      - name: Get Secrets HV
+        id: get-secrets-hv
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.HV_ADDRESS }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
+          secrets: |
+            cos/kv2/data/prod/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            cos/kv2/data/prod/peve/ccloud/PEVE_GHA_CC_CLUSTER_KEY_SECRETS * ;
+            cos/kv2/data/prod/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Clone PEVE-event-driven-resources-v2 repository
+        uses: actions/checkout@v4
+
+      - name: Clone automation repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: automation
+ 
+      - name: Install CA Root Certificate
+        env:
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+        run: |
+          mkdir -p /tmp/certs
+          echo "${{ secrets.CA_CERT }}" > "${{ env.PATH_CAROOT }}"
+
+      - name: Instalar yq
+        uses: ./.github/actions/install-yq
+
+      - name: export path yq
+        run: |
+          echo "$HOME/bin" >> $GITHUB_PATH
+          yq --version
+      
+      - name: terraform apply - Tag
+        uses: ./.github/actions/eda-catalog-mgmt
+        with: 
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+          PATH_CAROOT: ${{ env.PATH_CAROOT }}
+          CODAPP: ${{ env.CODAPP }}
+          TF_RELATIVE_SUBPATH: ${{ env.TF_RELATIVE_SUBPATH }}
+          RELATIVE_SUBPATH_SRC: ${{ env.RELATIVE_SUBPATH_SRC }}
+          ENV: ${{ vars.ENV }}
+          STORAGE_ACCOUNT_NAME: ${{ vars.STORAGE_ACCOUNT_NAME }}
+          CC_SR_PROPERTIES: ${{ vars.CC_SR_PROPERTIES }}
+          JOB_STAGE : "CD"
+

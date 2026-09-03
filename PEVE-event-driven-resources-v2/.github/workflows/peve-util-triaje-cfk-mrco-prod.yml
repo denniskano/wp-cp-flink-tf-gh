@@ -1,0 +1,1517 @@
+name: peve-util-triaje-cfk-mrco-prod
+on:
+  workflow_dispatch:
+env:
+#  TF_LOG: "DEBUG"
+  AMBIENTE: "prod"
+  SC1_DNS_SERVER_01: "10.79.236.116"
+  SC1_DNS_SERVER_02: "10.79.236.117"
+
+  CU1_DNS_SERVER_01: "10.166.0.4"
+  CU1_DNS_SERVER_02: "10.166.0.5"
+
+  EU2_DNS_SERVER_01: "10.79.27.5"
+  EU2_DNS_SERVER_02: "10.79.27.4"
+
+  DOMAIN_OTELCO: "azingresso11yeu201.lima.bcp.com.pe"
+  DOMAIN_LDAP: "balanceadorad.credito.bcp.com.pe"
+
+jobs:
+  PREPARE:
+    name: "Prepare ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set #self-hosted
+
+    steps:
+
+      - name: Install basic tools
+        run: |
+          echo "ejecutando rama ${{ github.ref_name }}"
+          echo "PR description: ${{ github.event.pull_request.title }}"
+          echo "PR description: ${{ github.event.pull_request.base.ref }}"
+          if [[ "master" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido para ${{ vars.BRANCH_TARGET }}"
+            exit 1
+          fi
+#          sudo apt-get update  > /dev/null 2>&1; sudo apt-get install wget unzip git tree ca-certificates dnsutils jq -y  > /dev/null 2>&1
+
+  CFK_SC1:
+    name: "Health check AKS CFK SC1"
+    runs-on: arc-runner-prod-set
+    environment: PEVE_UTIL_CD_PROD
+    needs: PREPARE
+
+    steps:
+      - name: Cache de Binario kubectl
+        id: cache-kubectl
+        uses: actions/cache@v4
+        with:
+          path: ~/kubectl_bin
+          key: kubectl_bin
+
+      - name: Descargar kubectl sino existe en Cache
+        if: steps.cache-kubectl.outputs.cache-hit != 'true'
+        run: |
+          curl -o ~/kubectl_bin -L "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+
+      - name: Instalar kubectl
+        run: |
+          mkdir -p "$HOME/bin"
+          ls -liah ~/kubectl_bin
+          cp ~/kubectl_bin "$HOME/bin/kubectl"
+          sudo chmod a+x "$HOME/bin/kubectl"
+          echo "$HOME/bin" >> $GITHUB_PATH
+          ls -liah "$HOME/bin/kubectl"
+
+      - name: "get kubeconfig SC1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "sc1"
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.TMP_PEVE_AKS_SC1_KUBECONFIG_PROD }}" > ~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          ls -lia  ~/.kube
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl version
+          kubectl config get-contexts
+          kubectl cluster-info
+
+      - name: "Listar todos los nodos AKS SC1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "sc1"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar nodos AKS SC1"
+          kubectl get nodes -L agentpool -L topology.kubernetes.io/zone
+
+      - name: "Listar eventos de AKS SC1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "sc1"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar eventos de AKS SC1"
+          kubectl get events
+
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar eventos en el namespaces sc1"
+          kubectl -n sc1 get events
+
+      - name: "Test Dns server SC1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "sc1"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "Instalar tool dig y nslookup"
+          echo "--------------------------------------------------------------------------------------------------------"
+          kubectl -n poc exec -it $kafkaclient4_pod -- apk add bind-tools -y || true
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+
+          echo ""
+          echo ""
+          echo "DNS: ${{ env.SC1_DNS_SERVER_01 }} ${{ env.SC1_DNS_SERVER_02 }}"
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio:  mcr.microsoft.com"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup mcr.microsoft.com ${{ env.SC1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup mcr.microsoft.com ${{ env.SC1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: ${{ env.DOMAIN_LDAP }}"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup  ${{ env.DOMAIN_LDAP }} ${{ env.SC1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup  ${{ env.DOMAIN_LDAP }} ${{ env.SC1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: ${{ env.DOMAIN_OTELCO }}"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup ${{ env.DOMAIN_OTELCO }} ${{ env.SC1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup ${{ env.DOMAIN_OTELCO }} ${{ env.SC1_DNS_SERVER_02 }}
+
+      - name: "Curl Telnet SC1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "sc1"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a ${{ env.DOMAIN_OTELCO }} puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://${{ env.DOMAIN_OTELCO }}:443 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a mcr.microsoft.com puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://mcr.microsoft.com:443 || echo "Curl command force disconnect"
+
+      - name: "View Log zookeer and Quorum "
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "sc1"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n sc1 get pods
+          echo "View leader zookeeper"
+          kubectl -n sc1 logs zookeeper-0 |egrep -i "TOOK|Connected to leader"
+
+  CFK_CU1:
+    name: "Health check AKS CFK CU1"
+    runs-on: arc-runner-prod-set
+    environment: PEVE_UTIL_CD_PROD
+    needs: PREPARE
+
+
+    steps:
+      - name: Cache de Binario kubectl
+        id: cache-kubectl
+        uses: actions/cache@v4
+        with:
+          path: ~/kubectl_bin
+          key: kubectl_bin
+
+      - name: Descargar kubectl sino existe en Cache
+        if: steps.cache-kubectl.outputs.cache-hit != 'true'
+        run: |
+          curl -o ~/kubectl_bin -L "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+
+      - name: Instalar kubectl
+        run: |
+          mkdir -p "$HOME/bin"
+          ls -liah ~/kubectl_bin
+          cp ~/kubectl_bin "$HOME/bin/kubectl"
+          sudo chmod a+x "$HOME/bin/kubectl"
+          echo "$HOME/bin" >> $GITHUB_PATH
+          ls -liah "$HOME/bin/kubectl"
+
+      - name: "get kubeconfig CU1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.TMP_PEVE_AKS_CU1_KUBECONFIG_PROD }}" > ~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          ls -lia  ~/.kube
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl version
+          kubectl config get-contexts
+          kubectl cluster-info
+
+      - name: "Listar todos los nodos AKS CU1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar nodos AKS CU1"
+          kubectl get nodes -L agentpool -L topology.kubernetes.io/zone
+
+      - name: "Listar eventos de AKS CU1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar eventos de AKS CU1"
+          kubectl get events
+
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar eventos en el namespaces cu1"
+          kubectl -n cu1 get events
+
+      - name: "Test Dns server and LDAP CU1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "Instalar tool dig y nslookup"
+          echo "--------------------------------------------------------------------------------------------------------"
+          kubectl -n poc exec -it $kafkaclient4_pod -- apk add bind-tools -y || true
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+
+          echo ""
+          echo ""
+          echo "DNS: ${{ env.CU1_DNS_SERVER_01 }} ${{ env.CU1_DNS_SERVER_02 }}"
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio:  mcr.microsoft.com"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup mcr.microsoft.com ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup mcr.microsoft.com ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: ${{ env.DOMAIN_LDAP }}"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup  ${{ env.DOMAIN_LDAP }} ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup  ${{ env.DOMAIN_LDAP }} ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: schemaregistry.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: schemaregistry.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: kafka.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b0.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b1.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b2.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-eu2.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: kafka.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b0.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b1.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b2.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-cu1.lima.bcp.com.pe ${{ env.CU1_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: ${{ env.DOMAIN_OTELCO }}"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup ${{ env.DOMAIN_OTELCO }} ${{ env.CU1_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup ${{ env.DOMAIN_OTELCO }} ${{ env.CU1_DNS_SERVER_02 }}
+
+      - name: "Curl Telnet CU1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a ${{ env.DOMAIN_LDAP }} puerto 636 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://${{ env.DOMAIN_LDAP }}:636 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a mcr.microsoft.com puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://mcr.microsoft.com:443 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a schemaregistry.kafka-cu1.lima.bcp.com.pe puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://schemaregistry.kafka-cu1.lima.bcp.com.pe:443 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a schemaregistry.kafka-eu2.lima.bcp.com.pe puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://schemaregistry.kafka-eu2.lima.bcp.com.pe:443 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a ${{ env.DOMAIN_OTELCO }} puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://${{ env.DOMAIN_OTELCO }}:443 || echo "Curl command force disconnect"
+
+      - name: "Telnet Puertos Internos CFK - From CU1 to EU2 and SC1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo "********* ZOOKEEPER ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a zookeeper-0.zookeeper.cu1.svc.cluster.local:3888 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect zookeeper-0.zookeeper.cu1.svc.cluster.local:3888 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a zookeeper-0.zookeeper.eu2.svc.cluster.local:3888 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect zookeeper-0.zookeeper.eu2.svc.cluster.local:3888 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a zookeeper-0.zookeeper.sc1.svc.cluster.local:3888 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect zookeeper-0.zookeeper.sc1.svc.cluster.local:3888 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo "********* KAFKA MDS CU1 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO PROTOCOLO KAFKA CU1 port 9071 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo "********* PUERTO EXTERNO PROTOCOLO KAFKA CU1 port 9092 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo "********* KAFKA MDS EU2 port 8090 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO PROTOCOLO KAFKA EU2 port 9071 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo "********* PUERTO EXTERNO PROTOCOLO KAFKA EU2 port 9092 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO schemaregistry port 8081 CU1 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a schemaregistry-0.schemaregistry.cu1.svc.cluster.local:8081 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect schemaregistry-0.schemaregistry.cu1.svc.cluster.local:8081 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO schemaregistry port 8081 eu2 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a schemaregistry-0.schemaregistry.eu2.svc.cluster.local:8081 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect schemaregistry-0.schemaregistry.eu2.svc.cluster.local:8081 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+
+      - name: "View Log Error Schema Registry CU1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n cu1 get pods
+          echo "View Log Error Schema Registry CU1"
+          kubectl -n cu1 logs schemaregistry-0 |egrep -B 2 -i "io.confluent.license.LicenseStore licenseScan" || true
+
+      - name: "View Log zookeer and Quorum "
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "cu1"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n cu1 get pods
+          echo "View leader zookeeper"
+          kubectl -n cu1 logs zookeeper-0 |egrep -i "TOOK|Connected to leader"
+
+
+  CFK_EU2:
+    name: "Health check AKS CFK EU2"
+    runs-on: arc-runner-prod-set
+    environment: PEVE_UTIL_CD_PROD
+    needs: PREPARE
+
+
+    steps:
+      - name: Cache de Binario kubectl
+        id: cache-kubectl
+        uses: actions/cache@v4
+        with:
+          path: ~/kubectl_bin
+          key: kubectl_bin
+
+      - name: Descargar kubectl sino existe en Cache
+        if: steps.cache-kubectl.outputs.cache-hit != 'true'
+        run: |
+          curl -o ~/kubectl_bin -L "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+
+      - name: Instalar kubectl
+        run: |
+          mkdir -p "$HOME/bin"
+          ls -liah ~/kubectl_bin
+          cp ~/kubectl_bin "$HOME/bin/kubectl"
+          sudo chmod a+x "$HOME/bin/kubectl"
+          echo "$HOME/bin" >> $GITHUB_PATH
+          ls -liah "$HOME/bin/kubectl"
+
+      - name: "get kubeconfig EU2"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.TMP_PEVE_AKS_EU2_KUBECONFIG_PROD }}" > ~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          ls -lia  ~/.kube
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl version
+          kubectl config get-contexts
+          kubectl cluster-info
+
+      - name: "Listar todos los nodos AKS EU2"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar nodos AKS EU2"
+          kubectl get nodes -L agentpool -L topology.kubernetes.io/zone
+
+      - name: "Listar eventos de AKS EU2"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar eventos de AKS EU2"
+          kubectl get events
+
+          echo ""
+          echo ""
+          echo ""
+          echo "Listar eventos en el namespaces eu2"
+          kubectl -n eu2 get events
+
+      - name: "Test Dns server and LDAP EU2"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "Instalar tool dig y nslookup"
+          echo "--------------------------------------------------------------------------------------------------------"
+          kubectl -n poc exec -it $kafkaclient4_pod -- apk add bind-tools -y || true
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+
+          echo ""
+          echo ""
+          echo "DNS: ${{ env.EU2_DNS_SERVER_01 }} ${{ env.EU2_DNS_SERVER_02 }}"
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio:  mcr.microsoft.com"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup mcr.microsoft.com ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup mcr.microsoft.com ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: ${{ env.DOMAIN_LDAP }}"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup  ${{ env.DOMAIN_LDAP }} ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup  ${{ env.DOMAIN_LDAP }} ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: schemaregistry.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: schemaregistry.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup schemaregistry.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: kafka.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b0.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b1.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b2.kafka-eu2.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-eu2.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: kafka.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup kafka.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b0.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b0.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b1.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b1.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: b2.kafka-cu1.lima.bcp.com.pe"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup b2.kafka-cu1.lima.bcp.com.pe ${{ env.EU2_DNS_SERVER_02 }}
+
+          echo ""
+          echo ""
+          echo "Resolver nombre de dominio: ${{ env.DOMAIN_OTELCO }}"
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup ${{ env.DOMAIN_OTELCO }} ${{ env.EU2_DNS_SERVER_01 }}
+          kubectl -n poc exec -it $kafkaclient4_pod -- nslookup ${{ env.DOMAIN_OTELCO }} ${{ env.EU2_DNS_SERVER_02 }}
+
+      - name: "Curl Telnet EU2"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a ${{ env.DOMAIN_LDAP }} puerto 636 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://${{ env.DOMAIN_LDAP }}:636 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a mcr.microsoft.com puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://mcr.microsoft.com:443 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a schemaregistry.kafka-cu1.lima.bcp.com.pe puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://schemaregistry.kafka-cu1.lima.bcp.com.pe:443 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a schemaregistry.kafka-eu2.lima.bcp.com.pe puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://schemaregistry.kafka-eu2.lima.bcp.com.pe:443 || echo "Curl command force disconnect"
+
+          echo ""
+          echo ""
+          echo "hacer telnet a ${{ env.DOMAIN_OTELCO }} puerto 443 "
+          kubectl -n poc exec -it $kafkaclient4_pod -- curl -v --max-time 2 telnet://${{ env.DOMAIN_OTELCO }}:443 || echo "Curl command force disconnect"
+
+      - name: "Telnet Puertos Internos CFK - From EU2 to CU1 and SC1"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+#        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+
+          echo "********* ZOOKEEPER ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a zookeeper-0.zookeeper.cu1.svc.cluster.local:3888 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect zookeeper-0.zookeeper.cu1.svc.cluster.local:3888 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a zookeeper-0.zookeeper.eu2.svc.cluster.local:3888 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect zookeeper-0.zookeeper.eu2.svc.cluster.local:3888 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a zookeeper-0.zookeeper.sc1.svc.cluster.local:3888 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect zookeeper-0.zookeeper.sc1.svc.cluster.local:3888 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo "********* KAFKA MDS CU1 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.cu1.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.cu1.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO PROTOCOLO KAFKA CU1 port 9071 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.cu1.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.cu1.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+          echo ""
+          echo ""
+          echo "********* PUERTO EXTERNO PROTOCOLO KAFKA CU1 port 9092 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.cu1.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.cu1.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo "********* KAFKA MDS EU2 port 8090 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.eu2.svc.cluster.local:8090 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.eu2.svc.cluster.local:8090 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO PROTOCOLO KAFKA EU2 port 9071 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.eu2.svc.cluster.local:9071 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.eu2.svc.cluster.local:9071 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo "********* PUERTO EXTERNO PROTOCOLO KAFKA EU2 port 9092 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-0.kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-0.kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-1.kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-1.kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a kafka-2.kafka.eu2.svc.cluster.local:9092 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo ""
+          echo ""
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect kafka-2.kafka.eu2.svc.cluster.local:9092 | grep -Ei 'CONNECTED|SSL-Session|connect' || true
+
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO schemaregistry port 8081 CU1 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a schemaregistry-0.schemaregistry.cu1.svc.cluster.local:8081 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect schemaregistry-0.schemaregistry.cu1.svc.cluster.local:8081 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+
+          echo ""
+          echo ""
+          echo "********* PUERTO INTERNO schemaregistry port 8081 eu2 ************** "
+          echo ""
+          echo ""
+          echo ""
+          echo ""
+          echo "--------------------------------------------------------------------------------------------------------"
+          echo "hacer telnet a schemaregistry-0.schemaregistry.eu2.svc.cluster.local:8081 "
+          echo "--------------------------------------------------------------------------------------------------------"
+          kubectl -n poc exec -it $kafkaclient4_pod -- openssl s_client -connect schemaregistry-0.schemaregistry.eu2.svc.cluster.local:8081 | grep -Ei 'CONNECTED|SSL-Session|connect'
+
+
+      - name: "View Log Error Schema Registry EU2"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        continue-on-error: true
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n eu2 get pods
+          echo "View Log Error Schema Registry EU2"
+          kubectl -n eu2 logs schemaregistry-0 |egrep -B 2 -i "io.confluent.license.LicenseStore licenseScan" || true
+
+      - name: "View Log zookeer and Quorum "
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n eu2 get pods
+          echo "View leader zookeeper"
+          kubectl -n eu2 logs zookeeper-0 |egrep -i "TOOK|Connected to leader"
+
+      - name: "List topics CFK"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+          echo ""
+          echo ""
+          echo "Listar todos los topicos CFK"
+          kubectl -n poc exec -it $kafkaclient4_pod -- /root/console-script/confluent-7.6.2/bin/kafka-topics --list --bootstrap-server kafka.kafka-eu2.lima.bcp.com.pe:9092 --command-config /root/rbac/certificate/USREJCLI4CFKPRO/kafka-k8s-prod.properties
+
+
+      - name: "List topics mirror CFK"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+          echo ""
+          echo ""
+          echo "Listar todos los topicos mirror de CFK"
+          kubectl -n poc exec -it $kafkaclient4_pod -- /root/console-script/confluent-7.6.2/bin/kafka-mirrors --list --bootstrap-server kafka.kafka-eu2.lima.bcp.com.pe:9092 --command-config /root/rbac/certificate/USREJCLI4CFKPRO/kafka-k8s-prod.properties
+
+      - name: "Describir topics mirror CFK (View Lag)"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+          echo ""
+          echo ""
+          echo "Describir topics mirror CFK"
+          kubectl -n poc exec -it $kafkaclient4_pod -- /root/console-script/confluent-7.6.2/bin/kafka-mirrors --describe --bootstrap-server kafka.kafka-eu2.lima.bcp.com.pe:9092 --command-config /root/rbac/certificate/USREJCLI4CFKPRO/kafka-k8s-prod.properties
+
+      - name: "Describir Cluster Linking CFK"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+          echo ""
+          echo ""
+          echo "Describir Cluster Linking CFK"
+          kubectl -n poc exec -it $kafkaclient4_pod -- /root/console-script/confluent-7.6.2/bin/kafka-cluster-links --describe --bootstrap-server kafka.kafka-eu2.lima.bcp.com.pe:9092 --command-config /root/rbac/certificate/USREJCLI4CFKPRO/kafka-k8s-prod.properties
+
+
+      - name: "Describe under-replicated-partitions CFK"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+          echo ""
+          echo ""
+          echo "Describe --under-replicated-partitions CFK "
+          kubectl -n poc exec -it $kafkaclient4_pod -- /root/console-script/confluent-7.6.2/bin/kafka-topics --describe --under-replicated-partitions --bootstrap-server kafka.kafka-eu2.lima.bcp.com.pe:9092 --command-config /root/rbac/certificate/USREJCLI4CFKPRO/kafka-k8s-prod.properties
+
+      - name: "Describe under-min-isr-partitions CFK"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+          echo ""
+          echo ""
+          echo "Describe --under-min-isr-partitions CFK "
+          kubectl -n poc exec -it $kafkaclient4_pod -- /root/console-script/confluent-7.6.2/bin/kafka-topics --describe --under-min-isr-partitions --bootstrap-server kafka.kafka-eu2.lima.bcp.com.pe:9092 --command-config /root/rbac/certificate/USREJCLI4CFKPRO/kafka-k8s-prod.properties
+
+
+      - name: "Describe unavailable-partitions CFK"
+        shell: bash
+        env:
+          ENV: ${{ env.AMBIENTE }}
+          REGION: "eu2"
+        run: |
+          export KUBECONFIG=~/.kube/aks-${{ env.REGION }}-config-${{ env.ENV }}
+          kubectl config get-contexts
+          kubectl -n poc get pods --no-headers |grep kafkaclient4
+          kafkaclient4_pod=$(kubectl -n poc get po --no-headers |grep kafkaclient4 | awk 'NR==1{print $1}')
+          echo "Nos conectamos al Pod: $kafkaclient4_pod"
+          echo ""
+          echo ""
+          echo "Describe --unavailable-partitions CFK "
+          kubectl -n poc exec -it $kafkaclient4_pod -- /root/console-script/confluent-7.6.2/bin/kafka-topics --describe --unavailable-partitions --bootstrap-server kafka.kafka-eu2.lima.bcp.com.pe:9092 --command-config /root/rbac/certificate/USREJCLI4CFKPRO/kafka-k8s-prod.properties

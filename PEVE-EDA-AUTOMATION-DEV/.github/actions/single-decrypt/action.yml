@@ -1,0 +1,55 @@
+
+name: "Decrypt una cadena"
+description: "Descifra usando una llave. Expone plaintext (no lo pases entre jobs)."
+
+inputs:
+  ciphertext:
+    description: "Ciphertext en Base64 (una sola línea)"
+    required: true
+  host:
+    description: "HOSTNAME usado en el cifrado (proporcionado por el job anterior)"
+    required: true
+  extra_key:
+    description: "PARTE 2 de la llave usado para cifrar"
+    required: true
+  openssl_alg:
+    description: "Algoritmo OpenSSL"
+    required: false
+    default: "aes-256-cbc"
+  openssl_iter:
+    description: "Iteraciones PBKDF2"
+    required: false
+    default: "200000"
+
+outputs:
+  PLAINTEXT:
+    description: "Texto plano (descifrado). Úsalo SOLO en el mismo job."
+    value: ${{ steps.decrypt.outputs.PLAINTEXT }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Decrypt (host + extra_key)
+      id: decrypt
+      shell: bash
+      env:
+        CIPHER: ${{ inputs.ciphertext }}
+        HOST_FOR_KEY: ${{ inputs.host }}
+        KEY_PART2: ${{ inputs.extra_key }}
+        ALG: ${{ inputs.openssl_alg }}
+        ITER: ${{ inputs.openssl_iter }}
+      run: |
+        set -euo pipefail
+        KEY="${HOST_FOR_KEY}${KEY_PART2}"
+        echo "::add-mask::${KEY}"
+
+        # Descifrar (mismas opciones que en el cifrado)
+        PT="$(printf '%s' "${CIPHER}" \
+                      | openssl enc -"${ALG}" -pbkdf2 -iter "${ITER}" -md sha256 \
+                                  -d -salt -base64 -A -pass pass:"${KEY}")"
+        {
+          echo "PLAINTEXT<<EOF"
+          printf '%s\n' "${PT}"
+          echo "EOF"
+        } >> "${GITHUB_OUTPUT}"
+

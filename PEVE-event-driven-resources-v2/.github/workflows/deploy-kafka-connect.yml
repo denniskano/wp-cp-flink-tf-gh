@@ -1,0 +1,380 @@
+# Orquesta Connect. Terraform: PEVE-event-driven-automation. YAML: PEVE-kafka-connect-resources-v1.
+name: deploy-kafka-connect
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "plan/apply/destroy = todo el use-case. pause/resume = un conector (input connector)."
+        required: true
+        default: "apply"
+        type: choice
+        options:
+          - apply
+          - destroy
+          - plan
+          - pause
+          - resume
+      CODAPP:
+        description: "codigo de applicación de 4 letras"
+        required: true
+        type: string
+      use_case:
+        description: "Carpeta del caso de uso en kafka-connect-resources (ej. use-case-name-02)"
+        required: true
+        type: string
+      connector:
+        description: "Solo pause/resume. Basename del YAML en connects/ sin .yaml."
+        required: false
+        type: string
+        default: ""
+
+run-name: >
+  ${{ github.event.inputs.CODAPP }} ${{ github.workflow }} [${{ github.event.inputs.action }}]
+
+env:
+  VAULT_ADDR: "https://vaultdev.lima.bcp.com.pe:443"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  USE_CASE: ${{ github.event.inputs.use_case }}
+  ENVIRONMENT: "DES"
+  ENV_FOLDER: "desa"
+  VAULT_ENV_PATH: "dev"
+  STORAGE_CONTAINER_NAME: tf-connect-dev
+  RESOURCE_GROUP_NAME: RSGREU2PEVED01
+  KAFKA_CLUSTER_ID: "lkc-xzyppq"
+  TERRAFORM_VERSION: "1.5.0"
+  NODE_VERSION: "20"
+  TERRAFORM_WORKDIR: iac/stacks/kafka-connect
+  SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01
+  API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01
+  GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
+  OWNER_EXTERNO: BCP-Integration-Automation
+  REPO_IAC: PEVE-event-driven-automation
+  IAC_REF: main
+  REPO_EXTERNO: PEVE-kafka-connect-resources-v1
+  RESOURCES_BRANCH_EXTERNO: develop
+
+jobs:
+  PREPARE:
+    name: "Prepare: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set
+    environment: APP_AUTOMATION_BOT
+    outputs:
+      CIPHER: ${{ steps.enc.outputs.CIPHER }}
+      HOST: ${{ steps.enc.outputs.HOST }}
+    steps:
+      - name: Checkout workflows repo
+        uses: actions/checkout@v4
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update > /dev/null 2>&1
+          sudo apt-get install jq unzip git tree dnsutils ca-certificates gettext -y > /dev/null 2>&1
+
+      - name: Get GithubApp from Secrets HV
+        id: get-ghapp-peve-key
+        uses: hashicorp/vault-action@v3
+        with:
+          url: https://vault.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
+          secrets: |
+            cos/kv2/data/prod/peve/ccloud/ghapp_peve_self_service_pk secret | ghapp_peve_self_service_pk ;
+
+      - name: Generar token GitHub App (IaC + Connect resources)
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ env.GITHUB_APP_ID }}
+          private-key: ${{ steps.get-ghapp-peve-key.outputs.ghapp_peve_self_service_pk }}
+          owner: ${{ env.OWNER_EXTERNO }}
+          repositories: ${{ env.REPO_IAC }},${{ env.REPO_EXTERNO }}
+          skip-token-revoke: true
+
+      - name: Cifrar token de sesion de githubapp
+        id: enc
+        uses: ./.github/actions/single-encrypt
+        with:
+          plaintext: ${{ steps.app-token.outputs.token }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+  deploy-connectors:
+    name: "CI Connectors: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-desa-set
+    environment: APP_PEVE_CI_DESA
+    needs: PREPARE
+    steps:
+      - name: Checkout workflows repo
+        uses: actions/checkout@v4
+
+      - name: Descifrar token de sesion de githubapp
+        id: dec
+        uses: ./.github/actions/single-decrypt
+        with:
+          ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
+          host: ${{ needs.PREPARE.outputs.HOST }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+      - name: set environment TOKEN de sesion para repos externos
+        run: |
+          echo "GHAPP_TOKEN_REPO_V3=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
+
+      - name: Checkout IaC (PEVE-event-driven-automation)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_IAC }}
+          ref: ${{ env.IAC_REF }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./iac
+
+      - name: Checkout Connect resources
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
+          ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./externo
+
+      - name: Paths Terraform (desde stacks/kafka-connect)
+        run: |
+          echo "TF_VAR_connectors_dir=../../externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects" >> "$GITHUB_ENV"
+          echo "TF_VAR_security_dir=../../externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security" >> "$GITHUB_ENV"
+
+      - name: Verify use-case + pause/resume
+        run: |
+          CONNECTORS_DIR="externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects"
+          SECURITY_DIR="externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security"
+          ACTION="${{ github.event.inputs.action }}"
+
+          ./iac/scripts/ci/validate-yaml.sh "${CONNECTORS_DIR}" "${SECURITY_DIR}" "${ACTION}"
+
+          CONN="${{ github.event.inputs.connector }}"
+          CONN="${CONN#"${CONN%%[![:space:]]*}"}"
+          CONN="${CONN%"${CONN##*[![:space:]]}"}"
+          CONN="${CONN%.yaml}"
+          CONN="${CONN%.yml}"
+          if [ "${ACTION}" = "pause" ] || [ "${ACTION}" = "resume" ]; then
+            if [ -z "${CONN}" ]; then
+              echo "❌ pause/resume requiere el input connector (nombre del YAML sin extensión)."
+              exit 1
+            fi
+            if [ ! -f "${CONNECTORS_DIR}/${CONN}.yaml" ]; then
+              echo "❌ No existe ${CONNECTORS_DIR}/${CONN}.yaml"
+              find "${CONNECTORS_DIR}" -maxdepth 1 -type f -name '*.yaml' -exec basename {} .yaml \;
+              exit 1
+            fi
+            STATUS="PAUSED"
+            [ "${ACTION}" = "resume" ] && STATUS="RUNNING"
+            echo "CONNECTOR_KEY=${CONN}" >> "$GITHUB_ENV"
+            {
+              echo "TF_VAR_connector_status_overrides<<OVERRIDES_END"
+              printf '{"%s":"%s"}\n' "${CONN}" "${STATUS}"
+              echo "OVERRIDES_END"
+            } >> "$GITHUB_ENV"
+            echo "Ok ${ACTION} → ${CONN} status=${STATUS} (in-place)."
+          else
+            echo "TF_VAR_connector_status_overrides={}" >> "$GITHUB_ENV"
+          fi
+
+          if [ "${ACTION}" = "destroy" ]; then
+            echo "TF_VAR_allow_empty_connectors=true" >> "$GITHUB_ENV"
+          else
+            echo "TF_VAR_allow_empty_connectors=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: JSON Schema lint ./externo
+        if: github.event.inputs.action != 'destroy'
+        run: |
+          pip install --quiet check-jsonschema
+          CONNECTORS_DIR="${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects"
+          SECURITY_DIR="${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security"
+          ./iac/scripts/ci/schema-lint.sh "${CONNECTORS_DIR}" "${SECURITY_DIR}"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Install yq
+        uses: ./.github/actions/install-yq
+
+      - name: Extract Environment ID from CC_PROPERTIES
+        run: |
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> "$GITHUB_ENV"
+
+      - name: Get Terraform Provider Secrets
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          exportToken: true
+          secrets: |
+            peve/kv2/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/kv2/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+
+      - name: Fetch connector secrets from Vault
+        run: |
+          CONNECTORS_DIR="externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects"
+          SECRETS_JSON="{}"
+
+          if [ ! -d "${CONNECTORS_DIR}" ]; then
+            {
+              echo "CONNECTOR_SECRETS<<CONNECTOR_SECRETS_JSON_END"
+              printf '%s\n' "$SECRETS_JSON"
+              echo "CONNECTOR_SECRETS_JSON_END"
+            } >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if [ -z "${VAULT_TOKEN:-}" ]; then
+            echo "❌ VAULT_TOKEN no está disponible"
+            exit 1
+          fi
+
+          EXTRA_CURL_HEADERS=()
+          if [ -n "${VAULT_NAMESPACE:-}" ]; then
+            EXTRA_CURL_HEADERS+=(-H "X-Vault-Namespace: ${VAULT_NAMESPACE}")
+          fi
+
+          for yaml_file in $(find "${CONNECTORS_DIR}" -maxdepth 1 -type f -name '*.yaml' | sort); do
+            connector_name=$(basename "$yaml_file" .yaml)
+            secrets_keys=$(yq -r '.vault.secrets | keys | .[]' "$yaml_file" 2>/dev/null || echo "")
+            if [ -z "$secrets_keys" ]; then
+              echo "⏭️  No vault.secrets for ${connector_name}"
+              continue
+            fi
+
+            connector_secrets="{}"
+            while IFS= read -r key; do
+              vault_path=$(yq -r ".vault.secrets.\"${key}\".path" "$yaml_file")
+              vault_field=$(yq -r ".vault.secrets.\"${key}\".field" "$yaml_file")
+              if [ -z "$vault_path" ] || [ "$vault_path" == "null" ] || [ -z "$vault_field" ] || [ "$vault_field" == "null" ]; then
+                echo "❌ vault.secrets.${key} debe tener path y field en ${yaml_file}"
+                exit 1
+              fi
+              if [[ "${vault_path}" == */kv2/data/* ]]; then
+                :
+              elif [[ "${vault_path}" == */data/* ]]; then
+                _vp_prefix="${vault_path%%/data/*}"
+                _vp_suffix="${vault_path#*/data/}"
+                vault_path="${_vp_prefix}/kv2/data/${_vp_suffix}"
+              fi
+
+              vault_resp=$(curl -sS -k -w "\n%{http_code}" \
+                -H "X-Vault-Token: ${VAULT_TOKEN}" \
+                "${EXTRA_CURL_HEADERS[@]}" \
+                "${VAULT_ADDR}/v1/${vault_path}")
+              http_code="$(echo "$vault_resp" | tail -n 1)"
+              body="$(echo "$vault_resp" | sed '$d')"
+              if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+                echo "❌ Vault HTTP ${http_code} ${vault_path}"
+                exit 1
+              fi
+              secret_value=$(echo "$body" | jq -r --arg f "$vault_field" '.data.data[$f] // empty')
+              secret_value=$(printf '%s' "$secret_value" | tr -d '\r' | sed 's/[[:space:]]*$//')
+              if [ -z "$secret_value" ] || [ "$secret_value" == "null" ]; then
+                echo "❌ Failed ${vault_path} -> ${vault_field}"
+                exit 1
+              fi
+              connector_secrets=$(echo "$connector_secrets" | jq --arg k "$key" --arg v "$secret_value" '. + {($k): $v}')
+            done <<< "$secrets_keys"
+
+            SECRETS_JSON=$(echo "$SECRETS_JSON" | jq --arg cn "$connector_name" --argjson cs "$connector_secrets" '. + {($cn): $cs}')
+          done
+
+          {
+            echo "CONNECTOR_SECRETS<<CONNECTOR_SECRETS_JSON_END"
+            printf '%s\n' "$SECRETS_JSON"
+            echo "CONNECTOR_SECRETS_JSON_END"
+          } >> "$GITHUB_ENV"
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=dev/${{ env.CODAPP }}/${{ env.USE_CASE }}/tf-connect.tfstate" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
+        run: terraform plan
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
+          TF_VAR_security_dir: ${{ env.TF_VAR_security_dir }}
+          TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
+          TF_VAR_environment: ${{ env.ENVIRONMENT }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
+          TF_VAR_connector_status_overrides: ${{ env.TF_VAR_connector_status_overrides }}
+          TF_VAR_allow_empty_connectors: ${{ env.TF_VAR_allow_empty_connectors }}
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
+          TF_VAR_security_dir: ${{ env.TF_VAR_security_dir }}
+          TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
+          TF_VAR_environment: ${{ env.ENVIRONMENT }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
+          TF_VAR_connector_status_overrides: ${{ env.TF_VAR_connector_status_overrides }}
+          TF_VAR_allow_empty_connectors: ${{ env.TF_VAR_allow_empty_connectors }}
+
+      - name: Terraform Pause or Resume
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        if: github.event.inputs.action == 'pause' || github.event.inputs.action == 'resume'
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
+          TF_VAR_security_dir: ${{ env.TF_VAR_security_dir }}
+          TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
+          TF_VAR_environment: ${{ env.ENVIRONMENT }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
+          TF_VAR_connector_status_overrides: ${{ env.TF_VAR_connector_status_overrides }}
+          TF_VAR_allow_empty_connectors: ${{ env.TF_VAR_allow_empty_connectors }}
+        run: |
+          TARGET='module.connectors.confluent_connector.connectors["'"${CONNECTOR_KEY}"'"]'
+          terraform plan -target="${TARGET}"
+          terraform apply -auto-approve -target="${TARGET}"
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
+          TF_VAR_security_dir: ${{ env.TF_VAR_security_dir }}
+          TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
+          TF_VAR_environment: ${{ env.ENVIRONMENT }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
+          TF_VAR_connector_status_overrides: ${{ env.TF_VAR_connector_status_overrides }}
+          TF_VAR_allow_empty_connectors: ${{ env.TF_VAR_allow_empty_connectors }}
