@@ -1,0 +1,30 @@
+# Guía: ../docs/sqlserver-source.md
+# https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-source.html
+name: "tpl-sqlserver-source"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-sqlserver-source"
+  connector.class: "MicrosoftSqlServerSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  topic.prefix: "azc-app-sql-"
+  output.data.format: "AVRO"
+  connection.host: "sql-app.database.windows.net"
+  connection.port: "1433"
+  db.name: "appdb"
+  table.include.list: "dbo.demo_events"
+  timestamp.columns.mapping: "dbo.demo_events:[updated_at]"
+  ssl.mode: "require"
+  db.timezone: "UTC"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_APP_SQLSRC_01"
+  secrets:
+    connection.user:
+      path: "peve/data/dev/peve/sqlserver/DB_APP_CONNECT_DEV"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/sqlserver/DB_APP_CONNECT_DEV"
+      field: "password"

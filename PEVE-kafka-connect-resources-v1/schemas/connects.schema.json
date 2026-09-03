@@ -1,44 +1,148 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://peve.local/schemas/connects.schema.json",
-  "title": "Kafka Connect connector YAML (PEVE-kafka-connect-resources-v1)",
+  "title": "Kafka Connect full-managed (Confluent Cloud)",
   "type": "object",
   "required": ["name", "status", "config_nonsensitive", "vault"],
   "additionalProperties": true,
   "not": {
-    "required": ["config_sensitive"],
-    "description": "En resources usa vault.secrets, no config_sensitive (solo pruebas locales)."
+    "required": ["config_sensitive"]
   },
   "properties": {
-    "name": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Nombre en Confluent Cloud. No lo cambies después del primer apply."
-    },
-    "status": {
-      "type": "string",
-      "enum": ["RUNNING", "PAUSED"]
-    },
+    "name": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["RUNNING", "PAUSED"] },
     "config_nonsensitive": {
       "type": "object",
-      "required": ["connector.class", "kafka.auth.mode"],
+      "required": ["connector.class", "kafka.auth.mode", "tasks.max"],
       "additionalProperties": true,
       "properties": {
         "name": { "type": "string" },
-        "connector.class": { "type": "string", "minLength": 1 },
-        "kafka.auth.mode": { "const": "SERVICE_ACCOUNT" },
-        "topics": { "type": "string", "minLength": 1 },
-        "kafka.topic": { "type": "string", "minLength": 1 }
-      },
-      "oneOf": [
-        {
-          "required": ["topics"],
-          "not": { "required": ["kafka.topic"] }
+        "connector.class": {
+          "type": "string",
+          "enum": [
+            "DatagenSource",
+            "PostgresSink",
+            "MicrosoftSqlServerSink",
+            "AzureEventHubsSource",
+            "HttpSinkV2",
+            "AzureBlobSink",
+            "AzureDataLakeGen2Sink",
+            "CosmosDbSinkV2",
+            "IbmMQSource",
+            "IbmMQSink",
+            "IbmMqSink",
+            "SalesforcePlatformEventSink",
+            "SalesforceCdcSource",
+            "PostgresSource",
+            "MicrosoftSqlServerSource",
+            "MySqlSink",
+            "MongoDbAtlasSink",
+            "SnowflakeSink",
+            "AzureServiceBusSource",
+            "AzureFunctionsSink",
+            "HttpSourceV2",
+            "CosmosDbSourceV2",
+            "AzureBlobSource"
+          ]
         },
-        {
-          "required": ["kafka.topic"],
-          "not": { "required": ["topics"] }
+        "kafka.auth.mode": { "const": "SERVICE_ACCOUNT" },
+        "tasks.max": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+        "topics": { "type": "string", "minLength": 1 },
+        "kafka.topic": { "type": "string", "minLength": 1 },
+        "topic.prefix": { "type": "string", "minLength": 1 },
+        "topic.regex.list": { "type": "string", "minLength": 1 },
+        "api1.topics": { "type": "string", "minLength": 1 },
+        "azure.cosmos.source.containers.topicMap": {
+          "type": "string",
+          "pattern": "^[^,#\\s]+#[^,#\\s]+(,\\s*[^,#\\s]+#[^,#\\s]+)*$"
+        },
+        "salesforce.cdc.name": { "type": "string", "minLength": 1 },
+        "schema.context.name": { "type": "string", "minLength": 1 },
+        "input.data.format": {
+          "type": "string",
+          "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "BYTES", "STRING"]
+        },
+        "output.data.format": {
+          "type": "string",
+          "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "BYTES", "STRING", "PARQUET"]
+        },
+        "errors.tolerance": { "type": "string", "enum": ["none", "all"] },
+        "ssl.mode": {
+          "type": "string",
+          "enum": ["prefer", "require", "verify-ca", "verify-full"]
+        },
+        "insert.mode": { "type": "string", "enum": ["INSERT", "UPSERT"] },
+        "connection.port": { "type": "string", "pattern": "^[1-9][0-9]{0,4}$" },
+        "time.interval": { "type": "string", "enum": ["HOURLY", "DAILY"] },
+        "partitioner.class": {
+          "type": "string",
+          "enum": ["DefaultPartitioner", "TimeBasedPartitioner", "FieldPartitioner"]
+        },
+        "jms.destination.type": { "type": "string", "enum": ["queue", "topic"] },
+        "mq.port": { "type": "string", "pattern": "^[1-9][0-9]{0,4}$" },
+        "auth.type": {
+          "type": "string",
+          "enum": ["NONE", "BASIC", "OAUTH2", "BEARER", "API_KEY"]
+        },
+        "apis.num": { "type": "string", "pattern": "^([1-9]|1[0-5])$" },
+        "salesforce.grant.type": {
+          "type": "string",
+          "enum": ["PASSWORD", "JWT_BEARER", "CLIENT_CREDENTIALS", "OAUTH2_AUTH_CODE_BYOA"]
+        },
+        "salesforce.platform.event.num": { "type": "string", "pattern": "^[1-5]$" },
+        "salesforce.platform.event1.name": { "type": "string", "pattern": ".+__e$" },
+        "salesforce.instance": { "type": "string", "pattern": "^https://.+" },
+        "azure.eventhubs.partition.starting.position": {
+          "type": "string",
+          "enum": ["START_OF_STREAM", "END_OF_STREAM"]
+        },
+        "azure.eventhubs.transport.type": {
+          "type": "string",
+          "enum": ["AMQP", "AMQP_WEB_SOCKETS"]
+        },
+        "azure.eventhubs.offset.type": {
+          "type": "string",
+          "enum": ["OFFSET", "SEQ_NUM"]
+        },
+        "azure.cosmos.account.endpoint": { "type": "string", "pattern": "^https://.+" },
+        "azure.cosmos.sink.containers.topicMap": {
+          "type": "string",
+          "pattern": "^[^,#\\s]+#[^,#\\s]+(,\\s*[^,#\\s]+#[^,#\\s]+)*$"
+        },
+        "azure.cosmos.sink.id.strategy": {
+          "type": "string",
+          "enum": [
+            "FullKeyStrategy",
+            "KafkaMetadataStrategy",
+            "ProvidedInKeyStrategy",
+            "ProvidedInValueStrategy",
+            "TemplateStrategy"
+          ]
+        },
+        "azure.cosmos.sink.write.strategy": {
+          "type": "string",
+          "enum": [
+            "ItemAppend",
+            "ItemDelete",
+            "ItemDeleteIfNotModified",
+            "ItemOverwrite",
+            "ItemOverwriteIfNotModified",
+            "ItemPatch"
+          ]
+        },
+        "azure.cosmos.auth.type": {
+          "type": "string",
+          "enum": ["MasterKey", "ServicePrincipal", "SERVICE_PRINCIPAL"]
         }
+      },
+      "not": { "required": ["topics", "kafka.topic"] },
+      "anyOf": [
+        { "required": ["topics"] },
+        { "required": ["kafka.topic"] },
+        { "required": ["topic.prefix"] },
+        { "required": ["topic.regex.list"] },
+        { "required": ["api1.topics"] },
+        { "required": ["azure.cosmos.source.containers.topicMap"] }
       ]
     },
     "vault": {
@@ -61,5 +165,1022 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "DatagenSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": ["kafka.topic", "output.data.format"],
+            "properties": {
+              "output.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON"]
+              },
+              "quickstart": {
+                "type": "string",
+                "enum": [
+                  "CLICKSTREAM_CODES",
+                  "CLICKSTREAM",
+                  "CLICKSTREAM_USERS",
+                  "ORDERS",
+                  "RATINGS",
+                  "USERS",
+                  "USERS_ARRAY",
+                  "PAGEVIEWS",
+                  "STOCK_TRADES",
+                  "INVENTORY",
+                  "PRODUCT",
+                  "PURCHASES",
+                  "TRANSACTIONS",
+                  "STORES",
+                  "CREDIT_CARDS",
+                  "CAMPAIGN_FINANCE",
+                  "FLEET_MGMT_DESCRIPTION",
+                  "FLEET_MGMT_LOCATION",
+                  "FLEET_MGMT_SENSORS",
+                  "PIZZA_ORDERS",
+                  "PIZZA_ORDERS_COMPLETED",
+                  "PIZZA_ORDERS_CANCELLED",
+                  "INSURANCE_OFFERS",
+                  "INSURANCE_CUSTOMERS",
+                  "INSURANCE_CUSTOMER_ACTIVITY",
+                  "GAMING_GAMES",
+                  "GAMING_PLAYERS",
+                  "GAMING_PLAYER_ACTIVITY",
+                  "PAYROLL_EMPLOYEE",
+                  "PAYROLL_EMPLOYEE_LOCATION",
+                  "PAYROLL_BONUS",
+                  "SYSLOG_LOGS",
+                  "DEVICE_INFORMATION",
+                  "SIEM_LOGS",
+                  "SHOES",
+                  "SHOE_CUSTOMERS",
+                  "SHOE_ORDERS",
+                  "SHOE_CLICKSTREAM"
+                ]
+              }
+            },
+            "oneOf": [
+              { "required": ["quickstart"], "not": { "required": ["schema.string"] } },
+              { "required": ["schema.string"], "not": { "required": ["quickstart"] } }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "PostgresSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "connection.host",
+              "connection.port",
+              "db.name"
+            ],
+            "properties": {
+              "input.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "STRING"]
+              }
+            }
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["connection.user", "connection.password"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "MicrosoftSqlServerSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "connection.host",
+              "connection.port",
+              "db.name"
+            ],
+            "properties": {
+              "input.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "STRING"]
+              }
+            }
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["connection.user", "connection.password"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "AzureEventHubsSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "kafka.topic",
+              "output.data.format",
+              "azure.eventhubs.namespace",
+              "azure.eventhubs.hub.name",
+              "azure.eventhubs.consumer.group"
+            ],
+            "properties": {
+              "output.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON"]
+              }
+            }
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["azure.eventhubs.sas.keyname", "azure.eventhubs.sas.key"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "HttpSinkV2" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "http.api.base.url",
+              "auth.type",
+              "apis.num",
+              "api1.http.request.method"
+            ],
+            "properties": {
+              "input.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "BYTES", "STRING"]
+              },
+              "api1.http.request.method": {
+                "enum": ["POST", "PUT", "PATCH", "GET", "DELETE"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "HttpSinkV2" },
+              "auth.type": { "const": "OAUTH2" }
+            },
+            "required": ["connector.class", "auth.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": ["oauth2.token.url"]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["oauth2.client.id", "oauth2.client.secret"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "HttpSinkV2" },
+              "auth.type": { "const": "BEARER" }
+            },
+            "required": ["connector.class", "auth.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["bearer.token"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "HttpSinkV2" },
+              "auth.type": { "const": "BASIC" }
+            },
+            "required": ["connector.class", "auth.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["connection.user", "connection.password"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "AzureBlobSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "output.data.format",
+              "azblob.account.name",
+              "azblob.container.name",
+              "time.interval"
+            ],
+            "properties": {
+              "input.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "BYTES"]
+              },
+              "output.data.format": { "enum": ["AVRO", "JSON", "BYTES"] }
+            }
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["azblob.account.key"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "AzureDataLakeGen2Sink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "output.data.format",
+              "azure.datalake.gen2.account.name",
+              "partitioner.class"
+            ],
+            "properties": {
+              "input.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "BYTES"]
+              },
+              "output.data.format": { "enum": ["AVRO", "PARQUET", "JSON", "BYTES"] },
+              "partitioner.class": {
+                "enum": ["DefaultPartitioner", "TimeBasedPartitioner"]
+              }
+            }
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["azure.datalake.gen2.access.key"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "AzureDataLakeGen2Sink" },
+              "partitioner.class": { "const": "TimeBasedPartitioner" }
+            },
+            "required": ["connector.class", "partitioner.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": ["time.interval"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "CosmosDbSinkV2" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "azure.cosmos.account.endpoint",
+              "azure.cosmos.sink.database.name",
+              "azure.cosmos.sink.containers.topicMap"
+            ],
+            "properties": {
+              "input.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "CosmosDbSinkV2" },
+              "azure.cosmos.auth.type": { "enum": ["ServicePrincipal", "SERVICE_PRINCIPAL"] }
+            },
+            "required": ["connector.class", "azure.cosmos.auth.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": ["azure.cosmos.account.tenantId"]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": [
+                  "azure.cosmos.auth.aad.clientId",
+                  "azure.cosmos.auth.aad.clientSecret"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "CosmosDbSinkV2" } },
+            "required": ["connector.class"],
+            "not": {
+              "properties": {
+                "azure.cosmos.auth.type": { "enum": ["ServicePrincipal", "SERVICE_PRINCIPAL"] }
+              },
+              "required": ["azure.cosmos.auth.type"]
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["azure.cosmos.account.key"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "IbmMQSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "kafka.topic",
+              "output.data.format",
+              "mq.hostname",
+              "mq.queue.manager",
+              "jms.destination.name"
+            ],
+            "properties": {
+              "output.data.format": {
+                "enum": ["AVRO", "JSON", "JSON_SR", "PROTOBUF", "BYTES", "STRING"]
+              }
+            }
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["mq.username", "mq.password"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "enum": ["IbmMQSink", "IbmMqSink"] } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "mq.hostname",
+              "mq.queue.manager",
+              "jms.destination.name"
+            ],
+            "properties": {
+              "input.data.format": {
+                "enum": ["AVRO", "JSON_SR", "PROTOBUF", "JSON", "BYTES", "STRING"]
+              }
+            }
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["mq.username", "mq.password"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "SalesforcePlatformEventSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "salesforce.grant.type",
+              "salesforce.instance",
+              "salesforce.platform.event.num",
+              "salesforce.platform.event1.name"
+            ],
+            "properties": {
+              "input.data.format": { "enum": ["AVRO", "JSON_SR", "PROTOBUF"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforcePlatformEventSink" },
+              "salesforce.grant.type": { "enum": ["PASSWORD"] }
+            },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": [
+                  "salesforce.username",
+                  "salesforce.password",
+                  "salesforce.password.token",
+                  "salesforce.consumer.key",
+                  "salesforce.consumer.secret"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforcePlatformEventSink" },
+              "salesforce.grant.type": { "const": "CLIENT_CREDENTIALS" }
+            },
+            "required": ["connector.class", "salesforce.grant.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["salesforce.consumer.key", "salesforce.consumer.secret"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforcePlatformEventSink" },
+              "salesforce.grant.type": { "const": "JWT_BEARER" }
+            },
+            "required": ["connector.class", "salesforce.grant.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": [
+                  "salesforce.username",
+                  "salesforce.consumer.key",
+                  "salesforce.jwt.keystore.file",
+                  "salesforce.jwt.keystore.password"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforcePlatformEventSink" },
+              "salesforce.grant.type": { "const": "OAUTH2_AUTH_CODE_BYOA" }
+            },
+            "required": ["connector.class", "salesforce.grant.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["salesforce.consumer.key", "salesforce.consumer.secret"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "PostgresSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topic.prefix",
+              "output.data.format",
+              "connection.host",
+              "connection.port",
+              "db.name",
+              "table.include.list"
+            ]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": { "required": ["connection.user", "connection.password"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "MicrosoftSqlServerSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topic.prefix",
+              "output.data.format",
+              "connection.host",
+              "connection.port",
+              "db.name",
+              "table.include.list"
+            ]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": { "required": ["connection.user", "connection.password"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "MySqlSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "connection.host",
+              "connection.port",
+              "db.name"
+            ]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": { "required": ["connection.user", "connection.password"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "MongoDbAtlasSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": ["topics", "input.data.format", "connection.host", "database"]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": { "required": ["connection.user", "connection.password"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "SnowflakeSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topics",
+              "input.data.format",
+              "snowflake.url.name",
+              "snowflake.database.name",
+              "snowflake.schema.name"
+            ]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["snowflake.user.name", "snowflake.private.key"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "AzureServiceBusSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "kafka.topic",
+              "output.data.format",
+              "azure.servicebus.namespace",
+              "azure.servicebus.entity.name"
+            ]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["azure.servicebus.sas.keyname", "azure.servicebus.sas.key"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "AzureFunctionsSink" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": ["topics", "input.data.format", "function.url"]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": { "required": ["function.key"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "HttpSourceV2" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "api1.topics",
+              "output.data.format",
+              "http.api.base.url",
+              "auth.type",
+              "apis.num",
+              "api1.http.request.method"
+            ],
+            "properties": {
+              "output.data.format": { "enum": ["AVRO", "JSON_SR", "PROTOBUF"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "CosmosDbSourceV2" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "output.data.format",
+              "azure.cosmos.account.endpoint",
+              "azure.cosmos.source.database.name",
+              "azure.cosmos.source.containers.topicMap"
+            ]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": { "required": ["azure.cosmos.account.key"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "AzureBlobSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "topic.regex.list",
+              "input.data.format",
+              "azblob.account.name",
+              "azblob.container.name"
+            ]
+          },
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": { "required": ["azblob.account.key"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": { "connector.class": { "const": "SalesforceCdcSource" } },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "config_nonsensitive": {
+            "required": [
+              "kafka.topic",
+              "output.data.format",
+              "salesforce.grant.type",
+              "salesforce.instance",
+              "salesforce.cdc.name"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforceCdcSource" },
+              "salesforce.grant.type": { "enum": ["PASSWORD"] }
+            },
+            "required": ["connector.class"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": [
+                  "salesforce.username",
+                  "salesforce.password",
+                  "salesforce.password.token",
+                  "salesforce.consumer.key",
+                  "salesforce.consumer.secret"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

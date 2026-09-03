@@ -1,0 +1,30 @@
+# Guía: ../docs/eventhubs-source.md
+# https://docs.confluent.io/cloud/current/connectors/cc-azure-event-hubs-source.html
+name: "tpl-eventhubs-source"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-eventhubs-source"
+  connector.class: "AzureEventHubsSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  kafka.topic: "azc-app-demo-input"
+  output.data.format: "AVRO"
+  azure.eventhubs.namespace: "ehns-app-des"
+  azure.eventhubs.hub.name: "hub-app-events"
+  azure.eventhubs.consumer.group: "$Default"
+  azure.eventhubs.partition.starting.position: "START_OF_STREAM"
+  azure.eventhubs.transport.type: "AMQP"
+  azure.eventhubs.offset.type: "OFFSET"
+  max.events: "50"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_APP_EHSRC_01"
+  secrets:
+    azure.eventhubs.sas.keyname:
+      path: "peve/data/dev/peve/eventhubs/EH_APP_DES"
+      field: "key_name"
+    azure.eventhubs.sas.key:
+      path: "peve/data/dev/peve/eventhubs/EH_APP_DES"
+      field: "key"

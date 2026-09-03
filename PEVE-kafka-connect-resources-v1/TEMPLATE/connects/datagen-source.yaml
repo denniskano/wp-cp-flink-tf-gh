@@ -1,0 +1,18 @@
+# Guía: ../docs/datagen-source.md
+# https://docs.confluent.io/cloud/current/connectors/cc-datagen-source.html
+name: "tpl-datagen-source"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-datagen-source"
+  connector.class: "DatagenSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  kafka.topic: "azc-app-demo-input"
+  output.data.format: "AVRO"
+  quickstart: "TRANSACTIONS"
+  max.interval: "1000"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_APP_DATAGEN_01"

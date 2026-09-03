@@ -1,0 +1,35 @@
+# Guía: ../docs/salesforce-cdc-source.md
+# https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html
+name: "tpl-salesforce-cdc-source"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-salesforce-cdc-source"
+  connector.class: "SalesforceCdcSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  kafka.topic: "azc-app-demo-input"
+  output.data.format: "AVRO"
+  salesforce.grant.type: "PASSWORD"
+  salesforce.instance: "https://login.salesforce.com"
+  salesforce.cdc.name: "AccountChangeEvent"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_APP_SFCDC_01"
+  secrets:
+    salesforce.username:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "username"
+    salesforce.password:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "password"
+    salesforce.password.token:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "password_token"
+    salesforce.consumer.key:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "consumer_key"
+    salesforce.consumer.secret:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "consumer_secret"

@@ -1,36 +1,10 @@
-# PEVE-kafka-connect-resources-v1
+# Conectores Kafka Connect
 
-YAML de Kafka Connect (conectores + RBAC del SA). Terraform y workflows no van acá.
+Acá se declaran los conectores full-managed y el RBAC del service account. Un archivo por conector.
 
-## Lint local
+Antes de desplegar, el **topic**, el **schema** y el **SA** ya tienen que existir. Este repo no los crea.
 
-Desde la raíz de este repo:
-
-```bash
-pip install check-jsonschema
-make lint                              # todo el repo
-make lint UC=PEVE                      # solo tu app
-make lint UC=PEVE/desa                 # un ambiente
-make lint UC=PEVE/desa/use-case-name-02
-```
-
-Los schema están en `schemas/`. No hace falta clonar automation.
-
-En VS Code / Cursor: abrir **esta carpeta** como workspace e instalar la extensión que recomienda el repo (`redhat.vscode-yaml`). Los `connects/*.yaml` y `security/*.yaml` se validan al tipear (subrayado + hover). Terminal → Run Task → `lint: carpeta` si querés el `make lint` de una app.
-
-El job `deploy-kafka-connect` corre el mismo `scripts/lint.sh` (no corre en `destroy`).
-
-## Repos
-
-| Repo | Rol |
-|---|---|
-| **PEVE-event-driven-automation** | Terraform (`stacks/kafka-connect`) |
-| **PEVE-event-driven-resources-v2** | Workflow `deploy-kafka-connect.yml` (clona este repo a `./externo`) |
-| **PEVE-kafka-connect-resources-v1** (este) | YAML Connect |
-| **PEVE-stream-processing-resources-v2** | YAML Flink (otro contrato) |
-| **PEVE-event-driven-resources-v3** | Topics, schemas, SA del use-case (deben existir **antes** del conector) |
-
-## Layout
+## Carpetas
 
 ```
 {CODAPP}/
@@ -40,19 +14,85 @@ El job `deploy-kafka-connect` corre el mismo `scripts/lint.sh` (no corre en `des
       security/*.yaml
 ```
 
-Solo `*.yaml` (no `*.yml`, no subcarpetas). El input `use_case` del workflow es el nombre de la carpeta.
+`CODAPP` es la carpeta de tu aplicación (ej. `PEVE`). `use-case` es el nombre que vas a pasar al pipeline.
 
-## Contrato (lo que Terraform y el schema esperan)
+Solo `*.yaml` (no `*.yml`) y sin subcarpetas dentro de `connects/` o `security/`.
 
-- Clave de `for_each` = **nombre del archivo sin `.yaml`**. Renombrar el archivo o cambiar `name` recrea el conector (se pierden offsets).
-- `kafka.auth.mode`: `SERVICE_ACCOUNT`. El SA se busca por `vault.service_account` (`display_name`).
-- Secretos: `vault.secrets` con `path` + `field` por cada clave. No poner `config_sensitive` en el YAML.
-- Topics: `topics` **o** `kafka.topic`, no ambos.
-- `security/`: `resource_type` ∈ `topic` | `subject` | `group` | `transactional-id`. Sink: consumer group PREFIXED `connect-lcc-`.
-- `status` del YAML es el de apply. Pause del workflow es temporal; el siguiente apply restaura el YAML.
+Plantillas para copiar: `TEMPLATE/connects/`. No las despliegues; copialas a tu `{CODAPP}/desa/{use-case}/`. Ejemplo armado: `PEVE/desa/use-case-name-02/`. El lint valida por `connector.class` los campos y secretos de Vault de cada conector.
 
-Si cambia el módulo, actualizar `schemas/*.json` en este repo.
+## Conectores (referencia)
 
-## Ejemplo
+Guía local (YAML, RBAC, tuning) y documentación oficial de Confluent Cloud. Clases y propiedades son las del conector **full-managed**, no self-managed.
 
-`PEVE/desa/use-case-name-02/` — Datagen → `azc-peve-transaction` → Postgres sink.
+| Conector | `connector.class` | Guía (tuning) | Doc oficial |
+|---|---|---|---|
+| Datagen Source | `DatagenSource` | [TEMPLATE/docs/datagen-source.md](TEMPLATE/docs/datagen-source.md) | [Datagen Source](https://docs.confluent.io/cloud/current/connectors/cc-datagen-source.html) |
+| PostgreSQL Sink | `PostgresSink` | [TEMPLATE/docs/postgres-sink.md](TEMPLATE/docs/postgres-sink.md) | [PostgreSQL Sink](https://docs.confluent.io/cloud/current/connectors/cc-postgresql-sink.html) |
+| SQL Server Sink | `MicrosoftSqlServerSink` | [TEMPLATE/docs/sqlserver-sink.md](TEMPLATE/docs/sqlserver-sink.md) | [Microsoft SQL Server Sink](https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-sink.html) |
+| Azure Event Hubs Source | `AzureEventHubsSource` | [TEMPLATE/docs/eventhubs-source.md](TEMPLATE/docs/eventhubs-source.md) | [Azure Event Hubs Source](https://docs.confluent.io/cloud/current/connectors/cc-azure-event-hubs-source.html) |
+| Azure Event Hubs Sink | `HttpSinkV2` | [TEMPLATE/docs/eventhubs-sink.md](TEMPLATE/docs/eventhubs-sink.md) | [HTTP Sink V2](https://docs.confluent.io/cloud/current/connectors/cc-http-sink-v2.html) · [Send event](https://learn.microsoft.com/en-us/rest/api/eventhub/send-event) |
+| Azure Blob Sink | `AzureBlobSink` | [TEMPLATE/docs/azure-blob-sink.md](TEMPLATE/docs/azure-blob-sink.md) | [Azure Blob Sink](https://docs.confluent.io/cloud/current/connectors/cc-azure-blob-sink/cc-azure-blob-sink.html) |
+| ADLS Gen2 Sink | `AzureDataLakeGen2Sink` | [TEMPLATE/docs/adls-gen2-sink.md](TEMPLATE/docs/adls-gen2-sink.md) | [ADLS Gen2 Sink](https://docs.confluent.io/cloud/current/connectors/cc-azure-datalakeGen2-storage-sink.html) |
+| Azure Cosmos DB Sink V2 | `CosmosDbSinkV2` | [TEMPLATE/docs/cosmos-sink.md](TEMPLATE/docs/cosmos-sink.md) | [Azure Cosmos DB Sink V2](https://docs.confluent.io/cloud/current/connectors/cc-azure-cosmos-sink-v2.html) |
+| IBM MQ Source | `IbmMQSource` | [TEMPLATE/docs/ibmmq-source.md](TEMPLATE/docs/ibmmq-source.md) | [IBM MQ Source](https://docs.confluent.io/cloud/current/connectors/cc-ibmmq-source.html) |
+| IBM MQ Sink | `IbmMQSink` | [TEMPLATE/docs/ibmmq-sink.md](TEMPLATE/docs/ibmmq-sink.md) | [IBM MQ Sink](https://docs.confluent.io/cloud/current/connectors/cc-ibm-mq-sink.html) |
+| Salesforce Platform Event Sink | `SalesforcePlatformEventSink` | [TEMPLATE/docs/salesforce-platform-event-sink.md](TEMPLATE/docs/salesforce-platform-event-sink.md) | [Salesforce Platform Event Sink](https://docs.confluent.io/cloud/current/connectors/cc-salesforce-platform-event-sink.html) |
+| PostgreSQL Source | `PostgresSource` | [TEMPLATE/docs/postgres-source.md](TEMPLATE/docs/postgres-source.md) | [PostgreSQL Source](https://docs.confluent.io/cloud/current/connectors/cc-postgresql-source.html) |
+| SQL Server Source | `MicrosoftSqlServerSource` | [TEMPLATE/docs/sqlserver-source.md](TEMPLATE/docs/sqlserver-source.md) | [Microsoft SQL Server Source](https://docs.confluent.io/cloud/current/connectors/cc-microsoft-sql-server-source.html) |
+| MySQL Sink | `MySqlSink` | [TEMPLATE/docs/mysql-sink.md](TEMPLATE/docs/mysql-sink.md) | [MySQL Sink](https://docs.confluent.io/cloud/current/connectors/cc-mysql-sink.html) |
+| MongoDB Atlas Sink | `MongoDbAtlasSink` | [TEMPLATE/docs/mongodb-atlas-sink.md](TEMPLATE/docs/mongodb-atlas-sink.md) | [MongoDB Atlas Sink](https://docs.confluent.io/cloud/current/connectors/cc-mongo-db-sink/cc-mongo-db-sink.html) |
+| Snowflake Sink | `SnowflakeSink` | [TEMPLATE/docs/snowflake-sink.md](TEMPLATE/docs/snowflake-sink.md) | [Snowflake Sink](https://docs.confluent.io/cloud/current/connectors/cc-snowflake-sink.html) |
+| Azure Service Bus Source | `AzureServiceBusSource` | [TEMPLATE/docs/servicebus-source.md](TEMPLATE/docs/servicebus-source.md) | [Azure Service Bus Source](https://docs.confluent.io/cloud/current/connectors/cc-azure-service-bus-source.html) |
+| Azure Functions Sink | `AzureFunctionsSink` | [TEMPLATE/docs/azure-functions-sink.md](TEMPLATE/docs/azure-functions-sink.md) | [Azure Functions Sink](https://docs.confluent.io/cloud/current/connectors/cc-azure-functions-sink.html) |
+| HTTP Source V2 | `HttpSourceV2` | [TEMPLATE/docs/http-source.md](TEMPLATE/docs/http-source.md) | [HTTP Source V2](https://docs.confluent.io/cloud/current/connectors/cc-http-source-v2.html) |
+| Azure Cosmos DB Source V2 | `CosmosDbSourceV2` | [TEMPLATE/docs/cosmos-source.md](TEMPLATE/docs/cosmos-source.md) | [Azure Cosmos DB Source V2](https://docs.confluent.io/cloud/current/connectors/cc-azure-cosmos-source-v2.html) |
+| Azure Blob Source | `AzureBlobSource` | [TEMPLATE/docs/azure-blob-source.md](TEMPLATE/docs/azure-blob-source.md) | [Azure Blob Source](https://docs.confluent.io/cloud/current/connectors/cc-azure-blob-source.html) |
+| Salesforce CDC Source | `SalesforceCdcSource` | [TEMPLATE/docs/salesforce-cdc-source.md](TEMPLATE/docs/salesforce-cdc-source.md) | [Salesforce CDC Source](https://docs.confluent.io/cloud/current/connectors/cc-salesforce-source-cdc.html) |
+
+Índice y plantillas: [TEMPLATE/README.md](TEMPLATE/README.md).
+
+## Qué va en el YAML
+
+`connects/<nombre>.yaml`:
+
+- `name` y `status` (`RUNNING` o `PAUSED`).
+- `config_nonsensitive.kafka.auth.mode` tiene que ser `SERVICE_ACCOUNT`.
+- Topic: `topics` **o** `kafka.topic` (no los dos). JDBC source usa `topic.prefix`; HTTP Source `api1.topics`; Blob Source `topic.regex.list`; Cosmos Source `azure.cosmos.source.containers.topicMap`.
+- El SA va en `vault.service_account` (el `display_name` de Confluent).
+- Passwords y users: `vault.secrets.<clave>` con `path` y `field` de Vault. No pongas secretos en claro ni un bloque `config_sensitive`.
+
+El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombrás o cambiás `name`, se recrea y se pierden offsets.
+
+`security/*.yaml`: un `principal` por SA. `resource_type` = `topic` | `subject` | `group` | `transactional-id`. En un sink el consumer group es PREFIXED `connect-lcc-`.
+
+`status` del YAML es el que queda después de un apply. Pause/resume del pipeline es temporal; el apply siguiente vuelve al YAML.
+
+## Validar en local
+
+```bash
+pip install check-jsonschema
+make lint UC=PEVE
+make lint UC=PEVE/desa/mi-use-case
+make lint UC=TEMPLATE
+```
+
+En VS Code o Cursor: File → Open Folder sobre **este** repo. Marketplace: extensión **YAML** de Red Hat (`redhat.vscode-yaml`). Al editar `connects/` o `security/` vas a ver errores subrayados.
+
+Terminal → Run Task → `lint: carpeta` si preferís no usar la consola.
+
+## Desplegar (DES)
+
+1. Dejá el YAML en `develop` (PR + merge).
+2. Lint en verde (local o el del pipeline).
+3. Corré el workflow **`deploy-kafka-connect`**:
+
+| Input | Ejemplo |
+|---|---|
+| `action` | `plan` primero; `apply` cuando el plan cierre. También `destroy`, `pause`, `resume` |
+| `CODAPP` | `PEVE` (la carpeta de tu app) |
+| `use_case` | `use-case-name-02` (la carpeta bajo `desa/`) |
+| `connector` | solo en pause/resume: nombre del archivo sin `.yaml` |
+
+Hoy el pipeline apunta a `desa`. cert/prod todavía no.
+
+`plan` / `apply` / `destroy` cubren **todo** el use-case. `pause` / `resume` un conector.

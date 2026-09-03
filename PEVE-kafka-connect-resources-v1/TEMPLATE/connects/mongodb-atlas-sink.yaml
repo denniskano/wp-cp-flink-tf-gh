@@ -1,0 +1,30 @@
+# Guía: ../docs/mongodb-atlas-sink.md
+# https://docs.confluent.io/cloud/current/connectors/cc-mongo-db-sink/cc-mongo-db-sink.html
+name: "tpl-mongodb-atlas-sink"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-mongodb-atlas-sink"
+  connector.class: "MongoDbAtlasSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  topics: "azc-app-demo-input"
+  input.data.format: "AVRO"
+  connection.host: "cluster0.xxxxx.mongodb.net"
+  database: "appdb"
+  collection: "demo_events"
+  max.batch.size: "0"
+  max.num.retries: "3"
+  retries.defer.timeout: "5000"
+  tasks.max: "1"
+  errors.tolerance: "all"
+
+vault:
+  service_account: "SA_AZC_DES_APP_MONGO_01"
+  secrets:
+    connection.user:
+      path: "peve/data/dev/peve/mongodb/MONGO_APP_DES"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/mongodb/MONGO_APP_DES"
+      field: "password"

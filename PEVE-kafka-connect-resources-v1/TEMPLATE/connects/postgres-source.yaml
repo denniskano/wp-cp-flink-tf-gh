@@ -1,0 +1,30 @@
+# Guía: ../docs/postgres-source.md
+# https://docs.confluent.io/cloud/current/connectors/cc-postgresql-source.html
+name: "tpl-postgres-source"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-postgres-source"
+  connector.class: "PostgresSource"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  topic.prefix: "azc-app-pg-"
+  output.data.format: "AVRO"
+  connection.host: "peved02server.postgres.database.azure.com"
+  connection.port: "5432"
+  db.name: "postgres"
+  table.include.list: "public.demo_events"
+  timestamp.columns.mapping: "public.demo_events:[updated_at]"
+  ssl.mode: "require"
+  db.timezone: "UTC"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_APP_PGSRC_01"
+  secrets:
+    connection.user:
+      path: "peve/data/dev/peve/postgresql/DB_APP_CONNECT_DEV"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/postgresql/DB_APP_CONNECT_DEV"
+      field: "password"

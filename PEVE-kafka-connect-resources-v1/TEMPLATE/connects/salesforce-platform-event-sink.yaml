@@ -1,0 +1,37 @@
+# Guía: ../docs/salesforce-platform-event-sink.md
+# https://docs.confluent.io/cloud/current/connectors/cc-salesforce-platform-event-sink.html
+name: "tpl-salesforce-pe-sink"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-salesforce-pe-sink"
+  connector.class: "SalesforcePlatformEventSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  topics: "azc-app-demo-input"
+  input.data.format: "AVRO"
+  salesforce.grant.type: "PASSWORD"
+  salesforce.instance: "https://login.salesforce.com"
+  salesforce.platform.event.num: "1"
+  salesforce.platform.event1.name: "App_Event__e"
+  tasks.max: "1"
+  errors.tolerance: "all"
+
+vault:
+  service_account: "SA_AZC_DES_APP_SFPE_01"
+  secrets:
+    salesforce.username:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "username"
+    salesforce.password:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "password"
+    salesforce.password.token:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "password_token"
+    salesforce.consumer.key:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "consumer_key"
+    salesforce.consumer.secret:
+      path: "peve/data/dev/peve/salesforce/SF_APP_DES"
+      field: "consumer_secret"

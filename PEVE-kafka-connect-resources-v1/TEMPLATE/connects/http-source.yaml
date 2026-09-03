@@ -1,0 +1,31 @@
+# Guía: ../docs/http-source.md
+# https://docs.confluent.io/cloud/current/connectors/cc-http-source-v2.html
+name: "tpl-http-source"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-http-source"
+  connector.class: "HttpSourceV2"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  output.data.format: "AVRO"
+  http.api.base.url: "https://api.example.com/v1"
+  https.ssl.enabled: "true"
+  auth.type: "NONE"
+  apis.num: "1"
+  api1.topics: "azc-app-demo-input"
+  api1.http.api.path: "/events"
+  api1.http.request.method: "GET"
+  api1.http.offset.mode: "SIMPLE_INCREMENTING"
+  api1.request.interval.ms: "60000"
+  api1.max.retries: "5"
+  api1.retry.backoff.policy: "EXPONENTIAL_WITH_JITTER"
+  api1.retry.backoff.ms: "3000"
+  api1.retry.on.status.codes: "400-"
+  api1.http.connect.timeout.ms: "30000"
+  api1.http.request.timeout.ms: "30000"
+  behavior.on.error: "IGNORE"
+  tasks.max: "1"
+
+vault:
+  service_account: "SA_AZC_DES_APP_HTTPSRC_01"

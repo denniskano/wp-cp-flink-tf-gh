@@ -1,0 +1,400 @@
+# Source: write topic + subject. Sink: read topic + subject, dlq, group connect-lcc-.
+cluster:
+  cc:
+    rbac:
+    - principal: SA_AZC_DES_APP_DATAGEN_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_EHSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_EHSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_MQSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_PGSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_SQLSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_BLOB_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_ADLS_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_COSMOS_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_MQSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_SFPE_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_PGSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-pg-"
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-pg-"
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_SQLSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-sql-"
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-sql-"
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_MYSQL_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_MONGO_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_SNOW_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_SBSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_FUNC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-app-demo-input-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner
+    - principal: SA_AZC_DES_APP_HTTPSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_COSSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_BLOSRC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+    - principal: SA_AZC_DES_APP_SFCDC_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-app-demo-input-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: "azc-app-demo-input"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite

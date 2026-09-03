@@ -1,0 +1,24 @@
+# Guía: ../docs/azure-functions-sink.md
+# https://docs.confluent.io/cloud/current/connectors/cc-azure-functions-sink.html
+name: "tpl-azure-functions-sink"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-azure-functions-sink"
+  connector.class: "AzureFunctionsSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  topics: "azc-app-demo-input"
+  input.data.format: "AVRO"
+  function.url: "https://func-app-des.azurewebsites.net/api/HttpTrigger1"
+  max.batch.size: "1"
+  max.poll.records: "500"
+  tasks.max: "1"
+  errors.tolerance: "all"
+
+vault:
+  service_account: "SA_AZC_DES_APP_FUNC_01"
+  secrets:
+    function.key:
+      path: "peve/data/dev/peve/functions/FUNC_APP_DES"
+      field: "function_key"

@@ -1,0 +1,30 @@
+# Guía: ../docs/postgres-sink.md
+# https://docs.confluent.io/cloud/current/connectors/cc-postgresql-sink.html
+name: "tpl-postgres-sink"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-postgres-sink"
+  connector.class: "PostgresSink"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  topics: "azc-app-demo-input"
+  input.data.format: "AVRO"
+  connection.host: "peved02server.postgres.database.azure.com"
+  connection.port: "5432"
+  db.name: "postgres"
+  ssl.mode: "require"
+  insert.mode: "INSERT"
+  auto.create: "false"
+  tasks.max: "1"
+  errors.tolerance: "all"
+
+vault:
+  service_account: "SA_AZC_DES_APP_PGSNK_01"
+  secrets:
+    connection.user:
+      path: "peve/data/dev/peve/postgresql/DB_APP_CONNECT_DEV"
+      field: "username"
+    connection.password:
+      path: "peve/data/dev/peve/postgresql/DB_APP_CONNECT_DEV"
+      field: "password"

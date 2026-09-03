@@ -1,0 +1,30 @@
+# Guía: ../docs/cosmos-sink.md
+# V2 oficial. V1 (Cosmos DB Sink) está deprecado.
+# https://docs.confluent.io/cloud/current/connectors/cc-azure-cosmos-sink-v2.html
+name: "tpl-cosmos-sink"
+status: "RUNNING"
+
+config_nonsensitive:
+  name: "tpl-cosmos-sink"
+  connector.class: "CosmosDbSinkV2"
+  kafka.auth.mode: "SERVICE_ACCOUNT"
+  schema.context.name: "default"
+  topics: "azc-app-demo-input"
+  input.data.format: "AVRO"
+  azure.cosmos.account.endpoint: "https://cosmos-app-des.documents.azure.com:443/"
+  azure.cosmos.auth.type: "MasterKey"
+  azure.cosmos.sink.database.name: "appdb"
+  azure.cosmos.sink.containers.topicMap: "azc-app-demo-input#demo-container"
+  azure.cosmos.sink.id.strategy: "FullKeyStrategy"
+  azure.cosmos.sink.write.strategy: "ItemOverwrite"
+  azure.cosmos.sink.bulk.enabled: "true"
+  azure.cosmos.preferredRegionList: "East US"
+  tasks.max: "1"
+  errors.tolerance: "all"
+
+vault:
+  service_account: "SA_AZC_DES_APP_COSMOS_01"
+  secrets:
+    azure.cosmos.account.key:
+      path: "peve/data/dev/peve/cosmos/COSMOS_APP_DES"
+      field: "account_key"
