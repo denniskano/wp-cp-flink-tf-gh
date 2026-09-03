@@ -1,5 +1,5 @@
 # ccloud-rbac
 
-Bindings `cluster.cc.rbac` (topic, subject, group, transactional-id).
+Codegen del core: `scripts/generate_rbac_dinamic.sh` + `resources/template/rbac.tf.tpl` / `data_sa.tf.tpl`. Stack: `stacks/eda-core`.
 
-Hoy el RBAC de Connect vive dentro de `ccloud-connectors`. Extraer a este módulo cuando EDA (topics/schemas) reutilice el mismo schema YAML.
+El RBAC de Connect sigue en `ccloud-connectors`.

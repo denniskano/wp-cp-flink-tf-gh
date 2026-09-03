@@ -6,7 +6,7 @@ Backend: Azure RM. El workflow pasa `-backend-config`.
 |---|---|
 | kafka-connect | `dev/{CODAPP}/{use_case}/tf-connect.tfstate` |
 | connect-plugins | `dev/{CODAPP}/tf-connect-plugins.tfstate` (propuesto) |
-| flink-compute-pool | `dev/{CODAPP}/tf-flink.tfstate` (hoy; alinear al migrar) |
+| flink-compute-pool | `dev/{CODAPP}/ccloud-flink/compute-pool/tf-flink-cps.tfstate` |
 | flink-artifacts | `dev/{CODAPP}/tf-flink-artifacts.tfstate` (propuesto) |
 | flink-connections | `dev/{CODAPP}/tf-flink-connections.tfstate` (propuesto) |
 | flink-statements | `dev/{CODAPP}/ccloud-flink/{pipeline}/tf-flink-rbacs-stmts.tfstate` |
@@ -14,6 +14,6 @@ Backend: Azure RM. El workflow pasa `-backend-config`.
 | tableflow | `dev/{CODAPP}/{use_case}/tf-tableflow.tfstate` (propuesto) |
 | ksql | `dev/{CODAPP}/{use_case}/tf-ksql.tfstate` (propuesto) |
 
-`cert` / `prod` sustituyen el prefijo `dev` cuando existan esos workflows.
+`cert` / `prod` sustituyen el prefijo `dev` cuando existan esos workflows (hoy solo DES en **PEVE-event-driven-resources-v2**).
 
-Container actual de Connect: `tf-connect-dev`. No reutilizar el state de Flink.
+Containers DES: Connect `tf-connect-dev`; Flink pools `tf-flink-cps-dev`; Flink statements `tf-flink-stm-dev`. No reutilizar keys entre stacks.

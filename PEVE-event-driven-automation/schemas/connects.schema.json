@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://peve.local/schemas/connects.schema.json",
+  "title": "Kafka Connect connector YAML (PEVE-kafka-connect-resources-v1)",
+  "type": "object",
+  "required": ["name", "status", "config_nonsensitive", "vault"],
+  "additionalProperties": true,
+  "not": {
+    "required": ["config_sensitive"],
+    "description": "En resources usa vault.secrets, no config_sensitive (solo pruebas locales)."
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nombre en Confluent Cloud. No lo cambies después del primer apply."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["RUNNING", "PAUSED"]
+    },
+    "config_nonsensitive": {
+      "type": "object",
+      "required": ["connector.class", "kafka.auth.mode"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "connector.class": { "type": "string", "minLength": 1 },
+        "kafka.auth.mode": { "const": "SERVICE_ACCOUNT" },
+        "topics": { "type": "string", "minLength": 1 },
+        "kafka.topic": { "type": "string", "minLength": 1 }
+      },
+      "oneOf": [
+        {
+          "required": ["topics"],
+          "not": { "required": ["kafka.topic"] }
+        },
+        {
+          "required": ["kafka.topic"],
+          "not": { "required": ["topics"] }
+        }
+      ]
+    },
+    "vault": {
+      "type": "object",
+      "required": ["service_account"],
+      "additionalProperties": true,
+      "properties": {
+        "service_account": { "type": "string", "minLength": 1 },
+        "secrets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["path", "field"],
+            "additionalProperties": false,
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "field": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

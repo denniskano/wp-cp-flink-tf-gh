@@ -1,3 +1,5 @@
 # ccloud-flink-compute-pool
 
-Esqueleto. Migrar desde `flink-v1/terraform/ccloud-flink-compute-pool` cuando el workflow deje de usar esa ruta.
+En v2 el HCL de pools **no** es un módulo reutilizable: `scripts/gen_cp_flink_dinamic.sh` escribe `cp_flink.tf` dentro del stack (`stacks/flink-compute-pool`).
+
+No hay `fileset`/`yamldecode` aquí.

@@ -1,0 +1,11 @@
+# Debe fallar JSON Schema: resource_type no soportado (Terraform lo silenciaría).
+cluster:
+  cc:
+    rbac:
+    - principal: SA_AZC_DES_PEVE_PGSNK_01
+      resources:
+      - resource_type: grup
+        resource_name: azc-peve-transaction
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead

@@ -1,3 +1,3 @@
 # ccloud-schemas
 
-Esqueleto. Subjects / schemas en Schema Registry a partir de YAML del repo de resources.
+Codegen: `scripts/generate_schema_registry_dinamic.sh` + `resources/template/schema_registry*.tf.tpl`. Stack: `stacks/eda-core`.

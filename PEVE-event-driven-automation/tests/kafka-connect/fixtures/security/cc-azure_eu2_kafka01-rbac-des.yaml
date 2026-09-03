@@ -1,0 +1,27 @@
+# Fixture: sink + group connect-lcc-. El cluster lo elige el workflow, no properties.name.
+cluster:
+  cc:
+    rbac:
+    - principal: SA_AZC_DES_PEVE_PGSNK_01
+      resources:
+      - resource_type: subject
+        resource_name: "azc-peve-transaction-value"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-peve-transaction"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: "azc-peve-transaction-dlq"
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperRead
+      - resource_type: group
+        resource_name: "connect-lcc-"
+        pattern_type: PREFIXED
+        role:
+        - operation: ResourceOwner

@@ -15,3 +15,23 @@ override.tf.json
 *.swp
 .env
 .env.*
+node_modules/
+# Codegen Flink (se escriben en CI / local; no versionar)
+stacks/flink-compute-pool/cp_flink.tf
+stacks/flink-statements/rbac_flink.tf
+stacks/flink-statements/data_sa_flink.tf
+stacks/flink-statements/stmt_flink.tf
+stacks/flink-statements/data_cp_flink.tf
+cc_sr_properties.json
+local_data_cp.txt
+# Codegen eda-core (runtime; no versionar)
+automation/
+stacks/eda-core/topics.tf
+stacks/eda-core/topics_tag.tf
+stacks/eda-core/rbac.tf
+stacks/eda-core/data_sa.tf
+stacks/eda-core/schema_registry.tf
+stacks/eda-core/schema_registry_mode.tf
+stacks/eda-core/confluent_subject_config.tf
+stacks/eda-core/backend.hcl
+cc_properties.json

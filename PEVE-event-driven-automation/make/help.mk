@@ -1,0 +1,23 @@
+.PHONY: help
+
+help:
+	@echo "PEVE-event-driven-automation — Terraform event-driven (sin workflows ni YAML de app)"
+	@echo ""
+	@echo "  make lint                terraform fmt -check + JSON Schema (fixtures Connect)"
+	@echo "  make lint-yaml           JSON Schema connects/ + security/ (fixtures)"
+	@echo "  make fmt                 terraform fmt -recursive"
+	@echo "  make test                fixtures YAML + validate de stacks implementados"
+	@echo "  make validate-connect    init -backend=false + validate (kafka-connect)"
+	@echo "  make validate-flink-pools"
+	@echo "  make validate-flink-stmts"
+	@echo "  make plan-connect        scripts/local/tf.sh kafka-connect plan"
+	@echo "  make plan-flink-pools    EXTERNO + CODAPP"
+	@echo "  make plan-flink-stmts    EXTERNO + CODAPP + PIPELINE"
+	@echo "  make eda_resource_terraform_plan   scripts/terraform_task.sh (core)"
+	@echo ""
+	@echo "Variables:"
+	@echo "  EXTERNO    clone del repo de resources"
+	@echo "  CODAPP     (default PEVE)"
+	@echo "  USE_CASE   carpeta Connect"
+	@echo "  PIPELINE   carpeta Flink statements"
+	@echo "  ENV_FOLDER desa|cert|prod"
