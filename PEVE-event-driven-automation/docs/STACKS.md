@@ -18,4 +18,4 @@ Si hay dependencias: primero eda-core (topic, schema, SA), después pools / arti
 
 Los SA y API keys del use-case salen de eda-core, no de un stack aparte.
 
-Connect valida forma del YAML con [../schemas/README.md](../schemas/README.md). Flink solo chequea que existan archivos (`scripts/ci/validate-flink-yaml.sh`).
+Connect: existencia acá (`validate-yaml.sh`); forma del YAML en PEVE-kafka-connect-resources-v1 (`make lint`). Flink solo chequea que existan archivos (`scripts/ci/validate-flink-yaml.sh`).

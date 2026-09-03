@@ -1,8 +1,0 @@
-# Debe fallar JSON Schema: auth mode incorrecto, sin vault.service_account, sin topic.
-name: "bad-connector"
-status: "RUNNING"
-
-config_nonsensitive:
-  name: "bad-connector"
-  connector.class: "PostgresSink"
-  kafka.auth.mode: "KAFKA_API_KEY"

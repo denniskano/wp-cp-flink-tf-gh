@@ -1,14 +1,30 @@
 # PEVE-kafka-connect-resources-v1
 
-YAML de **Kafka Connect** full-managed (conectores + RBAC del SA del conector).
+YAML de Kafka Connect (conectores + RBAC del SA). Terraform y workflows no van acá.
 
-No hay Terraform ni workflows aquí.
+## Lint local
 
-## Cinco repos
+Desde la raíz de este repo:
+
+```bash
+pip install check-jsonschema
+make lint                              # todo el repo
+make lint UC=PEVE                      # solo tu app
+make lint UC=PEVE/desa                 # un ambiente
+make lint UC=PEVE/desa/use-case-name-02
+```
+
+Los schema están en `schemas/`. No hace falta clonar automation.
+
+En VS Code / Cursor: abrir **esta carpeta** como workspace e instalar la extensión que recomienda el repo (`redhat.vscode-yaml`). Los `connects/*.yaml` y `security/*.yaml` se validan al tipear (subrayado + hover). Terminal → Run Task → `lint: carpeta` si querés el `make lint` de una app.
+
+El job `deploy-kafka-connect` corre el mismo `scripts/lint.sh` (no corre en `destroy`).
+
+## Repos
 
 | Repo | Rol |
 |---|---|
-| **PEVE-event-driven-automation** | Terraform (`stacks/kafka-connect`) + JSON Schema de este YAML |
+| **PEVE-event-driven-automation** | Terraform (`stacks/kafka-connect`) |
 | **PEVE-event-driven-resources-v2** | Workflow `deploy-kafka-connect.yml` (clona este repo a `./externo`) |
 | **PEVE-kafka-connect-resources-v1** (este) | YAML Connect |
 | **PEVE-stream-processing-resources-v2** | YAML Flink (otro contrato) |
@@ -35,16 +51,7 @@ Solo `*.yaml` (no `*.yml`, no subcarpetas). El input `use_case` del workflow es 
 - `security/`: `resource_type` ∈ `topic` | `subject` | `group` | `transactional-id`. Sink: consumer group PREFIXED `connect-lcc-`.
 - `status` del YAML es el de apply. Pause del workflow es temporal; el siguiente apply restaura el YAML.
 
-JSON Schema (forma) y `validate-yaml.sh` (existencia) viven en **PEVE-event-driven-automation**. El workflow los corre **antes** de Terraform, excepto en `destroy`.
-
-```bash
-# Desde el clone de PEVE-event-driven-automation (hermano de este repo)
-./scripts/ci/schema-lint.sh \
-  ../PEVE-kafka-connect-resources-v1/PEVE/desa/use-case-name-02/connects \
-  ../PEVE-kafka-connect-resources-v1/PEVE/desa/use-case-name-02/security
-```
-
-Flink y eda-core **no** usan estos schemas.
+Si cambia el módulo, actualizar `schemas/*.json` en este repo.
 
 ## Ejemplo
 

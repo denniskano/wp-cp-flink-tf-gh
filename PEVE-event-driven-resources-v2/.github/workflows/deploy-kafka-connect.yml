@@ -188,9 +188,7 @@ jobs:
         if: github.event.inputs.action != 'destroy'
         run: |
           pip install --quiet check-jsonschema
-          CONNECTORS_DIR="${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects"
-          SECURITY_DIR="${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security"
-          ./iac/scripts/ci/schema-lint.sh "${CONNECTORS_DIR}" "${SECURITY_DIR}"
+          ./externo/scripts/lint.sh "${CODAPP}/${ENV_FOLDER}/${USE_CASE}"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

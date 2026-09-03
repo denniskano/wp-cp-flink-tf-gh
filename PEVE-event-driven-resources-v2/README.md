@@ -30,7 +30,7 @@ Orden del job cuando `action` ≠ `destroy`:
 
 1. Checkout IaC → `./iac` y resources → `./externo`
 2. `validate-yaml.sh` (existen `connects/*.yaml` y `security/*.yaml`)
-3. **JSON Schema** (`./iac/scripts/ci/schema-lint.sh`). Schemas en `./iac/schemas/`
+3. JSON Schema: `./externo/scripts/lint.sh` (schemas del repo de resources)
 4. Vault
 5. `terraform -chdir=./iac/stacks/kafka-connect`
 

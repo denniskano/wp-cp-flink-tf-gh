@@ -9,7 +9,6 @@ modules/              # lógica compartida; no tienen backend
 stacks/               # lo que se aplica (un directorio = un state)
 resources/template/   # .tf.tpl para Flink y eda-core
 scripts/              # generate_*, gen_*_flink, terraform_task, validate
-schemas/              # JSON Schema de Connect
 tests/ make/ docs/
 ```
 

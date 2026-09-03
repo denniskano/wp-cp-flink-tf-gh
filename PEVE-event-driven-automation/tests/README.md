@@ -9,8 +9,8 @@ tests/flink-statements/
 ```
 
 ```bash
-make test    # fixtures + schema Connect + terraform validate
-make lint    # fmt -check + schema sobre fixtures
+make test    # fixtures de existencia + terraform validate
+make lint    # terraform fmt -check
 ```
 
-Para lintar un use-case real: `./scripts/ci/schema-lint.sh <connects> <security>`.
+La forma del YAML Connect se lintea en PEVE-kafka-connect-resources-v1.

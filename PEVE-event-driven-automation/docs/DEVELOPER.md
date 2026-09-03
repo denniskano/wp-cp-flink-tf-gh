@@ -1,12 +1,12 @@
 # Cómo trabajar este repo
 
-Acá solo va Terraform (módulos, stacks, scripts, tests, schemas). El YAML de la app y los Actions se tocan en los otros repos.
+Acá solo va Terraform (módulos, stacks, scripts, tests). El YAML de la app y los Actions se tocan en los otros repos.
 
 `desa` / `cert` / `prod` no son ramas de acá. Son carpetas en resources + otra key de state + otro workflow. Este repo versiona código, no entornos.
 
 ## Qué entra y qué no
 
-Sí: `modules/ccloud-*` (sin backend ni `provider "confluent"`), `stacks/<nombre>/` con backend Azure, scripts que llame GHA o `make`, fixtures en `tests/`, JSON Schema de Connect, docs.
+Sí: `modules/ccloud-*` (sin backend ni `provider "confluent"`), `stacks/<nombre>/` con backend Azure, scripts que llame GHA o `make`, fixtures en `tests/`, docs.
 
 No: `.github/`, YAML `{CODAPP}/desa/...`, `domains/` partidos por create/delete, `config/development|certification|production`, JAR de SMT/UDF, tfstate, tfvars con secretos. Tampoco un segundo stack en el mismo apply.
 
@@ -127,7 +127,7 @@ Un cambio que toca los tres lados suele ser tres PRs: este repo (tag), el YAML, 
 
 - El diff no mete workflows ni YAML de app.
 - `make lint` y `make test` en verde.
-- Si cambió el contrato Connect, `schemas/` va en el mismo PR.
+- Si cambió el contrato Connect, el schema se toca en PEVE-kafka-connect-resources-v1.
 - Pensá addresses / `for_each` (¿va a haber replace?).
 - Variable nueva documentada para el que toca el workflow.
 - STACKS.md / STATE.md si hay stack o key nueva.
@@ -135,4 +135,4 @@ Un cambio que toca los tres lados suele ser tres PRs: este repo (tag), el YAML, 
 
 ## Links
 
-[../README.md](../README.md) · [README.md](README.md) · [STACKS.md](STACKS.md) · [STATE.md](STATE.md) · [NETWORKING.md](NETWORKING.md) · [../schemas/README.md](../schemas/README.md) · [../tests/README.md](../tests/README.md)
+[../README.md](../README.md) · [README.md](README.md) · [STACKS.md](STACKS.md) · [STATE.md](STATE.md) · [NETWORKING.md](NETWORKING.md) · [../tests/README.md](../tests/README.md)

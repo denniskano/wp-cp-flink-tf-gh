@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Contratos de validate-yaml.sh (sin Terraform / Confluent).
+# validate-yaml.sh: existencia de connects/ + security/ (sin Confluent).
+# La forma del YAML se lintea en PEVE-kafka-connect-resources-v1.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VALIDATE="${ROOT}/scripts/ci/validate-yaml.sh"
-SCHEMA="${ROOT}/scripts/ci/schema-lint.sh"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 ok() { echo "OK  $*"; }
@@ -38,22 +38,5 @@ if "${VALIDATE}" "${HERE}/fixtures/connects" "${HERE}/no-such-security" plan; th
   fail "plan sin security/ debió fallar"
 fi
 ok "security/ ausente bloqueado"
-
-echo "== json-schema fixtures: debe pasar =="
-"${SCHEMA}" "${HERE}/fixtures/connects" "${HERE}/fixtures/security" \
-  || fail "json-schema fixtures"
-ok "json-schema fixtures"
-
-echo "== json-schema connects inválido: debe fallar =="
-if "${SCHEMA}" "${HERE}/fixtures-invalid-connects"; then
-  fail "schema debió fallar con kafka.auth.mode inválido"
-fi
-ok "json-schema connects inválido bloqueado"
-
-echo "== json-schema security inválido: debe fallar =="
-if "${SCHEMA}" "${HERE}/fixtures/connects" "${HERE}/fixtures-invalid-security"; then
-  fail "schema debió fallar con resource_type=grup"
-fi
-ok "json-schema security inválido bloqueado"
 
 echo "tests/kafka-connect: OK"
