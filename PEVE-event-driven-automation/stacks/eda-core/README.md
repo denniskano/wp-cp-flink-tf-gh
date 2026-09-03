@@ -1,12 +1,7 @@
-# Stack: eda-core
+# eda-core
 
-Raíz Terraform (codegen, igual que Flink). Topics, Schema Registry, RBAC y lookup de SA.
+Topics, Schema Registry, RBAC y data sources de SA. El HCL no está escrito a mano: lo arman los `generate_*_dinamic.sh` a partir de `resources/template/`.
 
-- `scripts/generate_topic_dinamic.sh`
-- `scripts/generate_schema_registry_dinamic.sh`
-- `scripts/generate_rbac_dinamic.sh`
-- Orquesta: `scripts/terraform_task.sh` (`-chdir=./automation`)
+En el runner se copia este directorio + los tpl a `./automation` y se corre `scripts/terraform_task.sh` (`-chdir=./automation`). El YAML sale de `PEVE-event-driven-resources-v3`.
 
-Templates: `resources/template/{topics,topics_tag,rbac,data_sa,schema_registry,schema_registry_mode,confluent_subject_config}.tf.tpl`.
-
-En CI se copia este stack + esos templates a `./automation` (los `generate_*` y `terraform_task` siguen usando `./automation`). YAML: `PEVE-event-driven-resources-v3`.
+Provider: Terraform `~> 1.12.2`, Confluent `~> 2.85.0`. El state vive en `tf-peve-resources`; la key la arma `terraform_task.sh` (ver [docs/STATE.md](../../docs/STATE.md)).

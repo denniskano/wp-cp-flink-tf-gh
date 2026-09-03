@@ -1,3 +1,3 @@
 # ccloud-schemas
 
-Codegen: `scripts/generate_schema_registry_dinamic.sh` + `resources/template/schema_registry*.tf.tpl`. Stack: `stacks/eda-core`.
+Igual que topics: `generate_schema_registry_dinamic.sh` y los tpl `schema_registry*` en eda-core.

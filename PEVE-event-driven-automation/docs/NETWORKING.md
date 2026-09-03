@@ -1,7 +1,7 @@
 # Networking (Connect → Azure)
 
-Ingress Private Link (VNet → Kafka) no cambia el YAML del conector.
+El Private Link de ingreso (VNet → Kafka) no se declara en el YAML del conector.
 
-Egress Private Link (conector → Postgres, Blob, …) es **plataforma**: módulo `ccloud-egress-privatelink` (esqueleto). El sink sigue usando el FQDN (`peved02server.postgres.database.azure.com`); el DNS privado lo resuelve Confluent al PE.
+El de egreso (conector → Postgres, Blob, etc.) es de plataforma: módulo `ccloud-egress-privatelink`, todavía sin implementar. El sink sigue apuntando al FQDN (`peved02server.postgres.database.azure.com`); Confluent resuelve el DNS privado al PE.
 
-Sub-recurso Flexible Server: `postgresqlServer`. Aceptar el PE a mano en Azure.
+En Flexible Server el sub-recurso es `postgresqlServer`. El PE se acepta a mano en Azure.

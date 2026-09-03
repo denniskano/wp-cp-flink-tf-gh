@@ -1,7 +1,7 @@
 # ccloud-connectors
 
-Full-managed Kafka Connect. Lee `{connectors_dir}/*.yaml` y `{security_dir}/*.yaml` del repo de resources (inyectados por el workflow).
+Connectors full-managed. Lee `connectors_dir` y `security_dir` (los llena el workflow desde `./externo`).
 
-Key de `for_each` = nombre del archivo sin `.yaml`. Borrar un YAML destruye solo ese conector.
+El `for_each` es el nombre del yaml sin extensión. Si borrás un archivo, Terraform tira solo ese connector.
 
-Custom SMT **no** se sube aquí: stack `connect-plugins`. El YAML solo lleva `transforms.*.custom.smt.artifact.id`.
+El SMT custom no se sube acá. En el yaml va `transforms.*.custom.smt.artifact.id` (el `ca-…` lo tendría que crear `connect-plugins`).

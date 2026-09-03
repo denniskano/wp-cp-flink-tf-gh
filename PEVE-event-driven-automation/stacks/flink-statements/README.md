@@ -1,10 +1,12 @@
-# Stack: flink-statements
+# flink-statements
 
-Raíz Terraform. Statements + RBAC se generan con codegen (mismo modelo que v2):
+Statements y RBAC por codegen, igual que en v2:
 
-- `scripts/gen_rbac_flink_dinamic.sh` → `rbac_flink.tf` + `data_sa_flink.tf`
-- `scripts/gen_stmt_flink_dinamic.sh` → `stmt_flink.tf` + `data_cp_flink.tf`
+- `gen_rbac_flink_dinamic.sh` → `rbac_flink.tf`, `data_sa_flink.tf`
+- `gen_stmt_flink_dinamic.sh` → `stmt_flink.tf`, `data_cp_flink.tf`
 
-Templates originales: `resources/template/{rbac,stmt,data_sa,data_cp}_flink.tf.tpl`. Esos `.tf` no se versionan.
+Los tpl están en `resources/template/`. Esos `.tf` no van al repo.
 
-State DES: `dev/{CODAPP}/ccloud-flink/{pipeline}/tf-flink-rbacs-stmts.tfstate` (container `tf-flink-stm-dev`).
+State DES: `tf-flink-stm-dev` / `dev/{CODAPP}/ccloud-flink/{pipeline}/tf-flink-rbacs-stmts.tfstate`.
+
+`scripts/configure-dns.sh` y `restore-dns.sh` los usa el workflow cuando el runner no resuelve el endpoint de Flink (Google/Cloudflare temporal; después se vuelve al resolv original).

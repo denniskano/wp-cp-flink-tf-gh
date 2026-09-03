@@ -1,27 +1,21 @@
 # Stacks
 
-Un **stack** es una raíz Terraform con backend. Un **módulo** no se aplica solo.
+Cada carpeta en `stacks/` es una raíz Terraform (backend Azure). No se aplican dos stacks en el mismo `apply`.
 
-| Stack | Módulo | Unidad de deploy | Resources (`./externo`) | Workflow (`PEVE-event-driven-resources-v2`) |
+| Stack | Cómo se arma el HCL | Unidad | YAML | Workflow DES |
 |---|---|---|---|---|
-| `kafka-connect` | `ccloud-connectors` | use-case (`connects/` + `security/`) | PEVE-kafka-connect-resources-v1 | deploy-kafka-connect |
-| `connect-plugins` | `ccloud-connect-smt` | environment (JAR/ZIP de SMT) | (binario, no este YAML) | deploy-connect-plugins |
-| `flink-compute-pool` | codegen `gen_cp_flink_dinamic.sh` | CODAPP (`compute-pool/`) | PEVE-stream-processing-resources-v2 | deploy-flink-compute-pools |
-| `flink-artifacts` | `ccloud-flink-artifacts` | CODAPP (UDF JAR/Python) | (binario) | deploy-flink-artifacts |
-| `flink-connections` | `ccloud-flink-connection` | CODAPP / env | — | deploy-flink-connections |
-| `flink-statements` | codegen `gen_rbac` + `gen_stmt` | pipeline (`statement/` + `security/`) | PEVE-stream-processing-resources-v2 | deploy-flink-statements |
-| `eda-core` | codegen `generate_{topic,schema_registry,rbac}_dinamic.sh` | CODAPP + env (`topics/` + `governance/` + `security/`) | PEVE-event-driven-resources-v3 | peve-resources-desa |
-| `tableflow` | `ccloud-tableflow` | use-case / topic | PEVE-event-driven-resources-v3 | deploy-tableflow |
-| `ksql` | `ccloud-ksql` | use-case (esqueleto) | PEVE-event-driven-resources-v3 | deploy-ksql |
+| kafka-connect | módulo `ccloud-connectors` | use-case | kafka-connect-resources-v1 | deploy-kafka-connect |
+| flink-compute-pool | `gen_cp_flink_dinamic.sh` | CODAPP | stream-processing-resources-v2 | deploy-compute-pools-desa-2-0 |
+| flink-statements | `gen_rbac` + `gen_stmt` | pipeline | stream-processing-resources-v2 | deploy-flink-statements-desa-2-0 |
+| eda-core | `generate_topic` / `schema_registry` / `rbac` + `terraform_task.sh` | CODAPP + env | event-driven-resources-v3 | peve-resources-desa |
+| connect-plugins | pendiente (`ccloud-connect-smt`) | environment | — (JAR) | — |
+| flink-artifacts | pendiente | CODAPP | — (JAR) | — |
+| flink-connections | pendiente | CODAPP / env | — | — |
+| tableflow | pendiente | use-case | v3 | — |
+| ksql | pendiente | use-case | v3 | — |
 
-Orden cuando hay dependencias:
+Si hay dependencias: primero eda-core (topic, schema, SA), después pools / artifacts / connections / SMT, después Connect o statements.
 
-1. `eda-core` (topic, schema, RBAC, SA)
-2. `connect-plugins` / `flink-artifacts` / `flink-connections` / `flink-compute-pool` (plataforma)
-3. `kafka-connect` / `flink-statements` / `tableflow`
+Los SA y API keys del use-case salen de eda-core, no de un stack aparte.
 
-No combinar stacks en un solo `apply`. Service accounts y API keys del use-case van en **`eda-core`**, no en un stack `identity`.
-
-Validación Connect (JSON Schema): [../schemas/README.md](../schemas/README.md). Flink: `scripts/ci/validate-flink-yaml.sh` (existencia; sin schema todavía). Workflows: **PEVE-event-driven-resources-v2**.
-
-
+Connect valida forma del YAML con [../schemas/README.md](../schemas/README.md). Flink solo chequea que existan archivos (`scripts/ci/validate-flink-yaml.sh`).

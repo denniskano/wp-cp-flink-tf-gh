@@ -1,5 +1,3 @@
-# Stack: tableflow
+# tableflow
 
-Esqueleto. Enlazar `modules/ccloud-tableflow`. State por use-case (o por topic si el blast radius lo pide).
-
-Depende de `eda-core` (el topic ya existe). Independiente de `kafka-connect`.
+Vacío. El topic tiene que existir (eda-core). No comparte state con Connect.

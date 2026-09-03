@@ -1,19 +1,16 @@
-# Terraform state
+# State
 
-Backend: Azure RM. El workflow pasa `-backend-config`.
+Backend Azure RM. El workflow manda `storage_account_name`, `container_name` y `key` en el `init`.
 
-| Stack | Key (DES / `dev`) |
-|---|---|
-| kafka-connect | `dev/{CODAPP}/{use_case}/tf-connect.tfstate` |
-| connect-plugins | `dev/{CODAPP}/tf-connect-plugins.tfstate` (propuesto) |
-| flink-compute-pool | `dev/{CODAPP}/ccloud-flink/compute-pool/tf-flink-cps.tfstate` |
-| flink-artifacts | `dev/{CODAPP}/tf-flink-artifacts.tfstate` (propuesto) |
-| flink-connections | `dev/{CODAPP}/tf-flink-connections.tfstate` (propuesto) |
-| flink-statements | `dev/{CODAPP}/ccloud-flink/{pipeline}/tf-flink-rbacs-stmts.tfstate` |
-| eda-core | `dev/{CODAPP}/{use_case}/tf-eda.tfstate` (propuesto) |
-| tableflow | `dev/{CODAPP}/{use_case}/tf-tableflow.tfstate` (propuesto) |
-| ksql | `dev/{CODAPP}/{use_case}/tf-ksql.tfstate` (propuesto) |
+Lo que está en uso (DES):
 
-`cert` / `prod` sustituyen el prefijo `dev` cuando existan esos workflows (hoy solo DES en **PEVE-event-driven-resources-v2**).
+| Stack | Container | Key |
+|---|---|---|
+| kafka-connect | tf-connect-dev | `dev/{CODAPP}/{use_case}/tf-connect.tfstate` |
+| flink-compute-pool | tf-flink-cps-dev | `dev/{CODAPP}/ccloud-flink/compute-pool/tf-flink-cps.tfstate` |
+| flink-statements | tf-flink-stm-dev | `dev/{CODAPP}/ccloud-flink/{pipeline}/tf-flink-rbacs-stmts.tfstate` |
+| eda-core | tf-peve-resources | `{DESA}/{CODAPP}/{cc\|cfk}/tf-{properties_name}.tfstate` (topics). RBAC y SR agregan `-rbac` / `-schemaregistry` al nombre. Lo arma `scripts/terraform_task.sh`. |
 
-Containers DES: Connect `tf-connect-dev`; Flink pools `tf-flink-cps-dev`; Flink statements `tf-flink-stm-dev`. No reutilizar keys entre stacks.
+Si más adelante se llenan los otros stacks, hay que inventar key nueva. No reutilizar `tf-connect.tfstate` ni las de Flink.
+
+cert/prod todavía no están cableados en v2. Cuando existan, cambia el container / el prefijo; no el layout de este repo.

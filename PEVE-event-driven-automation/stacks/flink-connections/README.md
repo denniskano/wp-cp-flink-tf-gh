@@ -1,5 +1,3 @@
-# Stack: flink-connections
+# flink-connections
 
-Esqueleto. Enlazar `modules/ccloud-flink-connection`. State por environment / CODAPP.
-
-Apply **antes** que `flink-statements` si el SQL referencia una connection (`AZUREOPENAI`, etc.).
+Vacío. Connections de Flink (Azure OpenAI, etc.) a nivel environment/CODAPP. Si el SQL las usa, hay que crearlas antes que el statement.

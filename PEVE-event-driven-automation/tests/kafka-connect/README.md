@@ -1,5 +1,5 @@
 # tests/kafka-connect
 
-Fixtures del contrato Connect. `run.sh` ejercita `scripts/ci/validate-yaml.sh` (plan vs destroy, carpeta vacía).
+Fixtures de `connects/` + `security/`. `run.sh` pega contra `validate-yaml.sh` (plan vs destroy, carpeta vacía) y el JSON Schema.
 
-No sustituye `terraform plan` contra DES.
+Para un plan de verdad hay que ir a DES.

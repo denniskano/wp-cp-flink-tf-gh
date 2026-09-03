@@ -1,5 +1,3 @@
 # ccloud-egress-privatelink
 
-Esqueleto. `confluent_access_point` (Azure egress PE) + `confluent_dns_record`.
-
-Plataforma, no por use-case de Connect: un access point por destino (p. ej. Flexible Server `postgresqlServer`). El YAML del sink solo lleva el FQDN.
+Pendiente. `confluent_access_point` + `confluent_dns_record` (egress Azure). Un access point por destino, no por use-case. El sink solo lleva el FQDN; ver [docs/NETWORKING.md](../../docs/NETWORKING.md).

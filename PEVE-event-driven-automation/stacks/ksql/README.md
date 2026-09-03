@@ -1,3 +1,3 @@
-# Stack: ksql
+# ksql
 
-Esqueleto. Enlazar `modules/ccloud-ksql`.
+Vacío. Cluster / queries cuando haya YAML.

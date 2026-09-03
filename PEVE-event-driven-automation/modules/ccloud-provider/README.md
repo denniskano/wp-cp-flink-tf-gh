@@ -1,2 +1,3 @@
-# Constraint compartido. Copiar o referenciar desde versions de cada módulo.
-# El bloque `provider "confluent"` y el backend van solo en stacks/.
+# ccloud-provider
+
+Constraint de versión para copiar o referenciar desde el `versions.tf` de cada módulo. El `provider "confluent"` y el backend solo van en `stacks/`.

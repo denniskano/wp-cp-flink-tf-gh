@@ -1,29 +1,27 @@
-# Contrato entre los cinco repos
+# Repos
 
-| Repo | Rol |
+| Repo | Qué hay |
 |---|---|
-| **PEVE-event-driven-automation** (este) | Terraform (módulos/stacks), scripts, tests, JSON Schema de Connect |
-| **PEVE-event-driven-resources-v2** | GitHub Actions. Clona este repo → `./iac` y el YAML del stack → `./externo` |
-| **PEVE-kafka-connect-resources-v1** | YAML Connect: `{CODAPP}/{desa\|cert\|prod}/{use-case}/connects` + `security` |
-| **PEVE-stream-processing-resources-v2** | YAML Flink: `{CODAPP}/ccloud-flink/{env}/compute-pool` + `{pipeline}/statement` |
-| **PEVE-event-driven-resources-v3** | YAML core: topics, schemas, RBAC/SA del use-case (`stacks/eda-core`) |
+| PEVE-event-driven-automation (este) | Terraform, scripts, schemas de Connect |
+| PEVE-event-driven-resources-v2 | GitHub Actions |
+| PEVE-kafka-connect-resources-v1 | YAML Connect `{CODAPP}/{env}/{use-case}/connects` + `security` |
+| PEVE-stream-processing-resources-v2 | YAML Flink `{CODAPP}/ccloud-flink/{env}/…` |
+| PEVE-event-driven-resources-v3 | topics, schemas, RBAC/SA |
 
-Los workflows **no** viven aquí. En cada run:
+Cada job de v2 hace más o menos lo mismo:
 
-1. Checkout de este repo en `./iac` (`IAC_REF` = tag o rama).
-2. Checkout del YAML del stack en `./externo`.
-3. Validación de existencia (`validate-yaml.sh` o `validate-flink-yaml.sh`).
-4. Connect: **JSON Schema** (`schema-lint.sh`). Flink: codegen `gen_*_dinamic.sh` (sin schema). No corre schema en `destroy`.
-5. Vault + (Flink: generate `*_flink.tf`) + `terraform -chdir=./iac/stacks/<stack>`.
+1. Checkout de este repo → `./iac` (el pin es `IAC_REF`).
+2. Checkout del YAML → `./externo`.
+3. Validar que existan los yaml. En Connect además corre JSON Schema (`schema-lint.sh`); en destroy no, porque a veces ya no hay archivos.
+4. Flink y eda-core generan el `.tf` en el runner (`gen_*` / `generate_*`). Connect no: lee el YAML directo.
+5. Vault y `terraform -chdir=./iac/stacks/<stack>`. eda-core es distinto: arma `./automation` y llama `terraform_task.sh`.
 
-eda-core sigue siendo esqueleto.
-
-| Stack | `./externo` viene de |
+| Stack | YAML en |
 |---|---|
-| `kafka-connect` | PEVE-kafka-connect-resources-v1 |
-| `flink-compute-pool`, `flink-statements` | PEVE-stream-processing-resources-v2 |
-| `eda-core` | PEVE-event-driven-resources-v3 |
+| kafka-connect | PEVE-kafka-connect-resources-v1 |
+| flink-compute-pool, flink-statements | PEVE-stream-processing-resources-v2 |
+| eda-core | PEVE-event-driven-resources-v3 |
 
-No hay YAML de aplicación en este repositorio. Los JAR/ZIP (UDF Flink, SMT) tampoco: el workflow los baja y pasa `artifact_file`.
+Los JAR (SMT / UDF) no se versionan acá. El workflow los baja y pasa la ruta.
 
-Detalle del schema: [../schemas/README.md](../schemas/README.md). Manual: [DEVELOPER.md](DEVELOPER.md).
+Ver [DEVELOPER.md](DEVELOPER.md) y [../schemas/README.md](../schemas/README.md).

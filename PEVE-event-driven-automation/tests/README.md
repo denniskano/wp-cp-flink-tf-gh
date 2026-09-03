@@ -1,20 +1,16 @@
 # Tests
 
-Un directorio por **stack** event-driven, no por verbo (`create`/`delete`) ni por entorno.
+Hay una carpeta por stack que ya tiene contrato YAML. Son fixtures, no se aplican.
 
-| Carpeta | Stack |
-|---|---|
-| `tests/kafka-connect/` | `stacks/kafka-connect` |
-| `tests/flink-compute-pool/` | `stacks/flink-compute-pool` |
-| `tests/flink-statements/` | `stacks/flink-statements` |
-
-Los YAML de aquí son **fixtures** (contrato `connects/` + `security/`). No son el repo de resources ni se aplican a Confluent.
-
-```bash
-make test          # fixtures + JSON Schema + terraform validate (kafka-connect)
-make lint          # terraform fmt -check + JSON Schema (fixtures)
+```
+tests/kafka-connect/
+tests/flink-compute-pool/
+tests/flink-statements/
 ```
 
-JSON Schema (`connects/` / `security/`): [schemas/README.md](../schemas/README.md). Contra resources: `./scripts/ci/schema-lint.sh <connects> <security>`.
+```bash
+make test    # fixtures + schema Connect + terraform validate
+make lint    # fmt -check + schema sobre fixtures
+```
 
-Cuando se implemente Flink o SMT: `tests/flink-statements/`, `tests/connect-plugins/`, etc.
+Para lintar un use-case real: `./scripts/ci/schema-lint.sh <connects> <security>`.

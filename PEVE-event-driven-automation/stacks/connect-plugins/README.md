@@ -1,9 +1,5 @@
-# Stack: connect-plugins
+# connect-plugins
 
-Esqueleto. Subida de Custom SMT a nivel environment (no por use-case).
+Vacío. Acá iría la subida de SMT (`confluent_connect_artifact`, id `ca-…`) a nivel environment.
 
-Enlazar `modules/ccloud-connect-smt` (`confluent_connect_artifact`, id `ca-…`).
-
-Apply **antes** que `kafka-connect`. El YAML del conector referencia el artifact id; este stack no crea el connector.
-
-Binarios (JAR/ZIP) en resources o artifact store; `artifact_file` lo pasa el workflow.
+El connector no sube el JAR: en el yaml solo pone el artifact id. Si se implementa, hay que aplicarlo antes que `kafka-connect`. El binario lo baja el workflow (`artifact_file`).

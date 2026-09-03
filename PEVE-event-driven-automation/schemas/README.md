@@ -1,14 +1,8 @@
-# JSON Schema — YAML de Connect (resources)
+# JSON Schema de Connect
 
-Contrato de `connects/` y `security/` en **PEVE-kafka-connect-resources-v1** (JSON Schema Draft-07).
-
-El workflow `deploy-kafka-connect` en **PEVE-event-driven-resources-v2** y `make lint-yaml` validan con:
-
-1. **check-jsonschema** (preferido, `pip install check-jsonschema`)
-2. **Ajv** (`node scripts/ci/ajv-lint.mjs`) si no hay check-jsonschema
+Draft-07 para `connects/` y `security/` de `PEVE-kafka-connect-resources-v1`.
 
 ```bash
-# Desde PEVE-event-driven-automation
 make lint-yaml
 
 ./scripts/ci/schema-lint.sh \
@@ -16,27 +10,15 @@ make lint-yaml
   ../PEVE-kafka-connect-resources-v1/PEVE/desa/use-case-name-02/security
 ```
 
-| Schema | Archivos |
+Usa `check-jsonschema` si está instalado; si no, Ajv (`node scripts/ci/ajv-lint.mjs`).
+
+| Archivo | Aplica a |
 |---|---|
-| `schemas/connects.schema.json` | `connects/*.yaml` |
-| `schemas/security.schema.json` | `security/*.yaml` |
+| connects.schema.json | `connects/*.yaml` |
+| security.schema.json | `security/*.yaml` |
 
-## Cuándo corre
+`make lint` / `make test` lo corren contra las fixtures. El workflow `deploy-kafka-connect` lo corre sobre `./externo` antes de Terraform, excepto en destroy.
 
-| Momento | Qué hace |
-|---|---|
-| `make lint` / `make test` (este repo) | Fixtures + YAML inválidos a propósito |
-| `deploy-kafka-connect` **antes** de Terraform, si `action` ≠ `destroy` | Lint de `./externo/.../connects` y `security` |
-| `destroy` | Se omite (puede no haber YAML) |
-| Flink / eda-core | Aún no hay schema |
+Flink y eda-core no tienen schema todavía. `validate-yaml.sh` solo mira que existan carpetas y `*.yaml`. Los guards de Terraform evitan un apply vacío. El plan es el que habla con Confluent.
 
-## Qué valida vs qué no
-
-| Capa | Valida |
-|---|---|
-| `validate-yaml.sh` | Existen carpetas y `*.yaml` |
-| JSON Schema | Forma: `SERVICE_ACCOUNT`, `topics` xor `kafka.topic`, `vault.secrets.path`+`field`, `resource_type` ∈ topic/subject/group/transactional-id, sin `config_sensitive` en resources |
-| Guards Terraform | Apply vacío / `security_dir` |
-| `terraform plan` | State + Confluent (SA existe, drift) |
-
-Un `resource_type: grup` pasa el plan (Terraform lo descarta) y **falla el schema**.
+Un typo tipo `resource_type: grup` puede pasar el plan (Terraform lo ignora) y lo pesca el schema.

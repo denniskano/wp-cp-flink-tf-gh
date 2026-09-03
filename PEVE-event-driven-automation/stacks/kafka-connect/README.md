@@ -1,7 +1,10 @@
-# Stack: kafka-connect
+# kafka-connect
 
-Raíz Terraform del módulo `ccloud-connectors`. State por use-case.
+Wrapper de `modules/ccloud-connectors`. Un state por use-case.
 
-El workflow debe usar `-chdir=stacks/kafka-connect` (o el equivalente tras clonar este repo en `./iac`).
+```
+terraform -chdir=stacks/kafka-connect
+# o, en GHA: -chdir=iac/stacks/kafka-connect
+```
 
-Si el YAML usa SMT custom, aplicar antes `connect-plugins`.
+Si el YAML usa SMT custom, el artifact tiene que existir antes (cuando exista `connect-plugins`).
