@@ -4,6 +4,10 @@ Acá se declaran los conectores full-managed y el RBAC del service account. Un a
 
 Antes de desplegar, el **topic**, el **schema** y el **SA** ya tienen que existir. Este repo no los crea.
 
+El cluster Kafka es **Dedicated** con red **Private Link**. El conector sale por un **Egress Private Link Endpoint** + DNS record de esa red (Connection type: Private Link Access). Eso no va en el YAML: el host o la URL siguen siendo el **FQDN público** del servicio (`*.postgres.database.azure.com`, `*.database.windows.net`, namespace, account). No pongas la IP del PE. El EAP y el DNS tienen que estar Ready **antes** del apply. TLS / `ssl.mode: require` se quedan: Private Link es L4.
+
+Salesforce, Snowflake y Mongo Atlas no entran porque el cluster sea PL: cada uno necesita su Private Connect / EAP, o quedan por internet. Datagen no sale a un sistema externo.
+
 ## Carpetas
 
 ```
@@ -60,6 +64,7 @@ Guía local (YAML, RBAC, tuning) y documentación oficial de Confluent Cloud. Cl
 - Topic: `topics` **o** `kafka.topic` (no los dos). JDBC source usa `topic.prefix`; HTTP Source `api1.topics`; Blob Source `topic.regex.list`; Cosmos Source `azure.cosmos.source.containers.topicMap`.
 - El SA va en `vault.service_account` (el `display_name` de Confluent).
 - Passwords y users: `vault.secrets.<clave>` con `path` y `field` de Vault. No pongas secretos en claro ni un bloque `config_sensitive`.
+- Red: no hay campo Private Link en el YAML. Host/URL = FQDN público.
 
 El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombrás o cambiás `name`, se recrea y se pierden offsets.
 

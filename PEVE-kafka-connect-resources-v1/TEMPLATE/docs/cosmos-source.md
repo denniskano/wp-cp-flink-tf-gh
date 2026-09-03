@@ -24,6 +24,8 @@ El SA: **write** en cada topic del `topicMap` y `{topic}-value`.
 
 Colocá Kafka y Cosmos en la **misma región** y poné esa región en `azure.cosmos.preferredRegionList`.
 
+El cluster es Dedicated + Private Link. Endpoint FQDN público. `azure.cosmos.mode.gateway: true` (Direct no pasa por el PE). Sub-recurso del EAP: `Sql`.
+
 ## Tuning
 
 El change feed es incremental. El cuello suele ser RUs de Cosmos.
@@ -32,7 +34,7 @@ El change feed es incremental. El cuello suele ser RUs de Cosmos.
 |---|---|---|
 | `azure.cosmos.preferredRegionList` | — | Región de lectura. Desalinearla suma latencia y RU cruzados. |
 | `azure.cosmos.throughputControl.enabled` | `false` | `true` + target RU para no comerse el container. |
-| `azure.cosmos.mode.gateway` | `false` | `false` = direct. `true` si Private Link/firewall no banca direct. |
+| `azure.cosmos.mode.gateway` | `false` | En esta red: `true` (gateway). Direct no pasa por Private Link. |
 | `tasks.max` | — | Más tasks = más lecturas en paralelo del feed. Subí RU si ves 429. |
 
 Si recreás el conector se pierde el lease/checkpoint del change feed: puede re-emitir desde el inicio del feed (duplicados). El database y el container tienen que existir.

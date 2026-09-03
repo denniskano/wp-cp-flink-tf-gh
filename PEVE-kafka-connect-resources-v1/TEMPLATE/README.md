@@ -2,6 +2,8 @@
 
 Copiá el YAML a `{CODAPP}/desa/{use-case}/connects/` y el RBAC a `security/`. **No despliegues esta carpeta.**
 
+El cluster es **Dedicated** + **Private Link**. El destino se alcanza por Egress Private Link Endpoint + DNS (FQDN público, no IP privada). No hay campo de red en el YAML. Event Hubs Source usa `AMQP_WEB_SOCKETS`; Cosmos V2 usa `azure.cosmos.mode.gateway: true`. En Dedicated no aplica el tope de `max.poll.records` 500 ni el `flush.size` mínimo 1000 de Basic/Standard.
+
 Clases y campos según la [doc de Confluent Cloud](https://docs.confluent.io/cloud/current/connectors/index.html) (no el conector self-managed). Credenciales solo en `vault.secrets`. El lint (`schemas/connects.schema.json`) exige los campos y secretos de cada clase.
 
 Cada guía en `docs/` cubre YAML, Vault, RBAC y **tuning** (throughput, batch, poll, rotación, reintentos).

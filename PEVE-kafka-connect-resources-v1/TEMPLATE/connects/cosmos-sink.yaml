@@ -18,6 +18,7 @@ config_nonsensitive:
   azure.cosmos.sink.id.strategy: "FullKeyStrategy"
   azure.cosmos.sink.write.strategy: "ItemOverwrite"
   azure.cosmos.sink.bulk.enabled: "true"
+  azure.cosmos.mode.gateway: "true"
   azure.cosmos.preferredRegionList: "East US"
   tasks.max: "1"
   errors.tolerance: "all"

@@ -22,6 +22,8 @@ Confluent depreca `PASSWORD` el **15-sep-2026**. Para algo que vaya a vivir, us√
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
+El Private Link del cluster Dedicated **no** alcanza Salesforce. `salesforce.instance` (`login.salesforce.com` o My Domain) sale por internet salvo que haya Private Connect / EAP propio.
+
 ## Tuning
 
 | Propiedad | Default | Para qu√© |

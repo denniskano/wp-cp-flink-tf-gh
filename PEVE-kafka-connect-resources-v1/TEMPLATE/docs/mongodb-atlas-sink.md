@@ -13,6 +13,8 @@ Vault: `connection.user` y `connection.password`. El user de Atlas necesita writ
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
+El Private Link del cluster Dedicated **no** alcanza Atlas. Hace falta Private Endpoint de Atlas + EAP en Confluent, o Atlas queda por internet (allowlist de egress). `connection.host` sigue siendo el hostname Atlas, no una IP.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |

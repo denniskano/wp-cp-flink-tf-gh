@@ -15,6 +15,8 @@ Vault: `snowflake.user.name` y `snowflake.private.key` (key-pair). El user neces
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
+El Private Link del cluster Dedicated **no** alcanza Snowflake. Hace falta Private Connectivity de Snowflake + EAP, o el `snowflake.url.name` queda por internet.
+
 ## Tuning
 
 El flush ocurre cuando se cumple **la primera** de `buffer.count.records`, `buffer.size.bytes` o `buffer.flush.time`.

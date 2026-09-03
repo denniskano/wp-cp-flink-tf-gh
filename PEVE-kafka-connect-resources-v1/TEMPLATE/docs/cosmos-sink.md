@@ -31,6 +31,8 @@ El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED
 
 Colocá el cluster Kafka y Cosmos en la **misma región** y poné esa región en `azure.cosmos.preferredRegionList`.
 
+El cluster es Dedicated + Private Link. El endpoint sigue siendo `https://…documents.azure.com:443/`. Poné `azure.cosmos.mode.gateway: true`: Direct abre muchos puertos/IPs que el PE no cubre. Sub-recurso del EAP: `Sql` (NoSQL).
+
 ## Tuning
 
 V2 escribe en **bulk** (mejor que V1). El cuello suele ser RUs de Cosmos, no Kafka.
@@ -44,7 +46,7 @@ V2 escribe en **bulk** (mejor que V1). El cuello suele ser RUs de Cosmos, no Kaf
 | `azure.cosmos.sink.maxRetryCount` | `10` | Reintentos ante error transitorio de write. |
 | `azure.cosmos.sink.errors.tolerance.level` | `None` | `All` loguea y sigue después de los retries. Distinto de `errors.tolerance` (DLQ de Connect). |
 | `azure.cosmos.throughputControl.enabled` | `false` | Poné `true` + `targetThroughput` / `targetThroughputThreshold` para no comerse todos los RU del container. |
-| `azure.cosmos.mode.gateway` | `false` | `false` = direct (menos latencia). `true` = gateway si hay firewall/Private Link que no banca direct. |
+| `azure.cosmos.mode.gateway` | `false` | En esta red: `true` (gateway). Direct no pasa por Private Link. |
 | `tasks.max` | — | Más tasks = más writes en paralelo. Subí RU o prendé autoscale si ves 429. |
 | `max.poll.records` / `max.poll.interval.ms` | `500` / `300000` | Bajá poll si Cosmos throttlea; subí interval si el bulk tarda. |
 

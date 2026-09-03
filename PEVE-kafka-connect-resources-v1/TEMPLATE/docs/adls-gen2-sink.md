@@ -15,6 +15,8 @@ Vault: `azure.datalake.gen2.access.key`.
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
+El cluster es Dedicated + Private Link. El account es el FQDN lógico; el EAP (sub-recurso `dfs`) + DNS (`*.dfs.core.windows.net`) resuelven al PE.
+
 Exactly-once vale con partitioner determinista y **sin** WORM en el container. `rotate.schedule.interval.ms` lo invalida.
 
 ## Tuning
@@ -24,7 +26,7 @@ El archivo se cierra por la primera condición que se cumpla: `flush.size`, `rot
 | Propiedad | Default | Para qué |
 |---|---|---|
 | `partitioner.class` | — | `DefaultPartitioner` (por partición Kafka) o `TimeBasedPartitioner` (hora/día). |
-| `flush.size` | `1000` | Records por archivo. Mínimo 1000 en no Dedicated. |
+| `flush.size` | `1000` | Records por archivo. En Dedicated el mínimo es 1. La plantilla usa 1000 para no generar miles de archivos chicos. |
 | `time.interval` | — | Solo TimeBased. `HOURLY` cierra al cambiar la hora; `DAILY` al cambiar el día. |
 | `path.format` / `topics.dir` | defaults oficiales | Path Hive-style. Ejemplo: `topics.dir=json_logs/hourly` + `time.interval=HOURLY`. |
 | `rotate.schedule.interval.ms` | `-1` | Cierre por reloj. Mínimo 600000 ms (10 min) en la doc. **Invalida exactly-once.** |

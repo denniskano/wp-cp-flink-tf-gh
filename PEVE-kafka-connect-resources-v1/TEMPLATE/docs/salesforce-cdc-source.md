@@ -21,6 +21,8 @@ Confluent depreca `PASSWORD` el **15-sep-2026**. Para algo que vaya a vivir, us√
 
 El SA: **write** en el topic y `{topic}-value`.
 
+El Private Link del cluster Dedicated **no** alcanza Salesforce. `salesforce.instance` sale por internet salvo Private Connect / EAP propio.
+
 En Salesforce: CDC habilitado en el objeto, usuario con API Enabled y permiso de listen del canal.
 
 ## Tuning

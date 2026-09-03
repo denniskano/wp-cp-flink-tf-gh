@@ -14,7 +14,7 @@ config_nonsensitive:
   azure.eventhubs.hub.name: "hub-app-events"
   azure.eventhubs.consumer.group: "$Default"
   azure.eventhubs.partition.starting.position: "START_OF_STREAM"
-  azure.eventhubs.transport.type: "AMQP"
+  azure.eventhubs.transport.type: "AMQP_WEB_SOCKETS"
   azure.eventhubs.offset.type: "OFFSET"
   max.events: "50"
   tasks.max: "1"

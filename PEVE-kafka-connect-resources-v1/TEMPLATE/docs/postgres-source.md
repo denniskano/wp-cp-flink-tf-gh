@@ -19,6 +19,8 @@ Modo de captura: `bulk` (default, full dump en cada poll). Con `timestamp.column
 
 El SA: **write** PREFIXED en `{topic.prefix}` (topic + subject). Confluent puede crear el topic (`partitions=1`, `rf=3`); si lo querés con otra config, crealo antes.
 
+El cluster es Dedicated + Private Link. `connection.host` es el FQDN público; el EAP + DNS lo resuelven al PE.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |

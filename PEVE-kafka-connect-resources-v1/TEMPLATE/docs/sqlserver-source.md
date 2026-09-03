@@ -19,6 +19,8 @@ Modo: `bulk` por default. `timestamp.columns.mapping` / `incrementing.column.map
 
 El SA: **write** PREFIXED en `{topic.prefix}` (topic + subject). Creá el topic antes si no querés el default (`partitions=1`, `rf=3`).
 
+El cluster es Dedicated + Private Link. `connection.host` es el FQDN; el EAP + DNS lo resuelven al PE.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |

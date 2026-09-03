@@ -15,6 +15,8 @@ Vault: `connection.user` y `connection.password`. El usuario de la DB necesita `
 
 El SA necesita **read** en topic + subject, **write/read** en `{topic}-dlq` si hay `errors.tolerance`, y `group` PREFIXED `connect-lcc-`.
 
+El cluster es Dedicated + Private Link. `connection.host` es el FQDN público (`*.postgres.database.azure.com`); el EAP + DNS lo resuelven al PE. No pongas la IP privada.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |
@@ -22,8 +24,8 @@ El SA necesita **read** en topic + subject, **write/read** en `{topic}-dlq` si h
 | `insert.mode` | `INSERT` | `UPSERT` si hay PK y reintentos/duplicados. `INSERT` falla si la fila ya existe. |
 | `batch.sizes` | `3000` | Filas por batch JDBC (1–5000). Bajalo si el DB se satura; subilo si el lag es por round-trips. |
 | `tasks.max` | — | Más tasks = más consumidores. No pases las particiones del topic. Cada task abre conexión. |
-| `max.poll.records` | `500` | Records por poll de Kafka. Tope 500 en clusters no Dedicated. |
-| `max.poll.interval.ms` | `300000` | Si el sink tarda en escribir, subilo para no rebalancear. Rango 60 s–30 min (no Dedicated). |
+| `max.poll.records` | `500` | Records por poll. En Dedicated no aplica el tope 500 de Basic/Standard; subilo si el DB lo banca. |
+| `max.poll.interval.ms` | `300000` | Si el sink tarda en escribir, subilo para no rebalancear. Dedicated permite rangos más amplios que Basic/Standard. |
 | `pk.mode` / `pk.fields` | — | Obligatorio para `UPSERT`. `record_value` usa campos del value; `record_key` el key. |
 | `auto.create` / `auto.evolve` | `false` | Dejalos en `false` en DES/CERT/PROD. El DDL lo versionás vos. |
 | `table.name.format` | `${topic}` | Nombre de tabla. PostgreSQL trunca a 63 caracteres: topics largos pueden colisionar. |

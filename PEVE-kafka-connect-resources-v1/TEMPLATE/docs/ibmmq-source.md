@@ -15,6 +15,8 @@ Vault: `mq.username` y `mq.password`. En cliente MQ casi siempre hace falta `mq.
 
 El SA: **write** topic + `{topic}-value`.
 
+El cluster es Dedicated + Private Link. EAP a un Private Link Service que publique MQ. `mq.hostname` es el FQDN del DNS del EAP.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |

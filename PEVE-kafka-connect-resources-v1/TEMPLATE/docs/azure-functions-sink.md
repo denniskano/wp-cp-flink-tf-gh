@@ -13,6 +13,8 @@ Vault: `function.key` (function o host key).
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
+El cluster es Dedicated + Private Link. `function.url` sigue siendo el FQDN `*.azurewebsites.net`; el EAP + DNS lo resuelven al PE (sites).
+
 Azure Functions: tope **100 MB** por request y timeout ~**230 s**.
 
 ## Tuning

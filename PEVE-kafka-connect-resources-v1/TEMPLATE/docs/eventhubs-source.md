@@ -15,7 +15,7 @@ El SA: **write** en el topic y en `{topic}-value`.
 
 `azure.eventhubs.partition.starting.position`: `START_OF_STREAM` (replay desde el inicio si no hay offset) o `END_OF_STREAM` (solo nuevo). Solo aplica si no hay offsets guardados.
 
-`azure.eventhubs.transport.type`: `AMQP` (TCP 5671) o `AMQP_WEB_SOCKETS` (443). Si hay firewall chato, usá web sockets.
+`azure.eventhubs.transport.type`: en Dedicated + Private Link usá `AMQP_WEB_SOCKETS` (443). `AMQP` (TCP 5671) suele no pasar por el PE. El namespace es el nombre corto (`ehns-app-des`); el EAP resuelve `*.servicebus.windows.net`.
 
 ## Tuning
 

@@ -17,6 +17,8 @@ Vault: `azure.servicebus.sas.keyname` y `azure.servicebus.sas.key`. La policy ne
 
 El SA: **write** en el topic y en `{topic}-value`.
 
+El cluster es Dedicated + Private Link. El namespace es el nombre corto; el EAP + DNS (`*.servicebus.windows.net`) resuelven al PE.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |

@@ -39,7 +39,7 @@ El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED
 |---|---|---|
 | `api1.max.batch.size` | `1` | Records por request HTTP. Send Event es **un evento por POST**. Dejá `1`. Un batch > 1 no es el API de batch de Event Hubs. |
 | `tasks.max` | — | Más tasks = más POSTs en paralelo. Cuidado con TU (throughput units) del namespace. |
-| `max.poll.records` | `500` | Bajalo si Event Hubs responde 429 / `ServerBusy`. Tope 500 en no Dedicated. |
+| `max.poll.records` | `500` | Bajalo si Event Hubs responde 429 / `ServerBusy`. En Dedicated no aplica el tope 500 de Basic/Standard. |
 | `max.poll.interval.ms` | `300000` | Subilo si los reintentos HTTP alargan el ciclo. |
 | `api1.max.retries` | `5` | Reintentos (1–5000) ante códigos de `api1.retry.on.status.codes`. |
 | `api1.retry.backoff.ms` | `3000` | Pausa base. Con `EXPONENTIAL_WITH_JITTER` crece en cada retry. |
@@ -48,4 +48,4 @@ El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED
 | `api1.http.connect.timeout.ms` | `30000` | Timeout del handshake TLS. |
 | `behavior.on.error` | `FAIL` | `FAIL` tumba la task. `IGNORE` sigue (riesgo de pérdida si no hay DLQ). |
 
-`errors.tolerance: all` + topic `{topic}-dlq` (lo arma el stack) para records que Event Hubs rechaza (401, 404 hub inexistente, payload inválido). El hub y el namespace tienen que existir; Private Link si el cluster no sale a internet.
+`errors.tolerance: all` + topic `{topic}-dlq` (lo arma el stack) para records que Event Hubs rechaza (401, 404 hub inexistente, payload inválido). El hub y el namespace tienen que existir. El cluster es Dedicated + Private Link: `http.api.base.url` sigue siendo `https://{namespace}.servicebus.windows.net`; el EAP + DNS lo resuelven al PE. El token OAuth (`login.microsoftonline.com`) es un destino aparte: si Entra no tiene EAP, ese POST sale por internet.

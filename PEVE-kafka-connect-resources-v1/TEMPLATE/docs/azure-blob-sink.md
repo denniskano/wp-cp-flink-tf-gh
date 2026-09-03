@@ -13,6 +13,8 @@ Vault: `azblob.account.key`.
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
+El cluster es Dedicated + Private Link. `azblob.account.name` es el account; el EAP (sub-recurso `blob`) + DNS (`*.blob.core.windows.net`) resuelven al PE.
+
 `topics.dir` + `path.format` arman el path. Ejemplo con `time.interval: HOURLY` y `topics.dir: json_logs/hourly`: `{container}/json_logs/hourly/{topic}/dt=2020-02-06/hr=09/`.
 
 ## Tuning
@@ -21,7 +23,7 @@ El archivo se cierra cuando se cumple **la primera** de estas condiciones: `flus
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `flush.size` | `1000` | Records por archivo. Mínimo 1000 en clusters no Dedicated (1 en Dedicated). Más grande = menos archivos, más latencia. |
+| `flush.size` | `1000` | Records por archivo. En Dedicated el mínimo es 1 (Basic/Standard: 1000). La plantilla usa 1000 para no generar miles de archivos chicos. |
 | `time.interval` | — | `HOURLY` o `DAILY`. Cierra el archivo al cruzar el borde de hora/día. |
 | `rotate.schedule.interval.ms` | `-1` (off) | Cierra por reloj (ej. `600000` = cada 10 min) aunque no llegue `flush.size`. **Rompe exactly-once.** |
 | `rotate.interval.ms` | = `time.interval` | Cierra cuando el timestamp del record sale del span del primer record del archivo. Necesita stream continuo. |

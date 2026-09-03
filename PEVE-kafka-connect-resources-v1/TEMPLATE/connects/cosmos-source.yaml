@@ -14,6 +14,7 @@ config_nonsensitive:
   azure.cosmos.source.containers.includeAll: "false"
   azure.cosmos.source.containers.includedList: "demo-container"
   azure.cosmos.source.containers.topicMap: "azc-app-demo-input#demo-container"
+  azure.cosmos.mode.gateway: "true"
   azure.cosmos.preferredRegionList: "East US"
   tasks.max: "1"
 

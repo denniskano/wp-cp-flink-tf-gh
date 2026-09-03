@@ -23,6 +23,8 @@ Obligatorios: `api1.topics`, `output.data.format` (`AVRO`, `JSON_SR` o `PROTOBUF
 
 El SA: **write** en `api1.topics` y `{topic}-value`.
 
+El cluster es Dedicated + Private Link. `http.api.base.url` es el FQDN de la API. Si la API es privada en Azure, el EAP + DNS tienen que resolver ese dominio. APIs públicas de internet no pasan por el PE del cluster.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |

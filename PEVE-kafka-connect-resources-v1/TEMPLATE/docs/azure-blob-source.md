@@ -15,6 +15,8 @@ Vault: `azblob.account.key`.
 
 El SA: **write** en el topic del mapping y `{topic}-value`.
 
+El cluster es Dedicated + Private Link. `azblob.account.name` + EAP (sub-recurso `blob`) + DNS (`*.blob.core.windows.net`).
+
 ## Tuning
 
 | Propiedad | Default | Para qué |

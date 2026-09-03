@@ -15,6 +15,8 @@ Vault: `connection.user` y `connection.password`. El login necesita `INSERT`/`UP
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
+El cluster es Dedicated + Private Link. `connection.host` es el FQDN (`*.database.windows.net`); el EAP + DNS lo resuelven al PE.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |
@@ -22,7 +24,7 @@ El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED
 | `insert.mode` | `INSERT` | `UPSERT` si hay PK y el conector reentrega. `INSERT` falla en duplicado. |
 | `batch.sizes` | `3000` | Filas por batch (1–5000). Bajalo ante timeouts o locks; subilo si el bottleneck es red. |
 | `tasks.max` | — | Alinealo a particiones. Cada task = más carga en SQL. |
-| `max.poll.records` | `500` | Tope 500 en no Dedicated. Bajalo si un poll no entra en `max.poll.interval.ms`. |
+| `max.poll.records` | `500` | En Dedicated no aplica el tope 500 de Basic/Standard. Bajalo si un poll no entra en `max.poll.interval.ms`. |
 | `max.poll.interval.ms` | `300000` | Subilo si SQL tarda (locks, índices faltantes). |
 | `pk.mode` / `pk.fields` | — | Hace falta para `UPSERT`. |
 | `table.types` | `TABLE` | Dejá `TABLE`. `VIEW` solo si SQL acepta writes y el schema coincide. |

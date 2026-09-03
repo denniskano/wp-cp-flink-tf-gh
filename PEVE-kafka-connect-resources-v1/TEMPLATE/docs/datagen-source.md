@@ -16,11 +16,13 @@ Definí **uno** de estos (son excluyentes):
 
 No hay secretos de Vault. El SA necesita **write** en el topic y en el subject `{topic}-value`.
 
+No sale a un sistema externo: el Private Link de egreso no aplica.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `max.interval` | `1000` (ms) | Pausa máxima entre mensajes. Más bajo = más throughput. Mínimo 10 ms (5 ms en Dedicated). |
+| `max.interval` | `1000` (ms) | Pausa máxima entre mensajes. Más bajo = más throughput. En Dedicated el mínimo es 5 ms. |
 | `tasks.max` | — | Más tasks = más particiones alimentadas en paralelo. Alinealo a las particiones del topic. |
 | `iterations` | — | Tope de mensajes. Si no lo pones, corre hasta que lo pauses o lo destruyas. |
 | `producer.override.linger.ms` | — | Agrupa records antes de enviar. Subilo si el topic recibe ráfagas chicas. |

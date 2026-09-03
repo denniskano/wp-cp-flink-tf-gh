@@ -15,6 +15,8 @@ Vault: `connection.user` y `connection.password`. El usuario necesita `INSERT`/`
 
 El SA: **read** topic + subject, **write/read** en `{topic}-dlq` si hay `errors.tolerance`, y `group` PREFIXED `connect-lcc-`.
 
+El cluster es Dedicated + Private Link. `connection.host` es el FQDN; el EAP + DNS lo resuelven al PE.
+
 ## Tuning
 
 | Propiedad | Default | Para qué |
@@ -22,7 +24,7 @@ El SA: **read** topic + subject, **write/read** en `{topic}-dlq` si hay `errors.
 | `insert.mode` | `INSERT` | `UPSERT` si hay PK y reintentos/duplicados. `INSERT` falla si la fila ya existe. |
 | `batch.sizes` | `3000` | Filas por batch JDBC (1–5000). Bajalo si MySQL se satura; subilo si el lag es por round-trips. |
 | `tasks.max` | — | Más tasks = más consumidores. No pases las particiones. Cada task abre conexión. |
-| `max.poll.records` | `500` | Records por poll. Tope 500 en clusters no Dedicated. |
+| `max.poll.records` | `500` | Records por poll. En Dedicated no aplica el tope 500 de Basic/Standard. |
 | `max.poll.interval.ms` | `300000` | Si el sink tarda en escribir, subilo para no rebalancear. |
 | `pk.mode` / `pk.fields` | — | Obligatorio para `UPSERT`. |
 | `auto.create` / `auto.evolve` | `false` | Dejalos en `false`. El DDL lo versionás vos. |

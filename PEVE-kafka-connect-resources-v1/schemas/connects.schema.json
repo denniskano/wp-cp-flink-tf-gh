@@ -133,7 +133,8 @@
         "azure.cosmos.auth.type": {
           "type": "string",
           "enum": ["MasterKey", "ServicePrincipal", "SERVICE_PRINCIPAL"]
-        }
+        },
+        "azure.cosmos.mode.gateway": { "type": "string", "enum": ["true", "false"] }
       },
       "not": { "required": ["topics", "kafka.topic"] },
       "anyOf": [
