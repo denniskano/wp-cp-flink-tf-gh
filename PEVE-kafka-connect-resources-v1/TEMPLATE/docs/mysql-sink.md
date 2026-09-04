@@ -9,7 +9,7 @@ Lee un topic y escribe filas en MySQL / Azure Database for MySQL. Full-managed: 
 
 Obligatorios: `topics`, `input.data.format`, `connection.host`, `connection.port` (3306), `db.name`. Formato: `AVRO`, `JSON_SR`, `PROTOBUF`, `JSON` o `STRING`.
 
-Vault: `connection.user` y `connection.password`. El usuario necesita `INSERT`/`UPDATE` (y `CREATE`/`ALTER` solo si usás `auto.create` / `auto.evolve`).
+Vault: `connection.user` y `connection.password`. El usuario necesita `INSERT`/`UPDATE` (y `CREATE`/`ALTER` solo si usas `auto.create` / `auto.evolve`).
 
 `ssl.mode`: `prefer` (default), `require` (recomendado en Azure), `verify-ca`, `verify-full`. Con `verify-*` el cert va en Vault.
 
@@ -22,12 +22,12 @@ El cluster es Dedicated + Private Link. `connection.host` es el FQDN; el EAP + D
 | Propiedad | Default | Para qué |
 |---|---|---|
 | `insert.mode` | `INSERT` | `UPSERT` si hay PK y reintentos/duplicados. `INSERT` falla si la fila ya existe. |
-| `batch.sizes` | `3000` | Filas por batch JDBC (1–5000). Bajalo si MySQL se satura; subilo si el lag es por round-trips. |
-| `tasks.max` | — | Más tasks = más consumidores. No pases las particiones. Cada task abre conexión. |
-| `max.poll.records` | `500` | Records por poll. En Dedicated no aplica el tope 500 de Basic/Standard. |
-| `max.poll.interval.ms` | `300000` | Si el sink tarda en escribir, subilo para no rebalancear. |
+| `batch.sizes` | `3000` | Filas por batch JDBC (1–5000). Reduce el valor si MySQL se satura; auméntalo si el retraso se debe a round-trips. |
+| `tasks.max` | — | Más tasks = más consumidores. No superes el número de particiones. Cada task abre conexión. |
+| `max.poll.records` | `500` | Records por poll. Aumenta el valor si MySQL lo admite. |
+| `max.poll.interval.ms` | `300000` | Si el sink tarda en escribir, auméntalo para evitar un rebalance. |
 | `pk.mode` / `pk.fields` | — | Obligatorio para `UPSERT`. |
-| `auto.create` / `auto.evolve` | `false` | Dejalos en `false`. El DDL lo versionás vos. |
-| `table.name.format` | `${topic}` | Nombre de tabla. Cuidado con el largo de identifiers de MySQL. |
+| `auto.create` / `auto.evolve` | `false` | Mantén `false`. El DDL se versiona fuera del conector. |
+| `table.name.format` | `${topic}` | Nombre de tabla. Ten en cuenta el largo de identifiers de MySQL. |
 
-`errors.tolerance: all` manda el record fallido al DLQ y sigue. `none` tumba la task. El topic DLQ tiene que existir de antemano.
+`errors.tolerance: all` envía el record fallido al DLQ y sigue. `none` detiene la task. El topic DLQ tiene que existir de antemano.

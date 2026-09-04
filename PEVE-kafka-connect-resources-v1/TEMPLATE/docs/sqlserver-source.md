@@ -17,7 +17,7 @@ Vault: `connection.user` y `connection.password`. El login necesita `SELECT`.
 
 Modo: `bulk` por default. `timestamp.columns.mapping` / `incrementing.column.mapping` para incremental. Formato `regex:[col]`. `timestamp.column.name` está deprecado.
 
-El SA: **write** PREFIXED en `{topic.prefix}` (topic + subject). Creá el topic antes si no querés el default (`partitions=1`, `rf=3`).
+El SA: **write** PREFIXED en `{topic.prefix}` (topic + subject). Crea el topic antes si no quieres el default (`partitions=1`, `rf=3`).
 
 El cluster es Dedicated + Private Link. `connection.host` es el FQDN; el EAP + DNS lo resuelven al PE.
 
@@ -25,12 +25,12 @@ El cluster es Dedicated + Private Link. `connection.host` es el FQDN; el EAP + D
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `poll.interval.ms` | `5000` | Frecuencia de poll. Bajalo para menos lag; subilo si SQL se satura. |
-| `batch.max.rows` | `100` | Filas por batch. Subilo si el bottleneck es red; bajalo ante locks. |
+| `poll.interval.ms` | `5000` | Frecuencia de poll. Reduce el valor para menos retraso; auméntalo si SQL se satura. |
+| `batch.max.rows` | `100` | Filas por batch. Auméntalo si el cuello de botella es la red; redúcelo ante locks. |
 | `tasks.max` | — | 1 task por tabla. |
 | `timestamp.columns.mapping` | — | Incremental por columna datetime. Tiene que actualizarse en cada write. |
-| `incrementing.column.mapping` | — | Columna estrictamente creciente. Junto con timestamp = menos huecos en updates. |
-| `db.timezone` | `UTC` | Alinealo a `datetime` / `datetime2`. |
-| `table.types` | `TABLE` | `VIEW` solo si la vista es estable y tenés SELECT. |
+| `incrementing.column.mapping` | — | Columna estrictamente creciente. Junto con timestamp = menos omisiones en updates. |
+| `db.timezone` | `UTC` | Ajústalo a `datetime` / `datetime2`. |
+| `table.types` | `TABLE` | `VIEW` solo si la vista es estable y tienes SELECT. |
 
-CDC nativo de SQL Server no es este conector: acá es JDBC (poll). Si recreás el conector se pierden offsets.
+CDC nativo de SQL Server no es este conector: aquí es JDBC (poll). Si recreas el conector se pierden offsets.

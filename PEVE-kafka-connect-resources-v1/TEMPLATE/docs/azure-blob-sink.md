@@ -23,12 +23,12 @@ El archivo se cierra cuando se cumple **la primera** de estas condiciones: `flus
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `flush.size` | `1000` | Records por archivo. En Dedicated el mínimo es 1 (Basic/Standard: 1000). La plantilla usa 1000 para no generar miles de archivos chicos. |
+| `flush.size` | `1000` | Records por archivo. La plantilla usa 1000 para no generar miles de archivos pequeños. |
 | `time.interval` | — | `HOURLY` o `DAILY`. Cierra el archivo al cruzar el borde de hora/día. |
 | `rotate.schedule.interval.ms` | `-1` (off) | Cierra por reloj (ej. `600000` = cada 10 min) aunque no llegue `flush.size`. **Rompe exactly-once.** |
 | `rotate.interval.ms` | = `time.interval` | Cierra cuando el timestamp del record sale del span del primer record del archivo. Necesita stream continuo. |
-| `tasks.max` | — | Alinealo a particiones del topic. |
-| `max.poll.records` / `max.poll.interval.ms` | `500` / `300000` | Igual que otros sinks: bajá poll si un flush tarda; subí interval si Azure está lento. |
+| `tasks.max` | — | Ajústalo al número de particiones del topic. |
+| `max.poll.records` / `max.poll.interval.ms` | `500` / `300000` | Igual que otros sinks: reduce `max.poll.records` si un flush tarda; aumenta `max.poll.interval.ms` si Azure está lento. |
 | `az.compression.type` | — | Compresión del objeto en Blob. |
 
-Si el topic es de bajo volumen y necesitás ver archivos cada N minutos, usá `rotate.schedule.interval.ms`. Si te importa exactly-once, no lo uses: esperá `flush.size` o el borde de `time.interval`.
+Si el topic es de bajo volumen y necesitas ver archivos cada N minutos, usa `rotate.schedule.interval.ms`. Si necesitas exactly-once, no lo uses: espera `flush.size` o el borde de `time.interval`.

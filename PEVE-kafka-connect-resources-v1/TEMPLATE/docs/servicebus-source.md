@@ -11,7 +11,7 @@ Obligatorios: `kafka.topic`, `output.data.format`, `azure.servicebus.namespace`,
 
 `azure.servicebus.namespace` es **solo** el nombre (`sbns-app-des`), no el FQDN `*.servicebus.windows.net`.
 
-Si la entity es un **topic** de Service Bus, hace falta `azure.servicebus.subscription`. En cola, no.
+Si la entity es un **topic** de Service Bus, se necesita `azure.servicebus.subscription`. En cola, no.
 
 Vault: `azure.servicebus.sas.keyname` y `azure.servicebus.sas.key`. La policy necesita Listen.
 
@@ -23,8 +23,8 @@ El cluster es Dedicated + Private Link. El namespace es el nombre corto; el EAP 
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `tasks.max` | — | Más tasks = más consumidores en paralelo. En cola, coordiná con el prefetch de Service Bus; no compartas la misma subscription con otra app. |
-| `producer.override.linger.ms` | — | Agrupa writes a Kafka si Service Bus entrega de a poco. |
+| `tasks.max` | — | Más tasks = más consumidores en paralelo. En cola, coordina con el prefetch de Service Bus; no compartas la misma subscription con otra app. |
+| `producer.override.linger.ms` | — | Agrupa writes a Kafka si Service Bus entrega en pequeños lotes. |
 | `producer.override.compression.type` | — | Compresión hacia Kafka. |
 
-La SAS y la subscription no se comparten con otro consumer: el conector avanza el lock/complete. Si recreás el conector se pierden offsets del lado Kafka; los mensajes no completados vuelven a la cola/subscription según el lock de Service Bus.
+La SAS y la subscription no se comparten con otro consumer: el conector avanza el lock/complete. Si recreas el conector se pierden offsets del lado Kafka; los mensajes no completados vuelven a la cola/subscription según el lock de Service Bus.

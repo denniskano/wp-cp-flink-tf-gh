@@ -11,7 +11,7 @@ Obligatorios: `output.data.format`, `azure.cosmos.account.endpoint` (`https://�
 
 `topicMap` es 1:1 `topic#container`, varios separados por coma: `t1#c1,t2#c2`. No uses `topics` ni `kafka.topic`.
 
-`azure.cosmos.source.containers.includeAll` + `includedList`: si `includeAll` es `false`, listá los containers.
+`azure.cosmos.source.containers.includeAll` + `includedList`: si `includeAll` es `false`, lista los containers.
 
 Auth (igual que el sink V2):
 
@@ -22,19 +22,19 @@ Auth (igual que el sink V2):
 
 El SA: **write** en cada topic del `topicMap` y `{topic}-value`.
 
-Colocá Kafka y Cosmos en la **misma región** y poné esa región en `azure.cosmos.preferredRegionList`.
+Coloca Kafka y Cosmos en la **misma región** e indica esa región en `azure.cosmos.preferredRegionList`.
 
 El cluster es Dedicated + Private Link. Endpoint FQDN público. `azure.cosmos.mode.gateway: true` (Direct no pasa por el PE). Sub-recurso del EAP: `Sql`.
 
 ## Tuning
 
-El change feed es incremental. El cuello suele ser RUs de Cosmos.
+El change feed es incremental. El cuello de botella suele ser los RU de Cosmos.
 
 | Propiedad | Default | Para qué |
 |---|---|---|
 | `azure.cosmos.preferredRegionList` | — | Región de lectura. Desalinearla suma latencia y RU cruzados. |
-| `azure.cosmos.throughputControl.enabled` | `false` | `true` + target RU para no comerse el container. |
+| `azure.cosmos.throughputControl.enabled` | `false` | `true` + target RU para no agotar los RU del container. |
 | `azure.cosmos.mode.gateway` | `false` | En esta red: `true` (gateway). Direct no pasa por Private Link. |
-| `tasks.max` | — | Más tasks = más lecturas en paralelo del feed. Subí RU si ves 429. |
+| `tasks.max` | — | Más tasks = más lecturas en paralelo del feed. Aumenta los RU si ves 429. |
 
-Si recreás el conector se pierde el lease/checkpoint del change feed: puede re-emitir desde el inicio del feed (duplicados). El database y el container tienen que existir.
+Si recreas el conector se pierde el lease/checkpoint del change feed: puede re-emitir desde el inicio del feed (duplicados). El database y el container tienen que existir.

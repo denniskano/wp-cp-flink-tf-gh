@@ -1,6 +1,6 @@
 # Conectores Kafka Connect
 
-Acá se declaran los conectores full-managed y el RBAC del service account. Un archivo por conector.
+Aquí se declaran los conectores full-managed y el RBAC del service account. Un archivo por conector.
 
 Antes de desplegar, el **topic**, el **schema** y el **SA** ya tienen que existir. Este repo no los crea.
 
@@ -22,9 +22,9 @@ Salesforce, Snowflake y Mongo Atlas no entran porque el cluster sea PL: cada uno
 
 Solo `*.yaml` (no `*.yml`) y sin subcarpetas dentro de `connects/` o `security/`.
 
-Plantillas para copiar: `TEMPLATE/connects/`. No las despliegues; copialas a tu `{CODAPP}/desa/{use-case}/`. Ejemplo armado: `PEVE/desa/use-case-name-02/`.
+Plantillas para copiar: `TEMPLATE/connects/`. No las despliegues; cópialas a tu `{CODAPP}/desa/{use-case}/`. Ejemplo listo: `PEVE/desa/use-case-name-02/`.
 
-En la laptop **no instales nada** (ni Python, ni Node, ni extensiones). Copiá el YAML, editá host/topic/SA/Vault y mandá el PR. El pipeline aplica.
+En la laptop **no instales nada** (ni Python, ni Node, ni extensiones). Copia el YAML, edita host/topic/SA/Vault y envía el PR. El pipeline aplica.
 
 ## Conectores (referencia)
 
@@ -68,7 +68,7 @@ Guía local (YAML, RBAC, tuning) y documentación oficial de Confluent Cloud. Cl
 - Passwords y users: `vault.secrets.<clave>` con `path` y `field` de Vault. No pongas secretos en claro ni un bloque `config_sensitive`.
 - Red: no hay campo Private Link en el YAML. Host/URL = FQDN público.
 
-El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombrás o cambiás `name`, se recrea y se pierden offsets.
+El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombras o cambias `name`, se recrea y se pierden offsets.
 
 `security/*.yaml`: un `principal` por SA. `resource_type` = `topic` | `subject` | `group` | `transactional-id`. En un sink el consumer group es PREFIXED `connect-lcc-`.
 
@@ -76,8 +76,8 @@ El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombrás
 
 ## Desplegar (DES)
 
-1. Dejá el YAML en `develop` (PR + merge).
-2. Corré el workflow **`deploy-kafka-connect`**:
+1. Deja el YAML en `develop` (PR + merge).
+2. Ejecuta el workflow **`deploy-kafka-connect`**:
 
 | Input | Ejemplo |
 |---|---|

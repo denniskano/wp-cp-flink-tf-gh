@@ -17,7 +17,7 @@ Grant y secretos de Vault (igual que el Platform Event Sink):
 | `CLIENT_CREDENTIALS` | `salesforce.consumer.key`, `salesforce.consumer.secret`. `salesforce.instance` = My Domain (no `login.salesforce.com`). |
 | `JWT_BEARER` | `salesforce.username`, `salesforce.consumer.key`, `salesforce.jwt.keystore.file`, `salesforce.jwt.keystore.password` |
 
-Confluent depreca `PASSWORD` el **15-sep-2026**. Para algo que vaya a vivir, usá `CLIENT_CREDENTIALS` o `JWT_BEARER`.
+Confluent depreca `PASSWORD` el **15-sep-2026**. Si el conector va a permanecer, usa `CLIENT_CREDENTIALS` o `JWT_BEARER`.
 
 El SA: **write** en el topic y `{topic}-value`.
 
@@ -30,8 +30,8 @@ En Salesforce: CDC habilitado en el objeto, usuario con API Enabled y permiso de
 | Propiedad | Default | Para qué |
 |---|---|---|
 | `tasks.max` | — | Suele ser 1 (un canal CDC). Más tasks no multiplican el replay de Salesforce. |
-| `request.max.retries.time.ms` | — | Ventana de reintento ante blips de Streaming API. |
+| `request.max.retries.time.ms` | — | Ventana de reintento ante interrupciones breves de Streaming API. |
 | `connection.timeout` | — | Timeout del endpoint Streaming. |
-| `salesforce.initial.start` | — | Desde dónde arranca si no hay offset (`latest` vs replay). No lo cambies después del primer apply. |
+| `salesforce.initial.start` | — | Desde dónde inicia si no hay offset (`latest` vs replay). No lo cambies después del primer apply. |
 
-Si recreás el conector se pierde el Replay ID: puede re-emitir o saltear según `initial.start`. Los límites de eventos/día de Salesforce aplican igual que a cualquier subscriber CDC.
+Si recreas el conector se pierde el Replay ID: puede re-emitir o saltar según `initial.start`. Los límites de eventos/día de Salesforce aplican igual que a cualquier subscriber CDC.

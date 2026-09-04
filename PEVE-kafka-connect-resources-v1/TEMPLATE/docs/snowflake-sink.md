@@ -15,7 +15,7 @@ Vault: `snowflake.user.name` y `snowflake.private.key` (key-pair). El user neces
 
 El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED `connect-lcc-`.
 
-El Private Link del cluster Dedicated **no** alcanza Snowflake. Hace falta Private Connectivity de Snowflake + EAP, o el `snowflake.url.name` queda por internet.
+El Private Link del cluster Dedicated **no** alcanza Snowflake. Se necesita Private Connectivity de Snowflake + EAP, o el `snowflake.url.name` queda por internet.
 
 ## Tuning
 
@@ -25,9 +25,9 @@ El flush ocurre cuando se cumple **la primera** de `buffer.count.records`, `buff
 |---|---|---|
 | `buffer.flush.time` | `120` s | Máxima latencia del buffer. Mín. 10 s (`SNOWPIPE`) / 1 s (`SNOWPIPE_STREAMING`). Más bajo = más files/canales y más costo. |
 | `buffer.count.records` | `10000` | Records antes de flush. |
-| `buffer.size.bytes` | `10000000` (10 MB) | Bytes del canal. Más grande = menos flushes, más memoria. En Streaming hay tope de canales vs tamaño. |
-| `snowflake.ingestion.method` | — | `SNOWPIPE_STREAMING` para near-real-time. `SNOWPIPE` si ya operás por stage/pipe. |
-| `tasks.max` | — | Alinealo a particiones. Cada task = canal/conexión. |
-| `max.poll.records` / `max.poll.interval.ms` | `500` / `300000` | Subí interval si Snowflake tarda el ingest. |
+| `buffer.size.bytes` | `10000000` (10 MB) | Bytes del canal. Más grande = menos flushes, más memoria. En Streaming hay un límite de canales vs tamaño. |
+| `snowflake.ingestion.method` | — | `SNOWPIPE_STREAMING` para near-real-time. `SNOWPIPE` si ya operas por stage/pipe. |
+| `tasks.max` | — | Ajústalo al número de particiones. Cada task = canal/conexión. |
+| `max.poll.records` / `max.poll.interval.ms` | `500` / `300000` | Aumenta `max.poll.interval.ms` si Snowflake tarda el ingest. |
 
 La private key es PKCS#8 (sin passphrase en CCloud, o la que documente el conector). No pongas user/key en claro.

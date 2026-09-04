@@ -26,12 +26,12 @@ El archivo se cierra por la primera condición que se cumpla: `flush.size`, `rot
 | Propiedad | Default | Para qué |
 |---|---|---|
 | `partitioner.class` | — | `DefaultPartitioner` (por partición Kafka) o `TimeBasedPartitioner` (hora/día). |
-| `flush.size` | `1000` | Records por archivo. En Dedicated el mínimo es 1. La plantilla usa 1000 para no generar miles de archivos chicos. |
+| `flush.size` | `1000` | Records por archivo. La plantilla usa 1000 para no generar miles de archivos pequeños. |
 | `time.interval` | — | Solo TimeBased. `HOURLY` cierra al cambiar la hora; `DAILY` al cambiar el día. |
 | `path.format` / `topics.dir` | defaults oficiales | Path Hive-style. Ejemplo: `topics.dir=json_logs/hourly` + `time.interval=HOURLY`. |
 | `rotate.schedule.interval.ms` | `-1` | Cierre por reloj. Mínimo 600000 ms (10 min) en la doc. **Invalida exactly-once.** |
 | `rotate.interval.ms` | = `time.interval` | Cierre por span de timestamp del record. Stream continuo. Mínimo 600000 ms. |
-| `tasks.max` | — | Alinealo a particiones. |
-| `max.poll.records` / `max.poll.interval.ms` | `500` / `300000` | Igual que Blob: ajustar si el upload a ADLS es el cuello. |
+| `tasks.max` | — | Ajústalo al número de particiones. |
+| `max.poll.records` / `max.poll.interval.ms` | `500` / `300000` | Igual que Blob: ajustar si el upload a ADLS es el cuello de botella. |
 
 Ejemplo oficial: `flush.size=1000` + Hourly y llegan 500 records entre las 14:00 y las 15:00 → a las 15:00 se sube el archivo de 500 (el borde horario gana al flush).

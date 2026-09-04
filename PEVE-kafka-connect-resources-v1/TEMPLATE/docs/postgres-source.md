@@ -15,9 +15,9 @@ Vault: `connection.user` y `connection.password`. El usuario necesita `SELECT` e
 
 `ssl.mode`: `prefer` (default), `require` (recomendado en Azure), `verify-ca`, `verify-full`. Con `verify-*` el cert va en Vault (`ssl.rootcertfile`).
 
-Modo de captura: `bulk` (default, full dump en cada poll). Con `timestamp.columns.mapping` pasa a timestamp; con `incrementing.column.mapping` a incrementing; ambos = timestamp+incrementing. Formato: `regex:[col1|col2]`. Cada tabla del include tiene que matchear **exactamente un** mapping. `timestamp.column.name` está deprecado.
+Modo de captura: `bulk` (default, full dump en cada poll). Con `timestamp.columns.mapping` pasa a timestamp; con `incrementing.column.mapping` a incrementing; ambos = timestamp+incrementing. Formato: `regex:[col1|col2]`. Cada tabla del include tiene que coincidir con **exactamente un** mapping. `timestamp.column.name` está deprecado.
 
-El SA: **write** PREFIXED en `{topic.prefix}` (topic + subject). Confluent puede crear el topic (`partitions=1`, `rf=3`); si lo querés con otra config, crealo antes.
+El SA: **write** PREFIXED en `{topic.prefix}` (topic + subject). Confluent puede crear el topic (`partitions=1`, `rf=3`); si lo quieres con otra config, créalo antes.
 
 El cluster es Dedicated + Private Link. `connection.host` es el FQDN público; el EAP + DNS lo resuelven al PE.
 
@@ -25,12 +25,12 @@ El cluster es Dedicated + Private Link. `connection.host` es el FQDN público; e
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `poll.interval.ms` | `5000` | Cada cuánto poll a la DB. Bajalo si necesitás menos lag; subilo si la DB se satura. |
-| `batch.max.rows` | `100` | Filas por batch JDBC. Subilo si el lag es por round-trips; bajalo ante locks o timeouts. |
-| `tasks.max` | — | 1 task por tabla (tope). Más tasks que tablas no suma. |
+| `poll.interval.ms` | `5000` | Cada cuánto poll a la base de datos. Reduce el valor si necesitas menos retraso; auméntalo si la base de datos se satura. |
+| `batch.max.rows` | `100` | Filas por batch JDBC. Auméntalo si el retraso se debe a round-trips; redúcelo ante locks o timeouts. |
+| `tasks.max` | — | 1 task por tabla (límite). Más tasks que tablas no mejoran el throughput. |
 | `timestamp.columns.mapping` | — | Incremental. La columna tiene que actualizarse en cada write y ser monótona. |
 | `incrementing.column.mapping` | — | ID estrictamente creciente (ideal: PK). Junto con timestamp cubre updates + inserts únicos. |
-| `db.timezone` | `UTC` | Timezone de las columnas timestamp. Desalinearlo duplica o saltea filas. |
+| `db.timezone` | `UTC` | Timezone de las columnas timestamp. Desalinearlo duplica u omite filas. |
 | `table.exclude.list` | — | Regex a excluir si el include es amplio. |
 
-Si recreás el conector (cambio de `name` o del archivo YAML) se pierden offsets: `bulk` vuelve a dump; timestamp/incrementing arranca desde el valor actual.
+Si recreas el conector (cambio de `name` o del archivo YAML) se pierden offsets: `bulk` vuelve a dump; timestamp/incrementing inicia desde el valor actual.

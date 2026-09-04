@@ -9,7 +9,7 @@ Lee objetos de un container de Blob Storage y produce a Kafka. Full-managed: cla
 
 Obligatorios: `topic.regex.list`, `input.data.format`, `azblob.account.name`, `azblob.container.name`.
 
-`topic.regex.list` es `topic:regex` (coma si hay varios). El regex matchea el **path completo** (`folder/file.json`), no solo el filename. `azc-app-demo-input:.*` manda todo el container a ese topic. Si un archivo matchea varios, gana el primero.
+`topic.regex.list` es `topic:regex` (coma si hay varios). El regex coincide con el **path completo** (`folder/file.json`), no solo el filename. `azc-app-demo-input:.*` envía todo el container a ese topic. Si un archivo coincide con varios, gana el primero.
 
 Vault: `azblob.account.key`.
 
@@ -21,9 +21,9 @@ El cluster es Dedicated + Private Link. `azblob.account.name` + EAP (sub-recurso
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `azblob.poll.interval.ms` | `60000` | Cada cuánto lista el container. Bajalo si necesitás menos lag; listar mucho cuesta en Storage. |
-| `azblob.retry.type` | `EXPONENTIAL` | Dejalo. |
+| `azblob.poll.interval.ms` | `60000` | Cada cuánto lista el container. Reduce el valor si necesitas menos retraso; listar con mucha frecuencia encarece Storage. |
+| `azblob.retry.type` | `EXPONENTIAL` | Mantén el default. |
 | `tasks.max` | — | Más tasks = más lecturas en paralelo. |
-| `input.data.format` | — | Tiene que coincidir con el objeto (`JSON`, `AVRO`, `BYTES`, …). Un mismatch tumba la task o manda basura. |
+| `input.data.format` | — | Tiene que coincidir con el objeto (`JSON`, `AVRO`, `BYTES`, …). Un mismatch detiene la task o produce datos inválidos. |
 
-Archivos ya procesados no se relean salvo que recreés el conector (se pierden offsets). No escribas/modifiques blobs que el source ya vio: el conector no hace CDC de overwrite.
+Archivos ya procesados no se relean salvo que recrees el conector (se pierden offsets). No escribas/modifiques blobs que el source ya vio: el conector no hace CDC de overwrite.

@@ -19,7 +19,7 @@ Obligatorios: `api1.topics`, `output.data.format` (`AVRO`, `JSON_SR` o `PROTOBUF
 | `OAUTH2` | client id/secret + token URL |
 | `API_KEY` | API key |
 
-`api1.http.offset.mode`: `SIMPLE_INCREMENTING` (default, plantilla), `CHAINING` (offset en el record), `CURSOR_PAGINATION` (next-page pointer). El modo define qué punteros JSON hacen falta.
+`api1.http.offset.mode`: `SIMPLE_INCREMENTING` (default, plantilla), `CHAINING` (offset en el record), `CURSOR_PAGINATION` (next-page pointer). El modo define qué punteros JSON se necesitan.
 
 El SA: **write** en `api1.topics` y `{topic}-value`.
 
@@ -29,13 +29,13 @@ El cluster es Dedicated + Private Link. `http.api.base.url` es el FQDN de la API
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `api1.request.interval.ms` | — | Cada cuánto se llama la API. `60000` = 1 min. Bajalo si hay lag; respetá rate limits. |
+| `api1.request.interval.ms` | — | Cada cuánto se llama la API. `60000` = 1 min. Reduce el valor si hay retraso; respeta los rate limits. |
 | `api1.max.retries` | `5` | Reintentos ante error HTTP. |
-| `api1.retry.backoff.policy` | `EXPONENTIAL_WITH_JITTER` | Dejalo. Evita thundering herd. |
+| `api1.retry.backoff.policy` | `EXPONENTIAL_WITH_JITTER` | Mantén el default. Evita thundering herd. |
 | `api1.retry.backoff.ms` | — | Base del backoff. |
-| `api1.retry.on.status.codes` | — | Ej. `400-` reintenta 4xx/5xx. Ajustá si 404 es “no hay más”. |
-| `api1.http.connect.timeout.ms` / `api1.http.request.timeout.ms` | `30000` | Timeouts. Subilos si la API es lenta. |
-| `behavior.on.error` | `FAIL` | `IGNORE` sigue ante error de parse/API (podés perder records). |
+| `api1.retry.on.status.codes` | — | Ej. `400-` reintenta 4xx/5xx. Ajusta si 404 es “no hay más”. |
+| `api1.http.connect.timeout.ms` / `api1.http.request.timeout.ms` | `30000` | Timeouts. Auméntalos si la API es lenta. |
+| `behavior.on.error` | `FAIL` | `IGNORE` sigue ante error de parse/API (puedes perder records). |
 | `tasks.max` | — | En V2 suele ir 1 por API configurada; no multipliques sin ver la doc de la API. |
 
-`https.ssl.enabled: true` en APIs públicas. Si recreás el conector se pierde el offset HTTP y `SIMPLE_INCREMENTING` / cursor vuelven a empezar.
+`https.ssl.enabled: true` en APIs públicas. Si recreas el conector se pierde el offset HTTP y `SIMPLE_INCREMENTING` / cursor vuelven a empezar.

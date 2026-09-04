@@ -15,17 +15,17 @@ El SA: **read** topic + subject, DLQ si hay `errors.tolerance`, `group` PREFIXED
 
 El cluster es Dedicated + Private Link. `function.url` sigue siendo el FQDN `*.azurewebsites.net`; el EAP + DNS lo resuelven al PE (sites).
 
-Azure Functions: tope **100 MB** por request y timeout ~**230 s**.
+Azure Functions: límite **100 MB** por request y timeout ~**230 s**.
 
 ## Tuning
 
 | Propiedad | Default | Para qué |
 |---|---|---|
-| `max.batch.size` | `1` | Records por invocación (1–1000). `1` = sin batch. Subilo si hay lag o duplicados porque el consumer no termina el poll a tiempo. Un batch grande puede pasar 100 MB y fallar. |
-| `max.poll.records` | `500` | Alinealo a `max.batch.size` para no dejar records colgados en el poll. |
-| `max.poll.interval.ms` | `300000` | Subilo si la function tarda (reintentos, cold start). |
-| `max.pending.requests` | `1` | Invocaciones en vuelo. Subilo para más paralelismo; la function tiene que bancarlo (plan / concurrency). |
-| `tasks.max` | — | Alinealo a particiones. |
+| `max.batch.size` | `1` | Records por invocación (1–1000). `1` = sin batch. Auméntalo si hay retraso o duplicados porque el consumer no termina el poll a tiempo. Un batch grande puede pasar 100 MB y fallar. |
+| `max.poll.records` | `500` | Ajústalo a `max.batch.size` para no dejar records pendientes en el poll. |
+| `max.poll.interval.ms` | `300000` | Auméntalo si la function tarda (reintentos, cold start). |
+| `max.pending.requests` | `1` | Invocaciones en vuelo. Auméntalo para más paralelismo; la function tiene que soportarlo (plan / concurrency). |
+| `tasks.max` | — | Ajústalo al número de particiones. |
 | `request.timeout` | — | Timeout HTTP hacia la function. No lo pongas por debajo del p99 de ejecución. |
 
-Si ves duplicados en la function, el consumer está lento: subí `max.batch.size` y `max.pending.requests`. La function tiene que ser **idempotente** (at-least-once).
+Si ves duplicados en la function, el consumer está lento: aumenta `max.batch.size` y `max.pending.requests`. La function tiene que ser **idempotente** (at-least-once).
