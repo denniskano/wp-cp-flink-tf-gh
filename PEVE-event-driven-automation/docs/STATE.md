@@ -1,6 +1,6 @@
 # State
 
-Backend Azure RM. El workflow manda `storage_account_name`, `container_name` y `key` en el `init`.
+Backend Azure RM. El workflow envía `storage_account_name`, `container_name` y `key` en el `init`.
 
 Lo que está en uso (DES):
 

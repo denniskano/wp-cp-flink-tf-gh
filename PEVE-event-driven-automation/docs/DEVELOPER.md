@@ -1,8 +1,8 @@
 # Cómo trabajar este repo
 
-Acá solo va Terraform (módulos, stacks, scripts, tests). El YAML de la app y los Actions se tocan en los otros repos.
+Aquí solo va Terraform (módulos, stacks, scripts, tests). El YAML de la app y los Actions se tocan en los otros repos.
 
-`desa` / `cert` / `prod` no son ramas de acá. Son carpetas en resources + otra key de state + otro workflow. Este repo versiona código, no entornos.
+`desa` / `cert` / `prod` no son ramas de este repo. Son carpetas en resources + otra key de state + otro workflow. Este repo versiona código, no entornos.
 
 ## Qué entra y qué no
 
@@ -19,15 +19,15 @@ stacks/foo/             # providers.tf (azurerm + confluent), variables, module 
 
 El job hace `terraform -chdir=./iac/stacks/foo`. Si no tiene backend, no es un stack.
 
-Flink y eda-core no siguen del todo ese dibujo: el HCL lo escriben los `gen_*` / `generate_*` sobre templates en `resources/template/`. Los `.tf` generados no se commitean (ver `.gitignore`).
+Flink y eda-core no siguen del todo ese esquema: el HCL lo escriben los `gen_*` / `generate_*` sobre templates en `resources/template/`. Los `.tf` generados no se commitean (ver `.gitignore`).
 
 ## Cambiar algo que ya está aplicado
 
 - Variable nueva: módulo + stack + cómo llega (`TF_VAR_*` en el workflow).
 - No cambies la key del `for_each` de un resource que ya existe (en Connect es el filename sin `.yaml`). Eso es destroy+create.
-- Si movés un resource de address (`confluent_connector.connectors` → `module.connectors....`) hace falta `moved` o `state mv`. Si no, el primer apply recrea en Confluent.
+- Si mueves un resource de address (`confluent_connector.connectors` → `module.connectors....`) se necesita `moved` o `state mv`. Si no, el primer apply recrea en Confluent.
 - Guards (`precondition`): si un `for_each` vacío te puede borrar prod, el plan tiene que fallar salvo un flag que setea el workflow, no el YAML.
-- RBAC: un `resource_type` inventado no puede pasar callado.
+- RBAC: un `resource_type` inventado no puede pasar sin error.
 - El pin de Terraform/provider va en el stack. El módulo pone el mínimo.
 
 Connect ya aplicado desde flink-v1: las addresses pasan a `module.connectors.confluent_connector.connectors["…"]`. El plan de corte tiene que ser contra el mismo blob `tf-connect.tfstate` y 0 destroy de connector/binding, salvo que el ticket lo pida.
@@ -57,7 +57,7 @@ El action `eda-core-task` copia `stacks/eda-core` + los tpl core a `./automation
 
 SA del use-case: eda-core. Connect no sube SMT (eso sería `connect-plugins`). Statements no suben UDF ni crean connections.
 
-Si llenás un stack que hoy está vacío, copiá el patrón de `ccloud-connectors` + `kafka-connect`, actualizá STACKS.md / STATE.md (key **nueva**) y avisá: hace falta otro workflow con otro `-chdir` y otro backend key.
+Si llenas un stack que hoy está vacío, copia el patrón de `ccloud-connectors` + `kafka-connect`, actualiza STACKS.md / STATE.md (key **nueva**) y avisa: se necesita otro workflow con otro `-chdir` y otro backend key.
 
 ## Convenciones
 
@@ -85,9 +85,9 @@ terraform validate
 terraform fmt -check
 ```
 
-Hay pre-commit (`.pre-commit-config.yaml`) si lo querés. No reemplaza lo de arriba.
+Hay pre-commit (`.pre-commit-config.yaml`) si lo quieres. No reemplaza lo de arriba.
 
-Plan real (cuando el cambio pega a algo ya desplegado):
+Plan real (cuando el cambio afecta algo ya desplegado):
 
 ```bash
 export EXTERNO=/ruta/PEVE-kafka-connect-resources-v1
@@ -97,15 +97,15 @@ export ENV_FOLDER=desa
 make plan-connect
 ```
 
-`tf.sh` no inyecta cluster id, API keys ni backend. Sin eso no es el plan de GHA. Completá `TF_VAR_*` o, más fácil, corré el workflow en DES con `IAC_REF` = tu rama.
+`tf.sh` no inyecta cluster id, API keys ni backend. Sin eso no es el plan de GHA. Completa `TF_VAR_*` o, más fácil, ejecuta el workflow en DES con `IAC_REF` = tu rama.
 
-Leé el plan. `replace` en `confluent_connector` recrea el conector (se pierden offsets). `-/+` en role binding corta ACL a mitad de apply. Si el PR solo mete un guard o una variable con default, tiene que salir 0 destroy / 0 replace. Si vaciás el YAML, el guard tiene que fallar; no listar diez destroys.
+Lee el plan. `replace` en `confluent_connector` recrea el conector (se pierden offsets). `-/+` en role binding corta ACL a mitad de apply. Si el PR solo incluye un guard o una variable con default, tiene que salir 0 destroy / 0 replace. Si vacías el YAML, el guard tiene que fallar; no listar diez destroys.
 
-En DES: plan de un use-case de prueba, apply si cierra, mirar Confluent. Pause/resume es override in-place; el apply siguiente vuelve al `status` del YAML. No uses CERT/PROD para el primer try.
+En DES: plan de un use-case de prueba, apply si cierra, mirar Confluent. Pause/resume es override in-place; el apply siguiente vuelve al `status` del YAML. No uses CERT/PROD para el primer intento.
 
 ## Ramas y tags
 
-Trunk acá es `main`. Features: `feature/PEVE-<id>-<tema>`. Fixes: `fix/PEVE-<id>-…`. No abras `desa`, `cert`, `prod` ni `develop` en este repo.
+Trunk aquí es `main`. Features: `feature/PEVE-<id>-<tema>`. Fixes: `fix/PEVE-<id>-…`. No abras `desa`, `cert`, `prod` ni `develop` en este repo.
 
 ```bash
 git checkout main && git pull
@@ -115,9 +115,9 @@ git tag -a v1.2.0 -m "kafka-connect: guard security vacío"
 git push origin v1.2.0
 ```
 
-En v2, `IAC_REF` de cert/prod tiene que ser un tag, no `main` flotante. DES puede apuntar un rato a la feature para el plan.
+En v2, `IAC_REF` de cert/prod tiene que ser un tag, no `main` flotante. DES puede apuntar un tiempo a la feature para el plan.
 
-Semver a ojo: major si hay replace inevitable, cambio de address sin `moved` o key de state distinta. Minor si agregás recurso opt-in o stack. Patch: guard, mensaje, docs.
+Semver como guía: major si hay replace inevitable, cambio de address sin `moved` o key de state distinta. Minor si agregas recurso opt-in o stack. Patch: guard, mensaje, docs.
 
 Hotfix: rama `fix/…` desde `main` (o desde el tag que sigue usando cert), merge, tag, bump de `IAC_REF` DES → cert → prod. Si existe `release/v1.2`, cherry-pick ahí y merge de vuelta a `main`.
 
@@ -125,10 +125,10 @@ Un cambio que toca los tres lados suele ser tres PRs: este repo (tag), el YAML, 
 
 ## Antes del review
 
-- El diff no mete workflows ni YAML de app.
+- El diff no incluye workflows ni YAML de app.
 - `make lint` y `make test` en verde.
-- Si cambió el contrato Connect, actualizá las plantillas en PEVE-kafka-connect-resources-v1.
-- Pensá addresses / `for_each` (¿va a haber replace?).
+- Si cambió el contrato Connect, actualiza las plantillas en PEVE-kafka-connect-resources-v1.
+- Piensa addresses / `for_each` (¿va a haber replace?).
 - Variable nueva documentada para el que toca el workflow.
 - STACKS.md / STATE.md si hay stack o key nueva.
 - Plan en DES sin destroy, salvo que el ticket lo autorice.

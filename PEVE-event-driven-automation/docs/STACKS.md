@@ -18,4 +18,4 @@ Si hay dependencias: primero eda-core (topic, schema, SA), después pools / arti
 
 Los SA y API keys del use-case salen de eda-core, no de un stack aparte.
 
-Connect: existencia acá (`validate-yaml.sh`). Flink solo chequea que existan archivos (`scripts/ci/validate-flink-yaml.sh`).
+Connect: existencia aquí (`validate-yaml.sh`). Flink solo verifica que existan archivos (`scripts/ci/validate-flink-yaml.sh`).

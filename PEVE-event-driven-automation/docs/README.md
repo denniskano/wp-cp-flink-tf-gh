@@ -22,6 +22,6 @@ Cada job de v2 hace más o menos lo mismo:
 | flink-compute-pool, flink-statements | PEVE-stream-processing-resources-v2 |
 | eda-core | PEVE-event-driven-resources-v3 |
 
-Los JAR (SMT / UDF) no se versionan acá. El workflow los baja y pasa la ruta.
+Los JAR (SMT / UDF) no se versionan aquí. El workflow los baja y pasa la ruta.
 
 Ver [DEVELOPER.md](DEVELOPER.md).

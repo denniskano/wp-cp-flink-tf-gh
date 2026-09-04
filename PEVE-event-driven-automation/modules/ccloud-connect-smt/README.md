@@ -10,4 +10,4 @@ transforms.mySmt.type: com.example.MyTransform
 transforms.mySmt.custom.smt.artifact.id: ca-xxxxx
 ```
 
-Si borrás el artifact y un connector lo sigue usando, el connector queda Failed.
+Si borras el artifact y un connector lo sigue usando, el connector queda Failed.
