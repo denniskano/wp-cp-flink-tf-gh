@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "lint: carpeta",
+      "type": "shell",
+      "command": "./scripts/lint.sh",
+      "args": ["${input:uc}"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "uc",
+      "description": "Ruta (PEVE, TEMPLATE, PEVE/desa/use-case-name-02). Vacío = todo.",
+      "type": "promptString",
+      "default": ""
+    }
+  ]
+}
