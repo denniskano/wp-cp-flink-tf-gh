@@ -81,7 +81,7 @@ make lint UC=PEVE/desa/mi-use-case
 make lint UC=TEMPLATE
 ```
 
-En VS Code o Cursor: File → Open Folder sobre **este** repo. Marketplace: extensión **YAML** de Red Hat (`redhat.vscode-yaml`). Al editar `connects/` o `security/` vas a ver errores subrayados.
+En VS Code o Cursor: File → Open Folder sobre **este** repo (no el monorepo). Marketplace: extensión **YAML** de Red Hat (`redhat.vscode-yaml`). `.vscode/settings.json` asocia los schemas; al editar `connects/` o `security/` vas a ver errores subrayados.
 
 Terminal → Run Task → `lint: carpeta` si preferís no usar la consola.
 

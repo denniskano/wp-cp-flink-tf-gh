@@ -30,7 +30,6 @@
             "CosmosDbSinkV2",
             "IbmMQSource",
             "IbmMQSink",
-            "IbmMqSink",
             "SalesforcePlatformEventSink",
             "SalesforceCdcSource",
             "PostgresSource",
@@ -680,7 +679,7 @@
       "if": {
         "properties": {
           "config_nonsensitive": {
-            "properties": { "connector.class": { "enum": ["IbmMQSink", "IbmMqSink"] } },
+            "properties": { "connector.class": { "const": "IbmMQSink" } },
             "required": ["connector.class"]
           }
         }
@@ -1160,7 +1159,7 @@
               "connector.class": { "const": "SalesforceCdcSource" },
               "salesforce.grant.type": { "enum": ["PASSWORD"] }
             },
-            "required": ["connector.class"]
+            "required": ["connector.class", "salesforce.grant.type"]
           }
         }
       },
@@ -1177,6 +1176,86 @@
                   "salesforce.consumer.key",
                   "salesforce.consumer.secret"
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforceCdcSource" },
+              "salesforce.grant.type": { "const": "CLIENT_CREDENTIALS" }
+            },
+            "required": ["connector.class", "salesforce.grant.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["salesforce.consumer.key", "salesforce.consumer.secret"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforceCdcSource" },
+              "salesforce.grant.type": { "const": "JWT_BEARER" }
+            },
+            "required": ["connector.class", "salesforce.grant.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": [
+                  "salesforce.username",
+                  "salesforce.consumer.key",
+                  "salesforce.jwt.keystore.file",
+                  "salesforce.jwt.keystore.password"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "config_nonsensitive": {
+            "properties": {
+              "connector.class": { "const": "SalesforceCdcSource" },
+              "salesforce.grant.type": { "const": "OAUTH2_AUTH_CODE_BYOA" }
+            },
+            "required": ["connector.class", "salesforce.grant.type"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "vault": {
+            "required": ["secrets"],
+            "properties": {
+              "secrets": {
+                "required": ["salesforce.consumer.key", "salesforce.consumer.secret"]
               }
             }
           }
