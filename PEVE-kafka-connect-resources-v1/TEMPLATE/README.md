@@ -1,10 +1,10 @@
 # Plantillas full-managed (Confluent Cloud)
 
-Copiá el YAML a `{CODAPP}/desa/{use-case}/connects/` y el RBAC a `security/`. **No despliegues esta carpeta.**
+Copiá el YAML a `{CODAPP}/desa/{use-case}/connects/` y el RBAC a `security/`. **No despliegues esta carpeta.** No hace falta instalar nada en la laptop.
 
 El cluster es **Dedicated** + **Private Link**. El destino se alcanza por Egress Private Link Endpoint + DNS (FQDN público, no IP privada). No hay campo de red en el YAML. Event Hubs Source usa `AMQP_WEB_SOCKETS`; Cosmos V2 usa `azure.cosmos.mode.gateway: true`. En Dedicated no aplica el tope de `max.poll.records` 500 ni el `flush.size` mínimo 1000 de Basic/Standard.
 
-Clases y campos según la [doc de Confluent Cloud](https://docs.confluent.io/cloud/current/connectors/index.html) (no el conector self-managed). Credenciales solo en `vault.secrets`. El lint (`schemas/connects.schema.json`) exige los campos y secretos de cada clase.
+Clases y campos según la [doc de Confluent Cloud](https://docs.confluent.io/cloud/current/connectors/index.html) (no el conector self-managed). Credenciales solo en `vault.secrets`.
 
 Cada guía en `docs/` cubre YAML, Vault, RBAC y **tuning** (throughput, batch, poll, rotación, reintentos).
 
@@ -36,9 +36,5 @@ Cada guía en `docs/` cubre YAML, Vault, RBAC y **tuning** (throughput, batch, p
 `quickstart` y `schema.string` en Datagen son excluyentes. En Salesforce el evento termina en `__e` y `salesforce.platform.event.num` va de 1 a 5. En ADLS, `time.interval` es obligatorio si `partitioner.class` es `TimeBasedPartitioner`. Event Hubs sink: Confluent Cloud no publica `AzureEventHubsSink`; la plantilla usa `HttpSinkV2` contra la REST Send Event. Cosmos: usá `CosmosDbSinkV2` / `CosmosDbSourceV2` (V1 deprecado). `topicMap` es `topic#container`. JDBC source: `topic.prefix` + `table.include.list` (no `topics`). HTTP Source: `api1.topics`. Blob Source: `topic.regex.list` (`topic:regex`).
 
 Source: write en topic + subject `{topic}-value`. Sink: read en topic + subject, write/read en `{topic}-dlq` si hay `errors.tolerance`, y `group` PREFIXED `connect-lcc-`.
-
-```bash
-make lint UC=TEMPLATE
-```
 
 Reemplazá host, topic, SA y paths de Vault. El topic, el schema y el SA tienen que existir antes del apply.

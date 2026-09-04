@@ -1,6 +1,0 @@
-{
-  "yaml.schemas": {
-    "schemas/connects.schema.json": ["**/connects/*.yaml"],
-    "schemas/security.schema.json": ["**/security/*.yaml"]
-  }
-}

@@ -38,8 +38,6 @@ Thumbs.db
 # IDEs & EDITORS
 # =============================================================================
 .vscode/
-!PEVE-kafka-connect-resources-v1/.vscode/
-!PEVE-kafka-connect-resources-v1/.vscode/**
 .idea/
 *.swp
 *.swo

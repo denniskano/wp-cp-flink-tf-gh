@@ -13,4 +13,3 @@ make test    # fixtures de existencia + terraform validate
 make lint    # terraform fmt -check
 ```
 
-La forma del YAML Connect se lintea en PEVE-kafka-connect-resources-v1.

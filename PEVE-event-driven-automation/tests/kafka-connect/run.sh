@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # validate-yaml.sh: existencia de connects/ + security/ (sin Confluent).
-# La forma del YAML se lintea en PEVE-kafka-connect-resources-v1.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

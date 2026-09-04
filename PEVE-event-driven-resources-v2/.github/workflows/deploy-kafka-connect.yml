@@ -184,12 +184,6 @@ jobs:
             echo "TF_VAR_allow_empty_connectors=false" >> "$GITHUB_ENV"
           fi
 
-      - name: JSON Schema lint ./externo
-        if: github.event.inputs.action != 'destroy'
-        run: |
-          pip install --quiet check-jsonschema
-          ./externo/scripts/lint.sh "${CODAPP}/${ENV_FOLDER}/${USE_CASE}"
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:

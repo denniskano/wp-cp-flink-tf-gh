@@ -127,7 +127,7 @@ Un cambio que toca los tres lados suele ser tres PRs: este repo (tag), el YAML, 
 
 - El diff no mete workflows ni YAML de app.
 - `make lint` y `make test` en verde.
-- Si cambió el contrato Connect, el schema se toca en PEVE-kafka-connect-resources-v1.
+- Si cambió el contrato Connect, actualizá las plantillas en PEVE-kafka-connect-resources-v1.
 - Pensá addresses / `for_each` (¿va a haber replace?).
 - Variable nueva documentada para el que toca el workflow.
 - STACKS.md / STATE.md si hay stack o key nueva.

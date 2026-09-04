@@ -22,7 +22,9 @@ Salesforce, Snowflake y Mongo Atlas no entran porque el cluster sea PL: cada uno
 
 Solo `*.yaml` (no `*.yml`) y sin subcarpetas dentro de `connects/` o `security/`.
 
-Plantillas para copiar: `TEMPLATE/connects/`. No las despliegues; copialas a tu `{CODAPP}/desa/{use-case}/`. Ejemplo armado: `PEVE/desa/use-case-name-02/`. El lint valida por `connector.class` los campos y secretos de Vault de cada conector.
+Plantillas para copiar: `TEMPLATE/connects/`. No las despliegues; copialas a tu `{CODAPP}/desa/{use-case}/`. Ejemplo armado: `PEVE/desa/use-case-name-02/`.
+
+En la laptop **no instales nada** (ni Python, ni Node, ni extensiones). Copiá el YAML, editá host/topic/SA/Vault y mandá el PR. El pipeline aplica.
 
 ## Conectores (referencia)
 
@@ -72,24 +74,10 @@ El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombrás
 
 `status` del YAML es el que queda después de un apply. Pause/resume del pipeline es temporal; el apply siguiente vuelve al YAML.
 
-## Validar en local
-
-```bash
-pip install check-jsonschema
-make lint UC=PEVE
-make lint UC=PEVE/desa/mi-use-case
-make lint UC=TEMPLATE
-```
-
-En VS Code o Cursor: File → Open Folder sobre **este** repo (no el monorepo). Marketplace: extensión **YAML** de Red Hat (`redhat.vscode-yaml`). `.vscode/settings.json` asocia los schemas; al editar `connects/` o `security/` vas a ver errores subrayados.
-
-Terminal → Run Task → `lint: carpeta` si preferís no usar la consola.
-
 ## Desplegar (DES)
 
 1. Dejá el YAML en `develop` (PR + merge).
-2. Lint en verde (local o el del pipeline).
-3. Corré el workflow **`deploy-kafka-connect`**:
+2. Corré el workflow **`deploy-kafka-connect`**:
 
 | Input | Ejemplo |
 |---|---|

@@ -30,11 +30,10 @@ Orden del job cuando `action` ≠ `destroy`:
 
 1. Checkout IaC → `./iac` y resources → `./externo`
 2. `validate-yaml.sh` (existen `connects/*.yaml` y `security/*.yaml`)
-3. JSON Schema: `./externo/scripts/lint.sh` (schemas del repo de resources)
-4. Vault
-5. `terraform -chdir=./iac/stacks/kafka-connect`
+3. Vault
+4. `terraform -chdir=./iac/stacks/kafka-connect`
 
-En **destroy** se omite el JSON Schema. State DES: `dev/{CODAPP}/{use_case}/tf-connect.tfstate`.
+State DES: `dev/{CODAPP}/{use_case}/tf-connect.tfstate`.
 
 ## Flink DES (jobs de v2, cinco repos)
 
