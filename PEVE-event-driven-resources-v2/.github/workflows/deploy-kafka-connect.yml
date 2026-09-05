@@ -43,7 +43,6 @@ env:
   RESOURCE_GROUP_NAME: RSGREU2PEVED01
   KAFKA_CLUSTER_ID: "lkc-xzyppq"
   TERRAFORM_VERSION: "1.5.0"
-  NODE_VERSION: "20"
   TERRAFORM_WORKDIR: iac/stacks/kafka-connect
   SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01
   API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01
@@ -216,6 +215,12 @@ jobs:
             peve/kv2/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
             peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
 
+      - name: Configure Azure Storage Access Key
+        run: |
+          echo "Configuring Azure Storage Access Key"
+          export ARM_ACCESS_KEY=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+          echo "OK Azure Storage Access Key configured"
+
       - name: Fetch connector secrets from Vault
         run: |
           CONNECTORS_DIR="externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects"
@@ -370,3 +375,10 @@ jobs:
           TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
           TF_VAR_connector_status_overrides: ${{ env.TF_VAR_connector_status_overrides }}
           TF_VAR_allow_empty_connectors: ${{ env.TF_VAR_allow_empty_connectors }}
+
+      - name: Output Connectors
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        if: github.event.inputs.action == 'apply' || github.event.inputs.action == 'pause' || github.event.inputs.action == 'resume'
+        run: |
+          echo "=== Connectors ==="
+          terraform output -json connectors || echo "No connectors found"
