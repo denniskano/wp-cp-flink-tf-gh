@@ -147,7 +147,8 @@ jobs:
           SECURITY_DIR="externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security"
           ACTION="${{ github.event.inputs.action }}"
 
-          ./iac/scripts/ci/validate-yaml.sh "${CONNECTORS_DIR}" "${SECURITY_DIR}" "${ACTION}"
+          chmod +x ./iac/scripts/ci/validate-yaml.sh
+          bash ./iac/scripts/ci/validate-yaml.sh "${CONNECTORS_DIR}" "${SECURITY_DIR}" "${ACTION}"
 
           CONN="${{ github.event.inputs.connector }}"
           CONN="${CONN#"${CONN%%[![:space:]]*}"}"
