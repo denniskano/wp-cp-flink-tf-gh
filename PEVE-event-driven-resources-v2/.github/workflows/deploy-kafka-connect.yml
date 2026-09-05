@@ -136,10 +136,12 @@ jobs:
           token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
           path: ./externo
 
-      - name: Paths Terraform (desde stacks/kafka-connect)
+      - name: Paths Terraform
         run: |
-          echo "TF_VAR_connectors_dir=../../externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects" >> "$GITHUB_ENV"
-          echo "TF_VAR_security_dir=../../externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security" >> "$GITHUB_ENV"
+          # Absoluto: el checkout de YAML es ./externo (hermano de ./iac).
+          # Desde iac/stacks/kafka-connect, ../../externo apunta a iac/externo (no existe).
+          echo "TF_VAR_connectors_dir=${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects" >> "$GITHUB_ENV"
+          echo "TF_VAR_security_dir=${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security" >> "$GITHUB_ENV"
 
       - name: Verify use-case + pause/resume
         run: |
