@@ -1,0 +1,8 @@
+- hosts: "{{ hosted_on }}_{{ deployment_environment }}"
+  connection: local
+  user: "jenkis"
+  gather_facts: no
+  environment:
+    KUBECONFIG: "/tmp/{{ inventory_hostname }}_config"
+  roles:
+    - { role: delivery-kafka }

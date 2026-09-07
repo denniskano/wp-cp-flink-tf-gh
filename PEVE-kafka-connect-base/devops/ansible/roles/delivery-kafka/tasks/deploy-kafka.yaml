@@ -1,0 +1,170 @@
+- name: Login to oc master
+  shell: oc login -u {{ external_registry_username }} -p {{ external_registry_password }} {{ master_ocp_url }} --insecure-skip-tls-verify
+  when: hosted_on == 'ocp'
+  no_log: True
+
+- name: Login to azure
+  shell: az login --service-principal --username {{ aks_service_principal }} --tenant {{ az_tenant }} --password {{ aks_certificate }}
+  when: hosted_on == 'aks'
+  no_log: True
+
+- name: Get AKS Credentials
+  shell: az aks get-credentials --resource-group {{ aks_rg }} --name {{ aks_cluster }} -a
+  when: hosted_on == 'aks'
+  no_log: false
+
+- name: "Copy kubeconfig to /tmp/{{ inventory_hostname }}_config"
+  copy:
+    src: "~/.kube/config"
+    dest: "/tmp/{{ inventory_hostname }}_config"
+  when: hosted_on == 'aks'
+
+- name: "Copy kc-jmx-config.yaml {{ workspace }}/devops/docker/kc-jmx-config"
+  copy:
+    src: "templates/kc-jmx-config.yaml"
+    dest: "{{ workspace }}/devops/docker/kc-jmx-config.yaml"
+  # when: hosted_on == 'aks'
+
+- name: Insert Values to kafka deployment 
+  template:
+    src: "kafkadeployment.j2"
+    dest: "{{ workspace }}/devops/docker/kafka-deploy.yaml"
+    force: yes
+  when: hosted_on == 'aks'
+
+- name: Insert Values to kafka deployment 
+  template:
+    src: "kafkadeployment.j2"
+    dest: "{{ workspace }}/devops/docker/kafka-deploy-{{ inventory_hostname }}.yaml"
+    force: yes
+  when: hosted_on == 'ocp'
+
+- name: Insert Values to kafka connect-log4j.properties
+  template:
+    src: "connect-log4j.j2"
+    dest: "{{ workspace }}/devops/docker/connect-log4j.properties"
+    force: yes
+
+- name: Insert Values to filebeat.yml
+  template:
+    src: "filebeat.yml"
+    dest: "{{ workspace }}/devops/docker/filebeat{{ '-' if envkafka is defined else '' }}{{ envkafka | default('') }}.yml"
+    force: yes
+
+- name: "Show kafka-deploy yaml"
+  shell: 
+    cmd: 'cat {{ workspace }}/devops/docker/kafka-deploy.yaml'
+  when: hosted_on == 'aks'
+
+- name: "Show kafka-deploy-{{ inventory_hostname }} yaml"
+  shell: 
+    cmd: 'cat {{ workspace }}/devops/docker/kafka-deploy-{{ inventory_hostname }}.yaml'
+  when: hosted_on == 'ocp'
+
+- name: Lists Configmaps for Kafka Connect Configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} get configmaps -o name"
+  register: configmaps
+
+- name: Delete Configmaps for connect log4j if exist
+  shell: "{{ client_k8s }} -n {{ namespace }} delete configmaps {{ kafkaConnectName }}-log4j-config"
+  when: "'configmap/{{ kafkaConnectName }}-log4j-config' in configmaps.stdout.split()"
+
+- name: Create ConfigMap for Kafka Connect Log4j configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} create configmap {{ kafkaConnectName }}-log4j-config --from-file={{ workspace }}/devops/docker/connect-log4j.properties"
+
+- name: Delete Configmaps for Filebeat Configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} delete configmaps {{ kafkaConnectName }}-filebeat-configmap"
+  when: "'configmap/{{ kafkaConnectName }}-filebeat-configmap' in configmaps.stdout.split()"
+
+- name: Delete Configmaps for connect Config Open Telemetry metrics if exist
+  shell: "{{ client_k8s }} -n {{ namespace }} delete configmaps {{ kafkaConnectName }}-kc-jmx-config"
+  when: "'configmap/{{ kafkaConnectName }}-kc-jmx-config' in configmaps.stdout.split()"
+
+- name: Create ConfigMap for Kafka Connect Open Telemetry metrics configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} create configmap {{ kafkaConnectName }}-kc-jmx-config --from-file={{ workspace }}/devops/docker/kc-jmx-config.yaml"
+  # when: hosted_on == 'aks'
+
+- name: Create ConfigMap for Filebeat Configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} create configmap {{ kafkaConnectName }}-filebeat-configmap --from-file=filebeat.yml={{ workspace }}/devops/docker/filebeat{{ '-' if envkafka is defined else '' }}{{ envkafka | default('') }}.yml"
+
+- name: Delete Configmaps for Kafka Connect JSON Configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} delete configmaps {{ kafkaConnectName }}-kafkaconnect-config-json"
+  when: "'configmap/{{ kafkaConnectName }}-kafkaconnect-config-json' in configmaps.stdout.split()"
+
+- name: Create ConfigMap for Kafka Connect JSON Configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} create configmap {{ kafkaConnectName }}-kafkaconnect-config-json --from-file={{ workspace }}/connectors/jsonconverter/kafkaconnect-config-{{deployment_environment}}.json"
+  when: hosted_on == 'aks'
+
+- name: Create ConfigMap for Kafka Connect JSON Configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} create configmap {{ kafkaConnectName }}-kafkaconnect-config-json --from-file={{ workspace }}/connectors/jsonconverter/kafkaconnect-config-{{ inventory_hostname }}.json"
+  when: hosted_on == 'ocp'
+
+- name: Delete Configmaps for connect SMT if exist
+  shell: "{{ client_k8s }} -n {{ namespace }} delete configmaps {{ kafkaConnectName }}-kafkaconnect-smt-jar"
+  when: "'configmap/{{ kafkaConnectName }}-kafkaconnect-smt-jar' in configmaps.stdout.split()"
+
+- name: Create ConfigMap for SMT Configuration
+  shell: "{{ client_k8s }} -n {{ namespace }} create configmap {{ kafkaConnectName }}-kafkaconnect-smt-jar --from-file={{ workspace }}/smt/{{ smt_jar_name }}"
+  #when: smt_jar_name != ''
+
+- name: List secrets for image pull in ACR
+  shell: "{{ client_k8s }} -n {{ namespace }} get secrets -o name"
+  register: secrets_acr
+
+- name: Delete actual secret to repair credentials
+  shell: "{{ client_k8s }} -n {{ namespace }} delete secrets acr-registry-{{ hosted_on }}"
+  when: "'secret/acr-registry-{{ hosted_on }}' in secrets_acr.stdout.split()"
+
+- name: Create pull secret for AKS if not exist
+  shell: "{{ client_k8s }} -n {{ namespace }} create secret docker-registry acr-registry-aks --docker-server={{ azure_docker_registry }} --docker-username={{ external_registry_username }} --docker-password={{ external_registry_password }}"
+  when: hosted_on == 'aks'
+  no_log: True
+## deploy to OCP
+- name: Get oc token to pull
+  shell: oc whoami -t
+  register: oc_token_pull
+  when: hosted_on == 'ocp'
+  no_log: True
+
+- name: Create pull secret for OCP
+  shell: "{{ client_k8s }} -n {{ namespace }} create secret docker-registry acr-registry-ocp --docker-server={{ ocp_docker_registry }} --docker-username={{ external_registry_username }} --docker-password={{ oc_token_pull.stdout }}"
+  when: hosted_on == 'ocp'
+  no_log: True
+## fin - deploy to OCP
+
+- name: Lists deployment kafka
+  shell: "{{ client_k8s }} -n {{ namespace }} get deployments -o name"
+  register: deployments_kafka
+
+- name: Delete deployment if exist aks
+  shell: "{{ client_k8s }} -n {{ namespace }} delete deployments {{ kafkaConnectDeploymentName }}"
+  when: (hosted_on == 'aks') and ( 'deployment.apps/{{ kafkaConnectDeploymentName }}' in deployments_kafka.stdout.split() )
+
+- name: Delete deployment if exist ocp
+  shell: "{{ client_k8s }} -n {{ namespace }} delete deployments {{ kafkaConnectDeploymentName }}"
+  when: (hosted_on == 'ocp') and ( 'deployment.apps/{{ kafkaConnectDeploymentName }}' in deployments_kafka.stdout.split() )
+
+- name: Deploy kafka connector to {{ hosted_on }} !
+  shell: "{{ client_k8s }} -n {{ namespace }} create -f {{ workspace }}/devops/docker/kafka-deploy.yaml"
+  when: hosted_on == 'aks'
+
+# - name: Deploy kafka connector to {{ hosted_on }} !
+#   shell: "{{ client_k8s }} -n {{ namespace }} apply -f {{ workspace }}/devops/docker/kafka-deploy.yaml"
+#   when: (hosted_on == 'aks') and ((deployment_environment == 'cert') or (deployment_environment == 'prod'))
+
+- name: Deploy kafka connector to {{ hosted_on }} !
+  shell: "{{ client_k8s }} -n {{ namespace }} create -f {{ workspace }}/devops/docker/kafka-deploy-{{ inventory_hostname }}.yaml"
+  when: hosted_on == 'ocp'
+
+# - name: Deploy kafka connector to {{ hosted_on }} !
+#   shell: "{{ client_k8s }} -n {{ namespace }} apply -f {{ workspace }}/devops/docker/kafka-deploy-{{ inventory_hostname }}.yaml"
+#   when: (hosted_on == 'ocp') and ((deployment_environment == 'cert') or (deployment_environment == 'prod'))
+#   no_log: False
+
+- name: Logs pod Kafka Connect !
+  shell: |
+    {{ client_k8s }} -n {{ namespace }} get pods \
+    | grep {{ kafkaConnectDeploymentName }} \
+    | awk '{print $1}' \
+    | while read U;do echo "<<<< pod : $U >>>>" ;{{ client_k8s }} -n {{ namespace }} logs $U;done
+  ignore_errors: true

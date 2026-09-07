@@ -1,0 +1,9 @@
+# Custom SMT del environment (no del use-case).
+# url = [INFO] Deploying artifact: del job SMT develop.
+# En el conector: transforms.X.type (FQCN) + transforms.X.custom.smt.artifact.id (ca- del apply).
+
+artifacts:
+  - name: peve-kafka-transformer
+    url: http://10.79.118.71:8081/artifactory/PEVE-CERT/com/bcp/peve/peve-kafka-transformer/1.0.0/peve-kafka-transformer-1.0.0.jar
+    description: "BytesToAvroAuditWithSchemaParser"
+    content_format: JAR

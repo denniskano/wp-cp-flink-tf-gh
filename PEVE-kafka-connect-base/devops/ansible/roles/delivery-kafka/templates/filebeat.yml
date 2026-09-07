@@ -1,0 +1,25 @@
+filebeat:
+  inputs:
+    - type: log
+      paths:
+        - "/var/log/kafka/*.log"
+      multiline.pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+      multiline.negate: false
+      multiline.match: after    
+      fields:
+        app-group: {{ project }}
+        kafkaconnect-name: {{ kafkaConnectName }}{{ '-' if envkafka is defined else '' }}{{ envkafka | default('') }}
+      fields_under_root: true
+  config:
+    modules:
+      path: /usr/share/filebeat/modules.d/*.yml
+      reload:
+        enabled: true
+logging:
+  level: info
+  to_files: false
+output:
+  logstash:
+    hosts: ["{{ logstash_url }}:{{ logstash_port }}"]
+    ssl.certificate_authorities: ["/tmp/bcprootcert-dev.cer"]
+    

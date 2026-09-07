@@ -1,0 +1,262 @@
+# Sube Custom SMT a Confluent Cloud. Terraform: PEVE-event-driven-automation.
+# YAML: PEVE-kafka-connect-resources-v1 {CODAPP}/{env}/smt.yaml
+# Aplicar ANTES que deploy-kafka-connect.
+name: deploy-connect-plugins
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "plan primero; apply cuando el plan cierre. No hay destroy."
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
+      CODAPP:
+        description: "codigo de applicación de 4 letras"
+        required: true
+        type: string
+
+run-name: >
+  ${{ github.event.inputs.CODAPP }} ${{ github.workflow }} [${{ github.event.inputs.action }}]
+
+env:
+  VAULT_ADDR: "https://vaultdev.lima.bcp.com.pe:443"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  ENVIRONMENT: "DES"
+  ENV_FOLDER: "desa"
+  VAULT_ENV_PATH: "dev"
+  STORAGE_CONTAINER_NAME: tf-connect-dev
+  RESOURCE_GROUP_NAME: RSGREU2PEVED01
+  TERRAFORM_VERSION: "1.5.0"
+  TERRAFORM_WORKDIR: iac/stacks/connect-plugins
+  SERVICE_ACCOUNT: SA_AZC_DES_PEVE_FLK_01
+  API_KEY_TERRAFORM: AK_AZC_DES_PEVE_CRMAN_COMPPOOL_01
+  GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
+  OWNER_EXTERNO: BCP-Integration-Automation
+  REPO_IAC: PEVE-event-driven-automation
+  IAC_REF: main
+  REPO_EXTERNO: PEVE-kafka-connect-resources-v1
+  RESOURCES_BRANCH_EXTERNO: develop
+
+jobs:
+  PREPARE:
+    name: "Prepare: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-prod-set
+    environment: APP_AUTOMATION_BOT
+    outputs:
+      CIPHER: ${{ steps.enc.outputs.CIPHER }}
+      HOST: ${{ steps.enc.outputs.HOST }}
+    steps:
+      - name: Checkout workflows repo
+        uses: actions/checkout@v4
+
+      - name: Install basic tools
+        run: |
+          sudo apt-get update > /dev/null 2>&1
+          sudo apt-get install jq unzip git tree dnsutils ca-certificates gettext -y > /dev/null 2>&1
+
+      - name: Get GithubApp from Secrets HV
+        id: get-ghapp-peve-key
+        uses: hashicorp/vault-action@v3
+        with:
+          url: https://vault.lima.bcp.com.pe:443
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
+          secrets: |
+            cos/kv2/data/prod/peve/ccloud/ghapp_peve_self_service_pk secret | ghapp_peve_self_service_pk ;
+
+      - name: Generar token GitHub App (IaC + Connect resources)
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ env.GITHUB_APP_ID }}
+          private-key: ${{ steps.get-ghapp-peve-key.outputs.ghapp_peve_self_service_pk }}
+          owner: ${{ env.OWNER_EXTERNO }}
+          repositories: ${{ env.REPO_IAC }},${{ env.REPO_EXTERNO }}
+          skip-token-revoke: true
+
+      - name: Cifrar token de sesion de githubapp
+        id: enc
+        uses: ./.github/actions/single-encrypt
+        with:
+          plaintext: ${{ steps.app-token.outputs.token }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+  deploy-plugins:
+    name: "CI Connect plugins: ${{ github.event.inputs.CODAPP }} *** ${{ github.ref_name }}"
+    runs-on: arc-runner-desa-set
+    environment: APP_PEVE_CI_DESA
+    needs: PREPARE
+    steps:
+      - name: Checkout workflows repo
+        uses: actions/checkout@v4
+
+      - name: Descifrar token de sesion de githubapp
+        id: dec
+        uses: ./.github/actions/single-decrypt
+        with:
+          ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
+          host: ${{ needs.PREPARE.outputs.HOST }}
+          extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+
+      - name: set environment TOKEN de sesion para repos externos
+        run: |
+          echo "GHAPP_TOKEN_REPO_V3=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
+
+      - name: Checkout IaC (PEVE-event-driven-automation)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_IAC }}
+          ref: ${{ env.IAC_REF }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./iac
+
+      - name: Checkout Connect resources
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
+          ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./externo
+
+      - name: Paths Terraform
+        run: |
+          echo "TF_VAR_smt_file=${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/smt.yaml" >> "$GITHUB_ENV"
+          echo "SMT_DEST=${GITHUB_WORKSPACE}/smt-jars" >> "$GITHUB_ENV"
+
+      - name: Verify smt.yaml
+        run: |
+          chmod +x ./iac/scripts/ci/validate-smt.sh
+          SMT="${GITHUB_WORKSPACE}/externo/${CODAPP}/${ENV_FOLDER}/smt.yaml"
+          if [ ! -f "${SMT}" ]; then
+            echo "❌ falta ${SMT} (un archivo por CODAPP, no por use-case)"
+            exit 1
+          fi
+          bash ./iac/scripts/ci/validate-smt.sh "${SMT}"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Install yq
+        uses: ./.github/actions/install-yq
+
+      - name: Extract Environment ID from CC_PROPERTIES
+        run: |
+          ENVIRONMENT_ID=$(echo '${{ vars.CC_PROPERTIES }}' | jq -r '.azure_eu2_kafka01.environment_id')
+          if [ -z "$ENVIRONMENT_ID" ] || [ "$ENVIRONMENT_ID" == "null" ]; then
+            echo "Error: Could not extract environment_id from CC_PROPERTIES"
+            exit 1
+          fi
+          echo "ENVIRONMENT_ID=$ENVIRONMENT_ID" >> "$GITHUB_ENV"
+
+      - name: Get Terraform Provider Secrets
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          exportToken: true
+          secrets: |
+            peve/kv2/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            peve/kv2/data/${{ env.VAULT_ENV_PATH }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            peve/kv2/data/dev/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+
+      # Mismos campos que Jenkins ARTIFACT_USER_NAME / ARTIFACT_USER_PASSWORD.
+      # continue-on-error: si el secret aún no está, el curl va anónimo.
+      - name: Get Artifactory credentials
+        continue-on-error: true
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_DESA }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_DESA }}
+          secrets: |
+            peve/kv2/data/dev/peve/artifactory/ARTIFACTORY_GHA username | ARTIFACTORY_USER ;
+            peve/kv2/data/dev/peve/artifactory/ARTIFACTORY_GHA password | ARTIFACTORY_PASSWORD ;
+
+      - name: Configure Azure Storage Access Key
+        run: |
+          echo "Configuring Azure Storage Access Key"
+          export ARM_ACCESS_KEY=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+          echo "OK Azure Storage Access Key configured"
+
+      - name: Download SMT JARs
+        run: |
+          # confluent_connect_artifact.artifact_file es path local, no URL.
+          mkdir -p "${SMT_DEST}"
+          MAP="{}"
+          AUTH=()
+          if [ -n "${ARTIFACTORY_USER:-}" ] && [ -n "${ARTIFACTORY_PASSWORD:-}" ]; then
+            AUTH=(-u "${ARTIFACTORY_USER}:${ARTIFACTORY_PASSWORD}")
+            echo "OK curl Artifactory con usuario ${ARTIFACTORY_USER}"
+          else
+            echo "⚠️  sin credenciales Artifactory; curl anónimo"
+          fi
+          while IFS=$'\t' read -r name url fmt; do
+            [ -z "${name}" ] || [ -z "${url}" ] && continue
+            ext=jar
+            echo "${fmt}" | grep -qi zip && ext=zip
+            echo "${url}" | grep -qi '\.zip$' && ext=zip
+            out="${SMT_DEST}/${name}.${ext}"
+            echo "↓ ${name}"
+            curl -fsSL --retry 3 --retry-delay 2 "${AUTH[@]}" -o "${out}" "${url}"
+            [ -s "${out}" ] || { echo "❌ descarga vacía ${url}"; exit 1; }
+            MAP="$(jq --arg n "${name}" --arg p "${out}" '. + {($n): $p}' <<< "${MAP}")"
+          done < <(yq -r '.artifacts[] | [.name, .url, (.content_format // "")] | @tsv' "${TF_VAR_smt_file}")
+          {
+            echo "TF_VAR_artifact_files<<ARTIFACT_FILES_END"
+            printf '%s\n' "${MAP}"
+            echo "ARTIFACT_FILES_END"
+          } >> "$GITHUB_ENV"
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=dev/${{ env.CODAPP }}/connect-plugins/tf-connect-plugins.tfstate" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform plan
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_smt_file: ${{ env.TF_VAR_smt_file }}
+          TF_VAR_artifact_files: ${{ env.TF_VAR_artifact_files }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve
+        env:
+          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
+          TF_VAR_smt_file: ${{ env.TF_VAR_smt_file }}
+          TF_VAR_artifact_files: ${{ env.TF_VAR_artifact_files }}
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+
+      - name: Output artifact ids
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "=== artifact_ids (pegar en transforms.*.custom.smt.artifact.id) ==="
+          terraform output -json artifact_ids || echo "No artifacts"

@@ -1,0 +1,135 @@
+project: ""
+recipients: 
+
+hosted: "aks" # ocp | aks
+namespace: ""
+aksRG: ""
+aksCluster: ""
+
+# Azure Subscription ID (requerido para AKS)
+subscription: ""  # <--- AGREGA AQUÍ EL VALOR CORRECTO DE TU SUBSCRIPCIÓN
+
+## Datos conector
+kafkaConnectName: ""
+kafkaconnectVersion: 1.0.0 # Version deployment
+kafkaConnectType: "" # Source | Sink
+
+## Informacion Docker
+containerRegistry: ""
+imageName: ""
+imageTag: ""
+image: peve/${imageName}
+
+## Monitoreo OpenTelemetry
+monitoring_otel: '' # yes | no
+secretOpenTelemetry: # Secret in AKS to connect Ingress from OTEL
+ms_type: #Value microservice
+
+# Habilitar el log para kibana, grafana (loki) o ambos
+log_monitoring_otel_filebeat: ''  # valores posibles: kibana | loki | both
+
+## Image filbeat
+image_filebeat: peve/filebeat
+imageTag_filebeat: 7.17.3
+
+## URL del custom transformer a incluir como parte del despliegue
+transformer_url: ""
+
+# Configurar de acuerdo a punto 4 de la guia https://confluence.lima.bcp.com.pe/display/PEVE/Nomenclatura+de+Resources+Kafka
+connectGroupId: # nombre sugerido: cfg-[AMBITO]-[CONNECT_NAME]-group
+connectConfigStorageTopic: # nombre sugerido: cfg-[AMBITO]-[CONNECT_NAME]-config
+connectOffsetStorageTopic: # nombre sugerido: cfg-[AMBITO]-[CONNECT_NAME]-offset
+connectStatusStorageTopic: # nombre sugerido: cfg-[AMBITO]-[CONNECT_NAME]-status
+
+# HV Credentials Id para encriptacion // UUID, cadena aleatoria máximo 30 caracteres
+connectEncryptionKeyHVId: [ENCRYPTION_KEY_ID]
+
+# Datos del cluster kafka
+bootstrapServer: ''
+schemaRegistry: ''
+
+#Kafka Config Environment
+kafka_connect_environment:
+  CONNECT_BOOTSTRAP_SERVERS: ${bootstrapServer}
+  CONNECT_REST_ADVERTISED_HOST_NAME: kafkaconnect
+  CONNECT_GROUP_ID: ${connectGroupId}
+  CONNECT_CONFIG_STORAGE_TOPIC: ${connectConfigStorageTopic}
+  CONNECT_OFFSET_STORAGE_TOPIC: ${connectOffsetStorageTopic}
+  CONNECT_STATUS_STORAGE_TOPIC: ${connectStatusStorageTopic}
+  CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+  CONNECT_REST_PORT: 8083
+  CONNECT_SCHEMA_REGISTRY_URL: ${schemaRegistry}
+  CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.converters.ByteArrayConverter"
+  CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: ${schemaRegistry}
+  CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.converters.ByteArrayConverter"
+  CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: ${schemaRegistry}
+  CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+  CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+#SR
+  CONNECT_KEY_CONVERTER_BASIC_AUTH_CREDENTIALS_SOURCE: "USER_INFO"
+  CONNECT_VALUE_CONVERTER_BASIC_AUTH_CREDENTIALS_SOURCE: "USER_INFO"
+  CONNECT_KEY_CONVERTER_BASIC_AUTH_USER_INFO: "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.schema.key}:${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.schema.secret}"
+  CONNECT_VALUE_CONVERTER_BASIC_AUTH_USER_INFO: "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.schema.key}:${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.schema.secret}"
+#
+  CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
+  CLASSPATH: "/usr/share/java/monitoring-interceptors/*:/usr/share/java/kafka-connect/*:/etc/kafka-connect/smt/*"
+  CUB_CLASSPATH: "/usr/share/java/cp-base-new/*:/etc/confluent/docker/docker-utils.jar:/usr/share/java/monitoring-interceptors/*:/usr/share/java/kafka-connect/*:/etc/kafka-connect/smt/*"
+#  
+  CONNECT_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM:
+  CONNECT_SECURITY_PROTOCOL: SASL_SSL
+  CONNECT_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule   required username='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.key}'   password='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.secret}';"
+  CONNECT_SASL_MECHANISM: PLAIN
+  CONNECT_PRODUCER_SECURITY_PROTOCOL: SASL_SSL
+  CONNECT_PRODUCER_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule   required username='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.key}'   password='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.secret}';"
+  CONNECT_PRODUCER_SASL_MECHANISM: PLAIN
+  CONNECT_CONSUMER_SECURITY_PROTOCOL: SASL_SSL
+  CONNECT_CONSUMER_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule   required username='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.key}'   password='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.secret}';"
+  CONNECT_CONSUMER_SASL_MECHANISM: PLAIN
+  CONNECT_CLIENT_ID: "2"
+  CONFLUENT_SECURITY_MASTER_KEY:
+  CONNECT_CONFIG_PROVIDERS: "securepass"
+  CONNECT_CONFIG_PROVIDERS_SECUREPASS_CLASS: "io.confluent.kafka.security.config.provider.SecurePassConfigProvider"
+  KAFKA_JVM_PERFORMANCE_OPTS: "-XX:MetaspaceSize=96m -XX:G1HeapRegionSize=16M -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
+  CONNECT_CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY: 'All'
+  OTEL_RESOURCE_ATTRIBUTES: ms_type=${ms_type}, environment=dev, app_group=${project}
+  OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS: Request-Id, app-code
+  OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_RESPONSE_HEADERS: Request-Id, app-code
+  CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO: "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.schema.key}:${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.schema.secret}"
+  CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+  CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+  CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3  
+
+#Data for readiness and liveness probe
+readiness_probe:
+    failureThreshold: 2
+    initialDelaySeconds: 90
+    periodSeconds: 30
+    successThreshold: 1
+    timeoutSeconds: 10
+
+liveness_probe:
+    initialDelaySeconds: 90
+    periodSeconds: 30
+
+resources_plan:
+    cpu_limits: 2
+    cpu_requests: 40m
+    memory_limits: 2048M
+    memory_requests: 1024M
+
+replicas_plan:
+    replicas: 1
+
+## Kafka Connect JVM Heap Option
+heapOptions: "-Xms512M -Xmx1536M"
+
+javaToolOptions: "-Dfile.encoding=UTF8 -Dotel.jmx.config=/etc/otel-config/kc-jmx-config.yaml -XX:MaxDirectMemorySize=512M -XX:MaxMetaspaceSize=348M"
+
+## Monitoring
+jmx:
+  port: 5555
+  opts: "-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false  -Dcom.sun.management.jmxremote.ssl=false"
+
+## Secretos especificos connector
+### REEMPLAZAR CON SECRETOS ESPECIFICOS ###
+

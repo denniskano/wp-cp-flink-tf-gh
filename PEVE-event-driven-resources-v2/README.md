@@ -16,7 +16,7 @@ No confundir con `flink-v2/PEVE-event-driven-resources-v2` (copia vieja: Actions
 
 ## Workflows
 
-**Cinco repos (cableados, DES):** `deploy-kafka-connect.yml`, `deploy-compute-pools-desa-2-0.yml`, `deploy-flink-statements-desa-2-0.yml`, `peve-resources-desa.yml`.
+**Cinco repos (cableados):** `deploy-kafka-connect.yml` (DES), `deploy-kafka-connect-cert.yml`, `deploy-kafka-connect-prod.yml`, `deploy-connect-plugins.yml` (DES), `deploy-compute-pools-desa-2-0.yml`, `deploy-flink-statements-desa-2-0.yml`, `peve-resources-desa.yml`.
 
 **Copia original develop-v2 (aún checkout viejo / `BRANCH_AUTOMATION`):** `peve-resources-{cert,prod}.yml`, `peve-catalog-mgmt-*`, `deploy-compute-pools-{desa,cert,prod}.yml` (sin `-2-0`), `deploy-flink-statements-{desa,cert,prod}.yml` (sin `-2-0`), `ccloud-create-sa-apikey-*`, `conector-mqzos-*`, `cp-*-sr-exporter.yml`, `peve-util-*`.
 
@@ -33,7 +33,17 @@ Orden del job (`plan` / `apply` / `pause` / `resume`; no hay `destroy`):
 3. Vault
 4. `terraform -chdir=./iac/stacks/kafka-connect`
 
-State DES: `dev/{CODAPP}/{use_case}/tf-connect.tfstate`.
+State: DES `dev/{CODAPP}/{use_case}/tf-connect.tfstate` (`tf-connect-dev`). CERT `cert/…` (`tf-connect-cert`). PROD `prod/…` (`tf-connect-prod`). YAML en `{CODAPP}/{desa|cert|prod}/{use-case}/`. `IAC_REF` de cert/prod tiene que ser un **tag**.
+
+Custom SMT (`deploy-connect-plugins`, **antes** que `deploy-kafka-connect`):
+
+1. Checkout IaC → `./iac` y resources → `./externo`
+2. `validate-smt.sh` (`{CODAPP}/desa/smt.yaml`; si falta, el job falla)
+3. Vault: Confluent + ARM; Artifactory en `peve/kv2/data/dev/peve/artifactory/ARTIFACTORY_GHA` (`username`/`password`, mismos campos que Jenkins). Si el secret no está, curl anónimo.
+4. curl de cada `artifacts[].url` → `TF_VAR_artifact_files` (el provider pide un path local, no la URL)
+5. `terraform -chdir=./iac/stacks/connect-plugins`
+
+State DES: `dev/{CODAPP}/connect-plugins/tf-connect-plugins.tfstate` (no reutiliza `tf-connect.tfstate`). El apply imprime `artifact_ids` (`ca-…`) para pegar en el YAML del conector.
 
 ## Flink DES (jobs de v2, cinco repos)
 

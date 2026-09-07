@@ -3,7 +3,7 @@
 # Flink: corre codegen (gen_*_dinamic.sh) antes de terraform.
 set -euo pipefail
 
-STACK="${1:?stack (kafka-connect|flink-compute-pool|flink-statements|...)}"
+STACK="${1:?stack (kafka-connect|connect-plugins|flink-compute-pool|flink-statements|...)}"
 ACTION="${2:-plan}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CHDIR="${ROOT}/stacks/${STACK}"
@@ -26,6 +26,10 @@ case "${STACK}" in
     USE_CASE="${USE_CASE:?USE_CASE}"
     export TF_VAR_connectors_dir="${EXTERNO}/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/connects"
     export TF_VAR_security_dir="${EXTERNO}/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security"
+    ;;
+  connect-plugins)
+    export TF_VAR_smt_file="${EXTERNO}/${CODAPP}/${ENV_FOLDER}/smt.yaml"
+    export TF_VAR_artifact_files="${TF_VAR_artifact_files:-{}}"
     ;;
   flink-compute-pool)
     ENVIRONMENT_ID="${ENVIRONMENT_ID:?ENVIRONMENT_ID (env-xxxxx)}"

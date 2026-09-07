@@ -2,6 +2,8 @@
 
 Copia el YAML a `{CODAPP}/desa/{use-case}/connects/` y el RBAC a `security/`. **No despliegues esta carpeta.** No es necesario instalar nada en la laptop.
 
+Custom SMT (JAR en Artifactory → artifact `ca-…` del environment): [`smt.yaml`](smt.yaml) va en `{CODAPP}/{desa|cert|prod}/`, no dentro del use-case. Guía: [docs/smt.md](docs/smt.md). El `ca-…` se pega en el YAML del conector **después** de subir el artifact; no va en `smt.yaml`. SMT nativo de Confluent no usa ese archivo.
+
 El cluster es **Dedicated** + **Private Link**. El destino se alcanza por Egress Private Link Endpoint + DNS (FQDN público, no IP privada). No hay campo de red en el YAML. Event Hubs Source usa `AMQP_WEB_SOCKETS`; Cosmos V2 usa `azure.cosmos.mode.gateway: true`.
 
 Clases y campos según la [doc de Confluent Cloud](https://docs.confluent.io/cloud/current/connectors/index.html) (no el conector self-managed). Credenciales solo en `vault.secrets`.

@@ -1,0 +1,38 @@
+{
+  "name": "[CONNECTOR_NAME_UNICO]",
+    "config": {
+      "connector.class": "io.confluent.connect.hdfs.HdfsSinkConnector",
+      "tasks.max": "1",
+      "key.converter":"org.apache.kafka.connect.json.JsonConverter",
+      "key.converter.schemas.enable":"false",
+      "value.converter":"org.apache.kafka.connect.json.JsonConverter",
+      "value.converter.schemas.enable":false,
+  
+      "topics": "onprem-glb-hdfs-sink-test",
+  
+      "hdfs.url": "hdfs://desarrollo.datalake.local:14000",
+      "hadoop.conf.dir": "/opt/hadoop/conf",
+      "hadoop.home": "/opt/hadoop",
+      
+      "flush.size": "3",
+  
+  
+      "hdfs.kerberos.authentication": true,
+      "hdfs.kerberos.user.principal": "BT10640@DATALAKE.LOCAL",
+      "hdfs.kerberos.keytab.path": "/etc/kafka-connect/BT10640.keytab",
+      "hdfs.kerberos.namenode.principal": "hdfs/desarrollo.datalake.local@DATALAKE.LOCAL",
+      
+      "confluent.topic.bootstrap.servers": "",
+      "confluent.topic":"_confluent-command",
+      "confluent.topic.sasl.mechanism": "PLAIN",
+      "confluent.topic.security.protocol": "SASL_SSL",
+      "confluent.topic.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.key}'   password='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.secret}';",
+  
+      "errors.tolerance": "all",
+      "errors.log.enable": "true",
+      "errors.log.include.messages": "true",
+      "errors.deadletterqueue.topic.name": "[DLQ]",
+      "errors.deadletterqueue.topic.replication.factor": "1",
+      "errors.deadletterqueue.context.headers.enable": "true"
+    }
+  }

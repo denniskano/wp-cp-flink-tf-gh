@@ -1,7 +1,10 @@
-.PHONY: validate-connect validate-flink-pools validate-flink-stmts plan-connect plan-flink-pools plan-flink-stmts
+.PHONY: validate-connect validate-connect-plugins validate-flink-pools validate-flink-stmts plan-connect plan-flink-pools plan-flink-stmts
 
 validate-connect:
 	cd "$(REPO_ROOT)/stacks/kafka-connect" && terraform init -backend=false -input=false && terraform validate
+
+validate-connect-plugins:
+	cd "$(REPO_ROOT)/stacks/connect-plugins" && terraform init -backend=false -input=false && terraform validate
 
 validate-flink-pools:
 	cd "$(REPO_ROOT)/stacks/flink-compute-pool" && terraform init -backend=false -input=false && terraform validate

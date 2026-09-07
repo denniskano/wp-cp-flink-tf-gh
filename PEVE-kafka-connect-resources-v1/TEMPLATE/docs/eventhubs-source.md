@@ -28,3 +28,16 @@ El SA: **write** en el topic y en `{topic}-value`.
 | `producer.override.compression.type` | — | Compresión hacia Kafka. |
 
 El consumer group del hub (`$Default` o uno propio) no lo compartas con otra app: el conector avanza el checkpoint. Si recreas el conector (cambio de `name` o del archivo YAML) se pierden offsets y `starting.position` vuelve a aplicar.
+
+## Custom SMT
+
+Si el payload del hub no llega en el formato del topic (p. ej. bytes → Avro), declara el JAR en `{CODAPP}/{env}/smt.yaml`, sube el artifact y pega el `ca-…` aquí:
+
+```yaml
+transforms: ToAvroAuditWithSchema
+transforms.ToAvroAuditWithSchema.type: com.bcp.peve.kafka.connect.smt.BytesToAvroAuditWithSchemaParser$Value
+transforms.ToAvroAuditWithSchema.custom.smt.artifact.id: ca-xxxxx
+```
+
+El `ca-…` sale del primer apply del artifact; no lo inventes ni uses el `name` de `smt.yaml`. Guía: [smt.md](smt.md) y la sección **Custom SMT** del [README](../../README.md).
+

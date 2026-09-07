@@ -1,0 +1,25 @@
+{
+  "name": "[CONNECTOR_NAME_UNICO]-cho",
+  "config": {
+    "connector.class": "com.ibm.eventstreams.connect.mqsource.MQSourceConnector",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter",
+    "tasks.max": "1",
+    "topic": [TOPICO_DESTINO_EVENTOS],
+    "mq.message.body.jms": "true",
+    "value.converter.schemas.enable": "false",
+    "mq.queue.manager": "QPTTIBMWC0241",
+    "mq.connection.name.list": "10.80.135.197(1414)",
+    "mq.channel.name": "SVRCN.P.N.PTTIBMWC02",
+    "mq.queue": "TI.APP.TTIBNOTIFYDIF.REQ.01",
+    "mq.record.builder": "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder",
+    "mq.user.authentication.mqcsp": "false",
+    "mq.user.name": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/mqcho.username}",
+    "mq.password": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/mqcho.password}",
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true",
+    "transforms": "stringToAvro",
+    "transforms.stringToAvro.type": "com.bcp.ttib.kafka.connect.transform.StringToAvro$Value"
+  }
+}

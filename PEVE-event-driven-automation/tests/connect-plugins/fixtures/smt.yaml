@@ -1,0 +1,5 @@
+artifacts:
+  - name: peve-kafka-transformer
+    url: http://artifactory.example/peve-kafka-transformer-1.0.0.jar
+    description: fixture
+    content_format: JAR

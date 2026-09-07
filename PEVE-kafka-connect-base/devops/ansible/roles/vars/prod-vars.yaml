@@ -1,0 +1,19 @@
+#deploy params
+replicas: 2
+ocp_app_domain: "ocpchintinfra.lima.bcp.com.pe"
+limits_cpu: 2
+limits_memory: 1536M
+requests_cpu: 40m
+requests_memory: 512M
+
+# Standar readiness probe values for kafka distributed
+rp_failureThreshold: 2
+rp_initialDelaySeconds: 5
+rp_periodSeconds: 10
+rp_successThreshold: 1
+rp_timeoutSeconds: 2
+
+#Standar liveness probe values for kafka distributed
+lp_initialDelaySeconds: 20
+lp_periodSeconds: 20
+

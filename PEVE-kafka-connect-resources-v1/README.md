@@ -13,6 +13,7 @@ Salesforce, Snowflake y Mongo Atlas no entran porque el cluster sea PL: cada uno
 ```
 {CODAPP}/
   desa|cert|prod/
+    smt.yaml                 # opcional; Custom SMT del environment
     {use-case}/
       connects/*.yaml
       security/*.yaml
@@ -20,9 +21,11 @@ Salesforce, Snowflake y Mongo Atlas no entran porque el cluster sea PL: cada uno
 
 `CODAPP` es la carpeta de tu aplicación (ej. `PEVE`). `use-case` es el nombre que vas a pasar al pipeline.
 
+`smt.yaml` es **por aplicación y ambiente**, no por use-case: el artifact (`ca-…`) es del environment. Plantilla: `TEMPLATE/smt.yaml`. Guía: [TEMPLATE/docs/smt.md](TEMPLATE/docs/smt.md). Si no usas SMT custom, no lo crees.
+
 Solo `*.yaml` (no `*.yml`) y sin subcarpetas dentro de `connects/` o `security/`.
 
-Plantillas para copiar: `TEMPLATE/connects/`. No las despliegues; cópialas a tu `{CODAPP}/desa/{use-case}/`. Ejemplo listo: `PEVE/desa/use-case-name-02/`.
+Plantillas para copiar: `TEMPLATE/connects/`. No las despliegues; cópialas a tu `{CODAPP}/desa/{use-case}/`. Ejemplo listo: `PEVE/desa/use-case-name-02/`. SMT de PEVE: `PEVE/desa/smt.yaml`.
 
 En la laptop **no instales nada** (ni Python, ni Node, ni extensiones). Copia el YAML, edita host/topic/SA/Vault y envía el PR. El pipeline aplica.
 
@@ -67,6 +70,8 @@ Guía local (YAML, RBAC, tuning) y documentación oficial de Confluent Cloud. Cl
 - El SA va en `vault.service_account` (el `display_name` de Confluent).
 - Passwords y users: `vault.secrets.<clave>` con `path` y `field` de Vault. No pongas secretos en claro ni un bloque `config_sensitive`.
 - Red: no hay campo Private Link en el YAML. Host/URL = FQDN público.
+- SMT nativo de Confluent (Cast, Mask, HoistField, etc.): `transforms` + `transforms.<alias>.type` con la clase de Kafka Connect. No uses `custom.smt.artifact.id`.
+- **Custom SMT** (JAR propio): además del FQCN, el conector necesita el id del artifact (`ca-…`). Ver abajo.
 
 El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombras o cambias `name`, se recrea y se pierden offsets.
 
@@ -74,18 +79,54 @@ El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombras 
 
 `status` del YAML es el que queda después de un apply. Pause/resume del pipeline es temporal; el apply siguiente vuelve al YAML.
 
-## Desplegar (DES)
+## Custom SMT (JAR propio)
 
-1. Deja el YAML en `develop` (PR + merge).
-2. Ejecuta el workflow **`deploy-kafka-connect`**:
+Confluent no busca el JAR por el `name` de `smt.yaml`. Después de subirlo al environment le asigna un id (`ca-…`) y **ese** es el que va en el conector.
+
+1. Declara el JAR en `{CODAPP}/{desa|cert|prod}/smt.yaml` (`name` + `url` de Artifactory). Guía: [TEMPLATE/docs/smt.md](TEMPLATE/docs/smt.md). Ejemplo: `PEVE/desa/smt.yaml`.
+2. Sube el artifact con **`deploy-connect-plugins`** (`plan` / `apply`, input `CODAPP`). Terraform imprime:
+
+```text
+artifact_ids = {
+  "peve-kafka-transformer" = "ca-abc123"
+}
+```
+
+3. Copia ese `ca-abc123` al YAML del **conector** (`connects/`), no a `smt.yaml`:
+
+```yaml
+config_nonsensitive:
+  transforms: mySmt
+  transforms.mySmt.type: com.bcp.peve.kafka.connect.smt.BytesToAvroAuditWithSchemaParser$Value
+  transforms.mySmt.custom.smt.artifact.id: ca-abc123
+```
+
+4. Recién ahí aplica el conector (`deploy-kafka-connect`). El artifact tiene que existir **antes**. Si el conector referencia un `ca-…` que no está, queda Failed.
+
+El `name` de `smt.yaml` es solo la etiqueta (y el `display_name` en la UI). No lo pongas en `custom.smt.artifact.id`.
+
+Las siguientes veces, si no cambias el `name` del artifact, el `ca-…` se mantiene: no hay que volver a pegarlo. Si lo renombras o lo borras, Confluent crea otro id y hay que actualizar el conector.
+
+Si no usas JAR propio, no crees `smt.yaml` y no pongas `custom.smt.artifact.id`.
+
+## Desplegar
+
+1. Deja el YAML en la rama del ambiente (PR + merge).
+2. Ejecuta el workflow del ambiente:
+
+| Ambiente | Workflow | Carpeta | Rama del YAML |
+|---|---|---|---|
+| DES | `deploy-kafka-connect` | `desa/` | `develop` |
+| CERT | `deploy-kafka-connect-cert` | `cert/` | `release-v2` |
+| PROD | `deploy-kafka-connect-prod` | `prod/` | `master` |
 
 | Input | Ejemplo |
 |---|---|
-| `action` | `plan` primero; `apply` cuando el plan cierre. También `pause`, `resume`. No hay `destroy`. |
+| `action` | `plan` primero; `apply` cuando el plan cierre. También `pause`, `resume`. No hay `destroy`. En cert/prod el default es `plan`. |
 | `CODAPP` | `PEVE` (la carpeta de tu app) |
-| `use_case` | `use-case-name-02` (la carpeta bajo `desa/`) |
+| `use_case` | `use-case-name-02` (la carpeta bajo `desa/` / `cert/` / `prod/`) |
 | `connector` | solo en pause/resume: nombre del archivo sin `.yaml` |
 
-Hoy el pipeline apunta a `desa`. cert/prod todavía no.
-
 `plan` / `apply` cubren **todo** el use-case. `pause` / `resume` un conector. No hay `destroy` en el workflow.
+
+Si el conector usa Custom SMT, el artifact (`ca-…`) tiene que existir en ese environment **antes**. En DES: `deploy-connect-plugins` y después `deploy-kafka-connect`. cert/prod de plugins todavía no.

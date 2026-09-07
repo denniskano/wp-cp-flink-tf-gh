@@ -1,0 +1,71 @@
+volumeMounts:
+ - name: kafkaconnect-config-json
+   mountPath: /etc/kafka-connect/configs
+ - name: otel-config-metric
+   mountPath: /etc/otel-config
+ - name: secrets-volume
+   mountPath: /opt/security/secrets
+ - name: connect-log4j
+   mountPath: /etc/confluent/docker/log4j.properties.template
+   subPath: connect-log4j.properties 
+ - name: kafkaconnect-logs
+   mountPath: /var/log/kafka
+ - name: kafkaconnect-smt-jar
+   mountPath: /etc/kafka-connect/smt
+ - name: certs-opentelemetry
+   mountPath: /opt/security/certs/opentelemetry
+ - name: tls-bcp-ms
+   mountPath: /opt/security/certs/bcp-ms
+ - name: tls-bcprootcert
+   mountPath: /opt/security/certs/bcprootcert
+
+volumeMounts_filebeat:
+- name: kafkaconnect-logs
+  mountPath: /var/log/kafka
+- name: filebeat-config
+  mountPath: /usr/share/filebeat/filebeat.yml
+  subPath: filebeat.yml
+- name: tls-bcprootcert
+  mountPath: /usr/share/filebeat/bcprootcert
+
+volumes:
+ - name: tls-bcp-ms
+   secret:
+     secretName: bcp-ms
+ - name: tls-bcprootcert
+   secret:
+     secretName: bcprootcert-${env}
+ - name: kafkaconnect-config-json
+   configMap:
+     name: ${kafkaConnectName}-kafkaconnect-config-json
+ - name: otel-config-metric
+   configMap:
+     name: ${kafkaConnectName}-kc-jmx-config
+ - name: kafkaconnect-smt-jar
+   configMap:
+     name: ${kafkaConnectName}-kafkaconnect-smt-jar
+ - name: secrets-volume
+   projected:
+     sources:
+       - secret:
+           secretName: ${kafkaConnectName}-file-encripted
+       - secret:
+           secretName: ${kafkaConnectName}-secret-config-file
+ - name: certs-opentelemetry
+   projected:
+     sources:
+       - secret:
+           secretName: ${secretOpenTelemetry}
+ - name: connect-log4j
+   configMap:
+     name: ${kafkaConnectName}-log4j-config
+     list: 
+       - connect-log4j.properties
+## List of volumes for filebeat container
+ - name: kafkaconnect-logs
+   emptyDir: {}
+ - name: filebeat-config
+   configMap:
+     name: ${kafkaConnectName}-filebeat-configmap
+     list: 
+       - filebeat.yml

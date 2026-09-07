@@ -1,0 +1,245 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ kafkaConnectDeploymentName }}
+  labels:
+    app: {{ kafkaConnectName }}
+spec:
+{% if replicas_plan is defined %}
+  replicas: {{ replicas_plan.replicas | default(replicas, true) }}
+{% else %}
+  replicas: {{ replicas }}
+{% endif %}
+  selector:
+    matchLabels:
+      app: {{ kafkaConnectName }}
+  template:
+    metadata:
+{% if monitoring_otel == 'yes' %}    
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "opentelemetry-operator-system/otel-instrumentation-java-alpha"
+{% endif %}
+      namespace: {{ namespace }}
+      labels:
+        app: {{ kafkaConnectName }}
+    spec:
+{% if hosted_on == 'aks' %}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 105
+        runAsGroup: 109
+        fsGroup: 2000
+{% endif %}
+{% if hosted_on == 'ocp' %}
+      serviceAccountName: {{ kafkaConnectName }}
+      automountServiceAccountToken: true
+{% endif %}
+      containers:
+        - name: {{ kafkaConnectDeploymentName }}
+{% if hosted_on == 'aks' %}
+          image: {{ azure_docker_registry }}/{{ image }}:{{ imageTag }}
+{% endif %}
+{% if hosted_on == 'ocp' %}
+          image: {{ ocp_docker_registry_deploy }}/{{ image }}:{{ imageTag }}
+{% endif %}
+
+{% if resources_plan is defined %}
+          resources:
+            limits:
+              cpu: {{ resources_plan.cpu_limits | default(limits_cpu, true) }}
+              memory: {{ resources_plan.memory_limits | default(limits_memory, true) }}
+            requests:
+              cpu: {{ resources_plan.cpu_requests | default(requests_cpu, true) }}
+              memory: {{ resources_plan.memory_requests | default(requests_memory, true) }}
+{% else %}
+          resources:
+            limits:
+              cpu: {{ limits_cpu }}
+              memory: {{ limits_memory }}
+            requests:
+              cpu: {{ requests_cpu }}
+              memory: {{ requests_memory }}
+{% endif %}
+          imagePullPolicy: Always
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8083
+              httpHeaders:
+                - name: Accept
+                  value: '*/*'
+{% if readiness_probe is defined %}
+            failureThreshold: {{ readiness_probe.failureThreshold  | default(rp_failureThreshold, true) }}
+            initialDelaySeconds: {{ readiness_probe.initialDelaySeconds | default(rp_initialDelaySeconds, true) }}
+            periodSeconds: {{ readiness_probe.periodSeconds | default(rp_periodSeconds, true) }}
+            successThreshold: {{ readiness_probe.successThreshold | default(rp_successThreshold, true) }}
+            timeoutSeconds: {{ readiness_probe.timeoutSeconds | default(rp_timeoutSeconds, true) }}
+{% else %}
+            failureThreshold: {{ rp_failureThreshold }}
+            initialDelaySeconds: {{ rp_initialDelaySeconds }}
+            periodSeconds: {{ rp_periodSeconds }}
+            successThreshold: {{ rp_successThreshold }}
+            timeoutSeconds: {{ rp_timeoutSeconds }}
+{% endif %}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8083
+              httpHeaders:
+                - name: Accept
+                  value: '*/*'
+{% if liveness_probe is defined %}
+            initialDelaySeconds: {{ liveness_probe.initialDelaySeconds | default(lp_initialDelaySeconds, true) }}
+            periodSeconds: {{ liveness_probe.periodSeconds | default(lp_periodSeconds, true) }}
+{% else %}
+            initialDelaySeconds: {{ liveness_probe.initialDelaySeconds | default(lp_initialDelaySeconds, true) }}
+            periodSeconds: {{ liveness_probe.periodSeconds | default(lp_periodSeconds, true) }}
+{% endif %}
+          ports:
+          - containerPort: 8083
+          env:
+{% for key, value in kafka_connect_environment.items() %}
+            - name: {{ key }}
+{% if  key in ['CONNECT_CONFIG_STORAGE_TOPIC', 'CONNECT_OFFSET_STORAGE_TOPIC', 'CONNECT_STATUS_STORAGE_TOPIC', 'CONNECT_GROUP_ID' ] and envkafka is defined %}
+              value: "{{ value }}-{{envkafka}}"
+{% else  %}
+              value: "{{ value }}"
+{% endif %}
+{% endfor %}  
+            - name: CONNECT_REST_ADVERTISED_HOST_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP  
+            - name: KAFKA_HEAP_OPTS
+              value: {{ heapOptions }}
+{% if javaToolOptions is defined %}
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ javaToolOptions }}
+{% endif %}
+            - name: CONFLUENT_SECURITY_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ kafkaConnectName }}-master-key
+                  key: CONFLUENT_SECURITY_MASTER_KEY    
+{% if jmx.port is defined %}
+            - name: KAFKA_JMX_PORT
+              value: '5555'
+{% endif %}
+{% if jmx.opts is defined %}
+            - name: KAFKA_JMX_OPTS
+              value: {{ jmx.opts }}
+{% endif %}
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo 'starting command';
+{% if monitoring_otel == 'yes' and hosted_on == 'aks' %}              
+              export JAVA_TOOL_OPTIONS_BAK=$JAVA_TOOL_OPTIONS;
+              unset JAVA_TOOL_OPTIONS;
+              echo 'Registrando certificados Open Telemetry';
+              ls /opt/security/certs/opentelemetry;
+              secretos_otel=($(ls /opt/security/certs/opentelemetry));
+              for sec in "${secretos_otel[@]}"; do keytool -importcert -alias cr1 -keystore /usr/lib/jvm/java-11-zulu-openjdk/lib/security/cacerts -storepass changeit -noprompt -trustcacerts -file /opt/security/certs/opentelemetry/$sec; done;
+              echo 'Finalizando registro de certificados Open Telemetry';
+              sleep 5;                            
+              export JAVA_TOOL_OPTIONS=$JAVA_TOOL_OPTIONS_BAK;
+{% endif %}
+{% if hosted_on == 'ocp' %}              
+              export JAVA_TOOL_OPTIONS_BAK=$JAVA_TOOL_OPTIONS;
+              unset JAVA_TOOL_OPTIONS;
+              echo 'Registering bcprootcert for OCP';
+              keytool -importcert -alias cr1 -keystore /usr/lib/jvm/java-11-zulu-openjdk/lib/security/cacerts -storepass changeit -noprompt -trustcacerts -file /opt/security/certs/bcprootcert/bcprootcert-{{ deployment_environment }}.crt;
+              sleep 5;                            
+              export JAVA_TOOL_OPTIONS=$JAVA_TOOL_OPTIONS_BAK;
+              echo 'Finalize registering bcprootcert for OCP';
+{% endif %}
+              echo 'starting connect restart worker';
+              /etc/kafka-connect/scripts/run-restart-failed-connector-tasks.sh &
+              echo 'end connect restart worker';
+              echo 'Iniciando cluster';
+              /etc/confluent/docker/run &
+              /etc/kafka-connect/scripts/create-connectors.sh;
+
+              echo 'sleep infinity';         
+              sleep infinity;
+              echo 'end command';
+          volumeMounts:
+{% for volumeMount in volumeMounts %}
+          - name: {{ volumeMount.name }}
+            mountPath: {{ volumeMount.mountPath }}
+{% if volumeMount.subPath is defined %}
+            subPath: {{ volumeMount.subPath }}
+{% endif %}
+{% endfor %}
+          securityContext:
+            allowPrivilegeEscalation: false
+{% if filebeat|length %}
+        - name: filebeat-sidecard
+{% if hosted_on == 'aks' %}
+          image: {{ azure_docker_registry }}/peve/filebeat:7.17.3
+{% endif %}
+{% if hosted_on == 'ocp' %}
+          image: {{ ocp_docker_registry_deploy }}/peve/filebeat:7.17.3
+{% endif %}
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "Iniciando Filebeat con configuración personalizada";
+              echo "Transformando root bcp a .cer";
+              openssl x509 -inform der -in /usr/share/filebeat/bcprootcert/bcprootcert-dev.crt -out /tmp/bcprootcert-dev.cer;
+              echo "Fin transformacion";
+              filebeat -e -c /usr/share/filebeat/filebeat.yml
+          volumeMounts:
+{% for volumeMount in volumeMounts_filebeat %}
+          - name: {{ volumeMount.name }}
+            mountPath: {{ volumeMount.mountPath }}
+{% if volumeMount.subPath is defined %}
+            subPath: {{ volumeMount.subPath }}
+{% endif %}
+{% endfor %}
+          imagePullPolicy: Always
+          securityContext:
+{% if hosted_on == 'aks' %}
+            runAsUser: 1000
+            runAsGroup: 1000
+{% endif %}
+{% if hosted_on == 'ocp' %}
+            runAsUser: 0
+            privileged: true
+{% endif %}
+
+{% endif %}
+{% if hosted_on == 'aks' %}
+      imagePullSecrets:
+        - name: acr-registry-{{ hosted_on }}
+{% endif %}
+      volumes:
+{% for volume in volumes %}
+      - name: {{ volume.name }}
+{% if volume.secret is defined %}
+        secret:
+          secretName: {{ volume.secret.secretName }}
+{% endif %}
+{% if volume.projected is defined %}
+        projected:
+          sources:
+{% for source in volume.projected.sources %}
+            - secret:
+                name: {{ source.secret.secretName }}
+{% endfor %}
+{% endif %}
+{% if volume.configMap is defined %}
+        configMap:
+          name: {{ volume.configMap.name }}
+{% if volume.configMap.list is defined %}
+          items:     
+{% for lists in volume.configMap.list %}
+            - key: {{ lists }}
+              path: {{ lists }}
+{% endfor %}
+{% endif %}      
+{% endif %}
+{% if volume.emptyDir is defined %}
+        emptyDir: {}
+{% endif %}
+{% endfor %}
+

@@ -18,8 +18,8 @@ vault:
   service_account: "SA_AZC_DES_PEVE_PGSNK_01"
   secrets:
     connection.user:
-      path: "peve/data/dev/peve/postgresql/DB_PEVE_CONNECT_DEV"
+      path: "peve/kv2/data/dev/peve/postgres"
       field: "username"
     connection.password:
-      path: "peve/data/dev/peve/postgresql/DB_PEVE_CONNECT_DEV"
+      path: "peve/kv2/data/dev/peve/postgres"
       field: "password"

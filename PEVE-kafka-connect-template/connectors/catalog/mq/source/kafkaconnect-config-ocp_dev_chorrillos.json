@@ -1,0 +1,25 @@
+{
+  "name": "[CONNECTOR_NAME_UNICO]-cho",
+  "config": {
+    "connector.class": "com.ibm.eventstreams.connect.mqsource.MQSourceConnector",
+    "key.converter": "org.apache.kafka.connect.converters.ByteArrayConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "tasks.max": "1",
+    "topic": [TOPICO_DESTINO_EVENTOS],
+    "mq.queue.manager": "QM1",
+    "mq.connection.name.list": "mqseries(1414)",
+    "mq.channel.name": "MYSVRCONN",
+    "mq.queue": "QL.SOURCE.001",
+    "mq.record.builder": "com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder",
+    "mq.user.authentication.mqcsp": "false",
+    "mq.user.name": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/mqcho.username}",
+    "mq.password": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/mqcho.password}",
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true",
+    "transforms": "fromCopybook",
+    "transforms.fromCopybook.type": "com.github.jcustenborder.kafka.connect.cobol.FromCopybook$Value",
+    "transforms.fromCopybook.cobol.context.type": "Ascii",
+    "transforms.fromCopybook.cobol.copybook": "01 BIRTH-DETAILS. 05 BIRTHID PIC X(4). 05 BIRTHNAME PIC X(10). 05 BIRTHDATE PIC X(10)."
+  }
+}

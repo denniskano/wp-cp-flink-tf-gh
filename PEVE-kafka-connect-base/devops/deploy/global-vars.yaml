@@ -1,0 +1,48 @@
+ocp:
+  clusterdata:
+    dev:
+      azureRegistry: "acrgeu2inctd01.azurecr.io"
+      logstashUrl: "atlascollectordesa.credito.bcp.com.pe"
+      logstashPort: 9900
+    cert:
+      azureRegistry: "acrgeu2inctc01.azurecr.io"
+      logstashUrl: "atlascollectorcert.credito.bcp.com.pe"
+      logstashPort: 9900
+    prod:
+      azureRegistry: "acrgeu2inctp01.azurecr.io"
+      logstashUrl: "atlascollector.credito.bcp.com.pe"
+      logstashPort: 9900
+aks:
+  clusterdata:
+    dev:
+      azureRegistry: "acrgeu2inctd01.azurecr.io"
+      logstashUrl: "cloudcollectordesa.bcpcloud.local"
+      logstashPort: 9900
+    cert:
+      azureRegistry: "acrgeu2inctc01.azurecr.io"
+      logstashUrl: "cloudcollectorcert.bcpcloud.local"
+      logstashPort: 9900
+    prod:
+      azureRegistry: "acrgeu2inctp01.azurecr.io"
+      logstashUrl: "cloudcollector.bcpcloud.local"
+      logstashPort: 9900
+
+secrets:
+  confluentSecurityMasterKey: 
+    filePath: devops/scripts/master-key.txt
+    secretName: ${kafkaConnectName}-master-key
+    secretKey: CONFLUENT_SECURITY_MASTER_KEY
+  confluentSecretFileEncrypted:
+    filePath: devops/scripts/security-secrets.properties
+    secretName: ${kafkaConnectName}-file-encripted
+    secretKey: CONFLUENT_SECRET_FILE_ENCRYPTED
+  confluentSecretConfigFile:
+    filePath: devops/scripts/encrypted-config-file.properties
+    secretName: ${kafkaConnectName}-secret-config-file
+    secretKey: CONFLUENT_SECRET_CONFIG_FILE
+
+## Custom Env
+customEnv:
+  CUSTOM_SCRIPT_PATH: /etc/kafka-connect/scripts/create-connectors.sh
+  CUSTOM_RESTART_WORKER_TASK: /etc/kafka-connect/scripts/run-restart-failed-connector-tasks.sh
+  

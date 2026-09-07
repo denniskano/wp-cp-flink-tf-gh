@@ -1,0 +1,23 @@
+{
+  "name": "[CONNECTOR_NAME_UNICO]",
+  "config": {
+    "connector.class": "com.ibm.eventstreams.connect.mqsink.MQSinkConnector",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "tasks.max": "2",
+    "topics": [TOPICO_ORIGEN_EVENTOS],
+    "mq.queue.manager": "Q251",
+    "mq.connection.name.list": "192.168.254.19(1251)",
+    "mq.channel.name": "CH.AMQC.POCMQ.01",
+    "mq.queue": "MQ.POC.SALIDADATOSZOS.REQ.01",
+    "mq.message.builder": "com.ibm.eventstreams.connect.mqsink.builders.DefaultMessageBuilder",
+    "mq.user.name": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/mqcho.username}",
+    "mq.password": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/mqcho.password}",
+    "mq.user.authentication.mqcsp": "false",
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true",
+    "errors.deadletterqueue.topic.name": [TOPICO_DLQ],
+    "errors.deadletterqueue.context.headers.enable": "true"
+  }
+}

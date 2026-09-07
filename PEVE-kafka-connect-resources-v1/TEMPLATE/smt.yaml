@@ -1,0 +1,15 @@
+# Copia a {CODAPP}/desa/smt.yaml (un archivo por aplicación y ambiente).
+# No va dentro del use-case: el artifact es del environment + AZURE, no del cluster.
+#
+# url = transformer_url de Artifactory. En el job SMT (cert):
+#   [INFO] Deploying artifact: http://…/artifactory/PEVE-CERT/…
+# Prod: la misma ruta, cambia PEVE-CERT por PEVE.Release.
+# El JAR no se versiona aquí. El workflow lo baja y lo sube a Confluent (ca-…).
+#
+# En el conector: transforms.X.type (FQCN) + transforms.X.custom.smt.artifact.id (el ca- del apply).
+
+artifacts:
+  - name: peve-kafka-transformer
+    url: http://10.79.118.71:8081/artifactory/PEVE-CERT/com/bcp/peve/peve-kafka-transformer/1.0.0/peve-kafka-transformer-1.0.0.jar
+    description: "Custom SMT (FQCN en el YAML del conector)"
+    content_format: JAR

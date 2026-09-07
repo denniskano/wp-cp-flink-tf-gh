@@ -4,6 +4,7 @@ Hay una carpeta por stack que ya tiene contrato YAML. Son fixtures, no se aplica
 
 ```
 tests/kafka-connect/
+tests/connect-plugins/
 tests/flink-compute-pool/
 tests/flink-statements/
 ```

@@ -1,0 +1,164 @@
+---
+rules:
+  - bean: kafka.connect:type=connector-metrics,connector=*
+    metricAttribute:
+      connector: param(connector)
+      task: param(task)
+    prefix: kafka.connect.connector-metrics.
+    mapping:
+     connector-type:
+     connector-class:
+     connector-version:
+     status:
+  - bean: kafka.connect:type=connector-task-metrics,connector=*,task=*
+    metricAttribute:
+      connector: param(connector)
+      task: param(task)
+    prefix: kafka.connect.connector-task-metrics.
+    mapping:
+     status:
+     pause-ratio:
+     running-ratio:
+     offset-commit-success-percentage:
+     offset-commit-failure-percentage:
+     offset-commit-max-time-ms:
+     offset-commit-avg-time-ms:
+     batch-size-max:
+     batch-size-avg:
+  - bean: kafka.connect:type=source-task-metrics,connector=*,task=*
+    metricAttribute:
+      connector: param(connector)
+      task: param(task)
+    prefix: kafka.connect.source-task-metrics.
+    mapping:
+     source-record-write-total:
+     source-record-write-rate:
+     source-record-poll-total:
+     source-record-poll-rate:
+     source-record-active-count-max:
+     source-record-active-count-avg:
+     source-record-active-count:
+     poll-batch-max-time-ms:
+       unit: ms
+     poll-batch-avg-time-ms:
+       unit: ms
+  - bean: kafka.connect:type=sink-task-metrics,connector=*,task=*
+    metricAttribute:
+      connector: param(connector)
+      task: param(task)
+    prefix: kafka.connect.sink-task-metrics.
+    mapping:
+     sink-record-read-rate:
+     sink-record-read-total:
+     sink-record-send-rate:
+     sink-record-send-total:
+     sink-record-active-count-max:
+     sink-record-active-count-avg:
+     sink-record-active-count:
+     partition-count:
+     offset-commit-seq-no:
+     offset-commit-completion-rate:
+     offset-commit-completion-total:
+     offset-commit-skip-total:
+     put-batch-max-time-ms:
+       unit: ms
+     put-batch-avg-time-ms:
+       unit: ms
+  - bean: kafka.connect:type=connect-coordinator-metrics,client-id=*
+    metricAttribute:
+      clientId: param(client-id)
+    prefix: kafka.connect.connect-coordinator-metrics.
+    mapping:
+     sync-total:
+     failed-rebalance-total:
+     join-total:
+  - bean: kafka.connect:type=connect-metrics,client-id=*
+    metricAttribute:
+      clientId: param(client-id)
+    prefix: kafka.connect.connect-metrics.
+    mapping:
+     connection-creation-total:
+     request-rate:
+     connection-close-rate:
+     connection-count:
+     connection-creation-rate:
+     failed-authentication-rate:
+     incoming-byte-rate:
+     io-ratio:
+     io-time-ns-avg:
+     io-wait-ratio:
+     io-wait-time-ns-avg:
+     network-io-rate:
+     outgoing-byte-rate:
+     request-size-avg:
+     request-size-max:
+     response-rate:
+     select-rate:
+     successful-authentication-rate:
+          
+  - bean: kafka.connect:type=connect-node-metrics,client-id=*,node-id=*
+    metricAttribute:
+      clientId: param(client-id)
+      nodeId: param(node-id)
+    prefix: kafka.connect.connect-node-metrics.
+    mapping:
+     request-rate:
+     response-rate:
+  - bean: kafka.connect:type=connect-worker-metrics
+    metricAttribute:
+      clientId: param(client-id)
+      nodeId: param(node-id)
+    prefix: kafka.connect.connect-worker-metrics.
+    mapping:
+     task-count:   
+     task-startup-success-total:
+     connector-count:
+     connector-startup-attempts-total:
+     connector-startup-success-total:
+     connector-startup-success-percentage:
+     connector-startup-failure-total:
+     connector-startup-failure-percentage:
+     task-startup-attempts-total:
+     task-startup-success-percentage:
+     task-startup-failure-total:
+     task-startup-failure-percentage:
+  - bean: kafka.connect:type=connect-worker-metrics,connector=*
+    metricAttribute:
+      connector: param(connector)    
+    prefix: kafka.connect.connect-worker-metrics.
+    mapping:
+     connector-total-task-count:    
+     connector-running-task-count:
+     connector-paused-task-count:
+     connector-failed-task-count:
+     connector-unassigned-task-count:
+     connector-destroyed-task-count:     
+  - bean: kafka.connect:type=connect-worker-rebalance-metrics
+    metricAttribute:
+      clientId: param(client-id)
+      nodeId: param(node-id)
+    prefix: kafka.connect.connect-worker-rebalance-metrics.
+    mapping:
+     leader-name:
+     epoch:
+     completed-rebalances-total:
+     rebalancing:
+     rebalance-max-time-ms:
+     rebalance-avg-time-ms:
+     time-since-last-rebalance-ms:
+  - bean: kafka.connect:type=task-error-metrics,connector=*,task=*
+    metricAttribute:
+      connector: param(connector)
+      task: param(task)
+    prefix: kafka.connect.task-error-metrics.     
+    mapping:
+     deadletterqueue-produce-failures:
+     deadletterqueue-produce-requests:
+     total-errors-logged:
+     total-record-errors:
+     total-record-failures:
+     total-records-skipped:
+     total-retries:
+       
+ 
+

@@ -12,7 +12,7 @@ scripts/              # generate_*, gen_*_flink, terraform_task, validate
 tests/ make/ docs/
 ```
 
-Hoy se usa de verdad: `kafka-connect`, `flink-compute-pool`, `flink-statements`, `eda-core`. El resto de `stacks/` está vacío o a medio hacer.
+Hoy se usa de verdad: `kafka-connect`, `connect-plugins`, `flink-compute-pool`, `flink-statements`, `eda-core`. El resto de `stacks/` está vacío o a medio hacer.
 
 ```bash
 make lint

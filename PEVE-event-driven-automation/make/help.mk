@@ -7,6 +7,7 @@ help:
 	@echo "  make fmt                 terraform fmt -recursive"
 	@echo "  make test                fixtures YAML + validate de stacks implementados"
 	@echo "  make validate-connect    init -backend=false + validate (kafka-connect)"
+	@echo "  make validate-connect-plugins"
 	@echo "  make validate-flink-pools"
 	@echo "  make validate-flink-stmts"
 	@echo "  make plan-connect        scripts/local/tf.sh kafka-connect plan"

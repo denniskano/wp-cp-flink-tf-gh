@@ -1,0 +1,32 @@
+{
+  "name": "[CONNECTOR_NAME_UNICO]",
+  "config" : {
+    "connector.class": "io.confluent.salesforce.SalesforcePlatformEventSourceConnector",
+    "tasks.max" : "1",
+    "kafka.topic": "[TOPICO_DESTINO_EVENTOS]",
+    "errors.tolerance": "all",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter.schema.registry.url": "https://psrc-j5nvyw.eastus2.azure.confluent.cloud",
+    "value.converter.basic.auth.credentials.source": "USER_INFO",
+    "value.converter.basic.auth.user.info":"${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/confluent-sr.username}:${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.schema.secret}",
+    "value.converter.schemas.enable": false,
+    "value.converter.auto.register.schemas":false,
+    "value.converter.use.latest.version":true,
+    "salesforce.instance": "https://test.salesforce.com/",
+    "salesforce.username": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/salesforce.username}",
+    "salesforce.password": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/salesforce.password}",
+    "salesforce.consumer.key": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/salesforce.key}",
+    "salesforce.consumer.secret": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/salesforce.secret}",
+    "salesforce.password.token": "${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/salesforce.token}",
+    "salesforce.platform.event.name" : "BCP_Asignar_Dato__e",
+    "salesforce.initial.start" : "latest",
+    "salesforce.version": "51",
+    "connection.timeout": "50000",
+    "confluent.topic.bootstrap.servers": "",
+    "confluent.topic":"_confluent-command",
+    "confluent.topic.sasl.mechanism": "PLAIN",
+    "confluent.topic.security.protocol": "SASL_SSL",
+    "confluent.topic.sasl.jaas.config": "org.apache.kafka.common.security.plain.PlainLoginModule required username='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.key}'   password='${securepass:/opt/security/secrets/security-secrets.properties:encrypted-config-file.properties/kafka.broker.secret}';"
+  }
+}

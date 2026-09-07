@@ -1,0 +1,58 @@
+---
+- name: Log into private registry on azure registry
+  docker_login:
+    registry: "{{ azure_docker_registry }}"
+    username: "{{ azure_registry_username }}"
+    password: "{{ azure_registry_password }}"
+    reauthorize: yes
+  when: hosted_on == 'ocp'
+  no_log: false
+
+# - name: Log into private registry on azure registry
+#   docker_login:
+#     registry: "{{ azure_docker_registry }}"
+#     username: "{{ external_registry_username }}"
+#     password: "{{ external_registry_password }}"
+#     reauthorize: yes
+#   when: hosted_on == 'aks'
+#   no_log: false
+
+- name: Docker kafka pull
+  docker_image:
+    name: "{{ azure_docker_registry }}/{{ image }}:{{ imageTag }}"
+
+- name: Pulling the image into podman metadata
+  shell: "podman pull --tls-verify=false {{ azure_docker_registry }}/{{ project }}/{{ imageName }}:{{ imageTag }}"
+
+- name: Login to oc master
+  shell: oc login -u {{ external_registry_username }} -p {{ external_registry_password }} {{ master_ocp_url }} --insecure-skip-tls-verify
+  when: hosted_on == 'ocp'
+  no_log: true
+
+- name: Get oc token to push
+  shell: oc whoami -t
+  register: oc_token
+  when: hosted_on == 'ocp'
+  no_log: true
+
+# - name: login to registry ocp
+#   docker_login:
+#     registry: "{{ ocp_docker_registry }}"
+#     username: "{{ external_registry_username }}"
+#     password: "{{ oc_token.stdout }}"
+#   when: hosted_on == 'ocp'
+#   no_log: false
+
+- name: Login to registry ocp by podman
+  shell: "podman login -u {{ external_registry_username }} -p {{ oc_token.stdout }} --tls-verify=false {{ ocp_docker_registry }}"
+  # when: ocp_version == "ocpa4"
+  no_log: true
+
+- name: Tag to push to ocp
+  shell: "podman tag {{ azure_docker_registry }}/{{ project }}/{{ imageName }}:{{ imageTag }} {{ ocp_docker_registry }}/{{ project }}/{{ imageName }}:{{ imageTag }}"
+  # when: hosted_on == 'ocp'
+
+- name: Pushing the image into the ocp registry {{ ocp_docker_registry }}
+  shell: "podman push --tls-verify=false {{ ocp_docker_registry }}/{{ project }}/{{ imageName }}:{{ imageTag }}"
+  # when: hosted_on == 'ocp'
+
