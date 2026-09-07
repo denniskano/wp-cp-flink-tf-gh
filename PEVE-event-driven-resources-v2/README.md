@@ -26,7 +26,7 @@ Actions originales copiadas: `eda-resources`, `eda-schema-registry`, `eda-catalo
 
 ## Connect (implementado)
 
-Orden del job cuando `action` ≠ `destroy`:
+Orden del job (`plan` / `apply` / `pause` / `resume`; no hay `destroy`):
 
 1. Checkout IaC → `./iac` y resources → `./externo`
 2. `validate-yaml.sh` (existen `connects/*.yaml` y `security/*.yaml`)

@@ -81,11 +81,11 @@ El nombre del **archivo** (sin `.yaml`) identifica al conector. Si lo renombras 
 
 | Input | Ejemplo |
 |---|---|
-| `action` | `plan` primero; `apply` cuando el plan cierre. También `destroy`, `pause`, `resume` |
+| `action` | `plan` primero; `apply` cuando el plan cierre. También `pause`, `resume`. No hay `destroy`. |
 | `CODAPP` | `PEVE` (la carpeta de tu app) |
 | `use_case` | `use-case-name-02` (la carpeta bajo `desa/`) |
 | `connector` | solo en pause/resume: nombre del archivo sin `.yaml` |
 
 Hoy el pipeline apunta a `desa`. cert/prod todavía no.
 
-`plan` / `apply` / `destroy` cubren **todo** el use-case. `pause` / `resume` un conector.
+`plan` / `apply` cubren **todo** el use-case. `pause` / `resume` un conector. No hay `destroy` en el workflow.

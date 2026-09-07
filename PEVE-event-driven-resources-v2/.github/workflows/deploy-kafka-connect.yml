@@ -5,13 +5,12 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "plan/apply/destroy = todo el use-case. pause/resume = un conector (input connector)."
+        description: "plan/apply = todo el use-case. pause/resume = un conector (input connector). No hay destroy."
         required: true
         default: "apply"
         type: choice
         options:
           - apply
-          - destroy
           - plan
           - pause
           - resume
@@ -180,11 +179,7 @@ jobs:
             echo "TF_VAR_connector_status_overrides={}" >> "$GITHUB_ENV"
           fi
 
-          if [ "${ACTION}" = "destroy" ]; then
-            echo "TF_VAR_allow_empty_connectors=true" >> "$GITHUB_ENV"
-          else
-            echo "TF_VAR_allow_empty_connectors=false" >> "$GITHUB_ENV"
-          fi
+          echo "TF_VAR_allow_empty_connectors=false" >> "$GITHUB_ENV"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -362,22 +357,6 @@ jobs:
           TARGET='module.connectors.confluent_connector.connectors["'"${CONNECTOR_KEY}"'"]'
           terraform plan -target="${TARGET}"
           terraform apply -auto-approve -target="${TARGET}"
-
-      - name: Terraform Destroy
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
-        if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
-        env:
-          TF_VAR_environment_id: ${{ env.ENVIRONMENT_ID }}
-          TF_VAR_connectors_dir: ${{ env.TF_VAR_connectors_dir }}
-          TF_VAR_security_dir: ${{ env.TF_VAR_security_dir }}
-          TF_VAR_kafka_cluster_id: ${{ env.KAFKA_CLUSTER_ID }}
-          TF_VAR_environment: ${{ env.ENVIRONMENT }}
-          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
-          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
-          TF_VAR_connector_secrets: ${{ env.CONNECTOR_SECRETS }}
-          TF_VAR_connector_status_overrides: ${{ env.TF_VAR_connector_status_overrides }}
-          TF_VAR_allow_empty_connectors: ${{ env.TF_VAR_allow_empty_connectors }}
 
       - name: Output Connectors
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
