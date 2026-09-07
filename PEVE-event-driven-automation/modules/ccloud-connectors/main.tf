@@ -77,19 +77,28 @@ locals {
         try(d["config_nonsensitive"]["name"], connector_name)
       )
 
-      config_nonsensitive = merge(
-        local.connector_base_configs[connector_name],
-        {
-          "name" = try(
-            d["name"],
-            try(d["config_nonsensitive"]["name"], connector_name)
-          )
-        },
-        local.connector_sa_ids[connector_name] != "" ? {
-          "kafka.service.account.id" = local.connector_sa_ids[connector_name]
-        } : {},
-        local.connector_dlq_configs[connector_name]
-      )
+      # Claves de Vault / config_sensitive: nunca van a config_nonsensitive.
+      config_nonsensitive = {
+        for k, v in merge(
+          local.connector_base_configs[connector_name],
+          {
+            "name" = try(
+              d["name"],
+              try(d["config_nonsensitive"]["name"], connector_name)
+            )
+          },
+          local.connector_sa_ids[connector_name] != "" ? {
+            "kafka.service.account.id" = local.connector_sa_ids[connector_name]
+          } : {},
+          local.connector_dlq_configs[connector_name]
+          ) : k => v if !contains(
+          toset(concat(
+            keys(try(d["vault"]["secrets"], {})),
+            keys(try(d["config_sensitive"], {})),
+          )),
+          k
+        )
+      }
 
       config_sensitive = {
         for k, v in merge(
@@ -97,6 +106,11 @@ locals {
           try(var.connector_secrets[connector_name], {})
         ) : k => v if v != "" && v != null
       }
+
+      missing_vault_secrets = [
+        for k in keys(try(d["vault"]["secrets"], {})) : k
+        if try(var.connector_secrets[connector_name][k], "") == ""
+      ]
 
       status = lookup(
         var.connector_status_overrides,
@@ -167,6 +181,10 @@ resource "confluent_connector" "connectors" {
     precondition {
       condition     = contains(["RUNNING", "PAUSED"], each.value.status)
       error_message = "status del conector ${each.key} debe ser RUNNING o PAUSED (YAML o override)."
+    }
+    precondition {
+      condition     = length(each.value.missing_vault_secrets) == 0
+      error_message = "vault.secrets de ${each.key} tiene que ir a config_sensitive (inyectado por el workflow). Faltan: ${join(", ", each.value.missing_vault_secrets)}."
     }
   }
 }
