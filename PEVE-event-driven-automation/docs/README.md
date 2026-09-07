@@ -12,7 +12,7 @@ Cada job de v2 hace más o menos lo mismo:
 
 1. Checkout de este repo → `./iac` (el pin es `IAC_REF`).
 2. Checkout del YAML → `./externo`.
-3. Validar que existan los yaml (`validate-yaml.sh`; SMT: `validate-smt.sh`).
+3. Validar que existan los yaml (Connect: `validate-connect-yaml.sh`; SMT: `validate-smt.sh`).
 4. Flink y eda-core generan el `.tf` en el runner (`gen_*` / `generate_*`). Connect no: lee el YAML directo.
 5. Vault y `terraform -chdir=./iac/stacks/<stack>`. eda-core es distinto: arma `./automation` y llama `terraform_task.sh`.
 

@@ -29,7 +29,7 @@ Actions originales copiadas: `eda-resources`, `eda-schema-registry`, `eda-catalo
 Orden del job (`plan` / `apply` / `pause` / `resume`; no hay `destroy`):
 
 1. Checkout IaC → `./iac` y resources → `./externo`
-2. `validate-yaml.sh` (existen `connects/*.yaml` y `security/*.yaml`)
+2. `validate-connect-yaml.sh` (existen `connects/*.yaml` y `security/*.yaml`)
 3. Vault
 4. `terraform -chdir=./iac/stacks/kafka-connect`
 

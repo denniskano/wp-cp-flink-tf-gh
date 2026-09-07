@@ -150,8 +150,8 @@ jobs:
           SECURITY_DIR="externo/${CODAPP}/${ENV_FOLDER}/${USE_CASE}/security"
           ACTION="${{ github.event.inputs.action }}"
 
-          chmod +x ./iac/scripts/ci/validate-yaml.sh
-          bash ./iac/scripts/ci/validate-yaml.sh "${CONNECTORS_DIR}" "${SECURITY_DIR}" "${ACTION}"
+          chmod +x ./iac/scripts/ci/validate-connect-yaml.sh
+          bash ./iac/scripts/ci/validate-connect-yaml.sh "${CONNECTORS_DIR}" "${SECURITY_DIR}" "${ACTION}"
 
           CONN="${{ github.event.inputs.connector }}"
           CONN="${CONN#"${CONN%%[![:space:]]*}"}"
@@ -181,7 +181,19 @@ jobs:
             echo "TF_VAR_connector_status_overrides={}" >> "$GITHUB_ENV"
           fi
 
-          echo "TF_VAR_allow_empty_connectors=false" >> "$GITHUB_ENV"
+          YAML_COUNT=0
+          if [ -d "${CONNECTORS_DIR}" ]; then
+            YAML_COUNT="$(find "${CONNECTORS_DIR}" -maxdepth 1 -type f -name '*.yaml' | wc -l | tr -d ' ')"
+          fi
+          if [ "${YAML_COUNT}" -eq 0 ]; then
+            echo "TF_VAR_allow_empty_connectors=true" >> "$GITHUB_ENV"
+            if [ ! -d "${SECURITY_DIR}" ]; then
+              echo "TF_VAR_security_dir=" >> "$GITHUB_ENV"
+            fi
+            echo "⚠️  connects/ vacío: apply destruirá los conectores (y el RBAC si no hay security/)."
+          else
+            echo "TF_VAR_allow_empty_connectors=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

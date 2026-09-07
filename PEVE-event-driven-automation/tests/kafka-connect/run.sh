@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# validate-yaml.sh: existencia de connects/ + security/ (sin Confluent).
+# validate-connect-yaml.sh: existencia de connects/ + security/ (sin Confluent).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-VALIDATE="${ROOT}/scripts/ci/validate-yaml.sh"
+VALIDATE="${ROOT}/scripts/ci/validate-connect-yaml.sh"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 ok() { echo "OK  $*"; }
@@ -19,20 +19,25 @@ echo "== fixtures (destroy): debe pasar =="
   || fail "fixtures destroy"
 ok "fixtures destroy"
 
-echo "== connects/ vacío (plan): debe fallar =="
-if "${VALIDATE}" "${HERE}/fixtures-empty-connects/connects" \
-     "${HERE}/fixtures-empty-connects/security" plan; then
-  fail "plan con connects/ vacío debió fallar"
-fi
-ok "plan vacío bloqueado"
-
-echo "== connects/ vacío (destroy): debe pasar =="
+echo "== connects/ vacío (plan): debe pasar (apply vacía el use-case) =="
 "${VALIDATE}" "${HERE}/fixtures-empty-connects/connects" \
-  "${HERE}/fixtures-empty-connects/security" destroy \
-  || fail "destroy con connects/ vacío"
-ok "destroy vacío permitido"
+  "${HERE}/fixtures-empty-connects/security" plan \
+  || fail "plan con connects/ vacío"
+ok "plan vacío permitido"
 
-echo "== security/ ausente (plan): debe fallar =="
+echo "== connects/ ausente (apply): debe pasar =="
+"${VALIDATE}" "${HERE}/no-such-connects" "${HERE}/no-such-security" apply \
+  || fail "apply sin connects/"
+ok "apply sin connects/ permitido"
+
+echo "== connects/ vacío (pause): debe fallar =="
+if "${VALIDATE}" "${HERE}/fixtures-empty-connects/connects" \
+     "${HERE}/fixtures-empty-connects/security" pause; then
+  fail "pause con connects/ vacío debió fallar"
+fi
+ok "pause vacío bloqueado"
+
+echo "== security/ ausente con YAML (plan): debe fallar =="
 if "${VALIDATE}" "${HERE}/fixtures/connects" "${HERE}/no-such-security" plan; then
   fail "plan sin security/ debió fallar"
 fi

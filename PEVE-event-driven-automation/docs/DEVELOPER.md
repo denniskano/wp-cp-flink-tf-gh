@@ -26,7 +26,7 @@ Flink y eda-core no siguen del todo ese esquema: el HCL lo escriben los `gen_*` 
 - Variable nueva: módulo + stack + cómo llega (`TF_VAR_*` en el workflow).
 - No cambies la key del `for_each` de un resource que ya existe (en Connect es el filename sin `.yaml`). Eso es destroy+create.
 - Si mueves un resource de address (`confluent_connector.connectors` → `module.connectors....`) se necesita `moved` o `state mv`. Si no, el primer apply recrea en Confluent.
-- Guards (`precondition`): si un `for_each` vacío te puede borrar prod, el plan tiene que fallar salvo un flag que setea el workflow, no el YAML.
+- Guards (`precondition`): `for_each` vacío destruye los conectores del use-case. El workflow pone `allow_empty_connectors=true` solo cuando `connects/` no tiene YAML (borrado intencional). Si hay YAML, el guard sigue bloqueando un apply vacío.
 - RBAC: un `resource_type` inventado no puede pasar sin error.
 - El pin de Terraform/provider va en el stack. El módulo pone el mínimo.
 

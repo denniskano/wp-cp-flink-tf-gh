@@ -112,4 +112,6 @@ Si no usas JAR propio, no crees `smt.yaml`. SMT nativo (Cast, Mask, …) no llev
 
 `plan` / `apply` cubren **todo** el use-case. `pause` / `resume` un conector. No hay `destroy` en el workflow.
 
+Si borras **todos** los YAML de `connects/` (o la carpeta) y lanzas `apply`, Terraform **destruye** esos conectores. Si también quitaste `security/`, se van los role bindings. Mira el plan: tiene que listar destroy de cada conector.
+
 Si el conector usa Custom SMT, el artifact (`ca-…`) tiene que existir en ese environment **antes**. En DES: `deploy-connect-plugins` y después `deploy-kafka-connect`. cert/prod de plugins todavía no.
