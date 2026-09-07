@@ -4,6 +4,6 @@
 
 artifacts:
   - name: peve-kafka-transformer
-    url: http://10.79.118.71:8081/artifactory/PEVE-CERT/com/bcp/peve/peve-kafka-transformer/1.0.0/peve-kafka-transformer-1.0.0.jar
+    url: http://10.79.118.71:8081/artifactory/PEVE-DESA/com/bcp/peve/peve-kafka-transformer/1.0.0/peve-kafka-transformer-1.0.0.jar
     description: "BytesToAvroAuditWithSchemaParser"
     content_format: JAR
