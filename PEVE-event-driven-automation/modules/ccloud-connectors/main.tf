@@ -107,9 +107,11 @@ locals {
         ) : k => v if v != "" && v != null
       }
 
+      # Solo nombres de clave del YAML (no los valores). nonsensitive() evita
+      # que el error_message del precondition quede oculto.
       missing_vault_secrets = [
         for k in keys(try(d["vault"]["secrets"], {})) : k
-        if try(var.connector_secrets[connector_name][k], "") == ""
+        if try(lookup(try(nonsensitive(var.connector_secrets)[connector_name], {}), k, ""), "") == ""
       ]
 
       status = lookup(
@@ -184,7 +186,7 @@ resource "confluent_connector" "connectors" {
     }
     precondition {
       condition     = length(each.value.missing_vault_secrets) == 0
-      error_message = "vault.secrets de ${each.key} tiene que ir a config_sensitive (inyectado por el workflow). Faltan: ${join(", ", each.value.missing_vault_secrets)}."
+      error_message = "vault.secrets de ${each.key} tiene que ir a config_sensitive (TF_VAR_connector_secrets). Faltan claves: ${join(", ", each.value.missing_vault_secrets)}."
     }
   }
 }

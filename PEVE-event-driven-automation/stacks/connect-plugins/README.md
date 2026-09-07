@@ -15,4 +15,11 @@ State DES (key nueva; no reutiliza `tf-connect.tfstate`):
 
 `dev/{CODAPP}/connect-plugins/tf-connect-plugins.tfstate`
 
-Workflow DES: `deploy-connect-plugins` (plan/apply). Baja el JAR de Artifactory y aplica este stack.
+Workflow DES: `deploy-connect-plugins` (plan/apply). `curl` anónimo (igual que Jenkins) y aplica este stack.
+
+Uso (YAML, `ca-…`, ciclo de vida): en el repo de resources, `TEMPLATE/docs/smt.md`.
+
+- Crear: item en `smt.yaml` → apply.
+- Nueva versión: cambia `url`, mismo `name` → apply.
+- Borrar: saca el item → apply (los conectores con ese `ca-…` quedan Failed). No hay `destroy` en el job.
+- Renombrar `name` recrea el artifact (otro `ca-…`).

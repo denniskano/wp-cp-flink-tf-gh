@@ -55,7 +55,7 @@ terraform_task.sh          # -chdir=./automation
 
 El action `eda-core-task` copia `stacks/eda-core` + los tpl core a `./automation`. Los scripts siguen hablando de `./automation` a propósito.
 
-SA del use-case: eda-core. Custom SMT: `{CODAPP}/{env}/smt.yaml` → `deploy-connect-plugins` (antes que `kafka-connect`). El JAR lo baja el workflow desde Artifactory; no se versiona aquí. Auth: Vault `peve/kv2/data/dev/peve/artifactory/ARTIFACTORY_GHA` (`username`/`password`). Statements no suben UDF ni crean connections.
+SA del use-case: eda-core. Custom SMT: `{CODAPP}/{env}/smt.yaml` → `deploy-connect-plugins` (antes que `kafka-connect`). El JAR lo baja el workflow con `curl` anónimo (mismo Artifactory interno que Jenkins); no se versiona aquí. Statements no suben UDF ni crean connections.
 
 Si llenas un stack que hoy está vacío, copia el patrón de `ccloud-connectors` + `kafka-connect`, actualiza STACKS.md / STATE.md (key **nueva**) y avisa: se necesita otro workflow con otro `-chdir` y otro backend key.
 

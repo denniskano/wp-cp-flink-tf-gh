@@ -39,11 +39,13 @@ Custom SMT (`deploy-connect-plugins`, **antes** que `deploy-kafka-connect`):
 
 1. Checkout IaC → `./iac` y resources → `./externo`
 2. `validate-smt.sh` (`{CODAPP}/desa/smt.yaml`; si falta, el job falla)
-3. Vault: Confluent + ARM; Artifactory en `peve/kv2/data/dev/peve/artifactory/ARTIFACTORY_GHA` (`username`/`password`, mismos campos que Jenkins). Si el secret no está, curl anónimo.
-4. curl de cada `artifacts[].url` → `TF_VAR_artifact_files` (el provider pide un path local, no la URL)
+3. Vault: Confluent + ARM
+4. `curl` anónimo de cada `artifacts[].url` (igual que el CD Jenkins) → `TF_VAR_artifact_files`
 5. `terraform -chdir=./iac/stacks/connect-plugins`
 
 State DES: `dev/{CODAPP}/connect-plugins/tf-connect-plugins.tfstate` (no reutiliza `tf-connect.tfstate`). El apply imprime `artifact_ids` (`ca-…`) para pegar en el YAML del conector.
+
+Uso (declarar, pegar el `ca-…`, nueva versión, borrar): `TEMPLATE/docs/smt.md` en kafka-connect-resources-v1. No hay `destroy`; sacar un `name` de `smt.yaml` y apply elimina el artifact.
 
 ## Flink DES (jobs de v2, cinco repos)
 
