@@ -1,9 +1,9 @@
 # Custom SMT del environment (no del use-case).
-# url = [INFO] Deploying artifact: del job SMT develop.
+# url = mismo path que Artifactory; host interno (el runner DES no llega a artifactory.lima:443).
 # En el conector: transforms.X.type (FQCN) + transforms.X.custom.smt.artifact.id (ca- del apply).
 
 artifacts:
-  - name: peve-kafka-transformer
-    url: http://10.79.118.71:8081/artifactory/PEVE-DESA/com/bcp/peve/peve-kafka-transformer/1.0.0/peve-kafka-transformer-1.0.0.jar
+  - name: peve-kafka-transformer-test
+    url: http://10.79.118.71:8081/artifactory/PEVE.Snapshot/com/bcp/peve/peve-kafka-transformer/1.0.0-SNAPSHOT/peve-kafka-transformer-1.0.0-20221220.205246-5.jar
     description: "BytesToAvroAuditWithSchemaParser"
     content_format: JAR
