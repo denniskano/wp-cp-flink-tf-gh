@@ -328,7 +328,7 @@ CCloud borra statements en estado terminal (`COMPLETED`, `STOPPED`, `FAILED`) a 
 
 Si el statement **ya está en el state** como managed y le pones `ignore`, el primer plan propone **destroy** del job Flink (no de la tabla). En un DDL `COMPLETED` o ya purgado es limpieza; los DML dejan de esperar ese DDL.
 
-`once` no re-dispara si solo cambias el SQL. Para volver a correrlo, cambia `statement-name`. Un DML streaming con `stopped` tiene que ser `managed`. No pases `once` → `ignore` en un DML que siga `RUNNING`: el destroy del marcador intenta borrar el job en CCloud.
+`once` no re-dispara si solo cambias el SQL. Para volver a correrlo, cambia `statement-name`. Un DML streaming con `stopped` tiene que ser `managed`. Quitar el marcador (`once` → `ignore`, o destroy del stack) **no** borra el job en CCloud: un DDL `COMPLETED` caduca solo.
 
 ### Variables soportadas en statements
 

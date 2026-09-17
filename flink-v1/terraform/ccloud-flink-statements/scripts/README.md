@@ -69,7 +69,7 @@ chmod +x scripts/*.sh
 scripts/
 ├── configure-dns.sh    # Configurar DNS temporal
 ├── restore-dns.sh      # Restaurar DNS original
-├── apply-once.sh       # Create/delete de statements apply: once
+├── apply-once.sh       # Create de statements apply: once
 └── README.md          # Esta documentación
 ```
 

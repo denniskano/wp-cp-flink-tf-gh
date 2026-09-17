@@ -262,19 +262,8 @@ resource "terraform_data" "ddl_once" {
     }
   }
 
-  provisioner "local-exec" {
-    when    = destroy
-    command = "bash ${path.module}/scripts/apply-once.sh"
-    environment = {
-      ONCE_ACTION                = "delete"
-      ONCE_NAME                  = self.input.name
-      ONCE_REST_ENDPOINT         = self.input.rest
-      ONCE_ORG_ID                = self.input.org_id
-      ONCE_ENV_ID                = self.input.env_id
-      CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
-      CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
-    }
-  }
+  # Destroy-time provisioner no puede usar var.* (solo self). No borramos el
+  # statement en CCloud al quitar el marcador: un DDL COMPLETED caduca solo.
 
   lifecycle {
     ignore_changes = [input]
@@ -314,20 +303,6 @@ resource "terraform_data" "dml_once" {
       ONCE_ENV_ID                = self.input.env_id
       ONCE_PRINCIPAL             = self.input.principal
       ONCE_STOPPED               = self.input.stopped
-      CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
-      CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
-    }
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = "bash ${path.module}/scripts/apply-once.sh"
-    environment = {
-      ONCE_ACTION                = "delete"
-      ONCE_NAME                  = self.input.name
-      ONCE_REST_ENDPOINT         = self.input.rest
-      ONCE_ORG_ID                = self.input.org_id
-      ONCE_ENV_ID                = self.input.env_id
       CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
       CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
     }

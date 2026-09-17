@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Crea o borra un Flink statement (apply: once). Solo en create/destroy del terraform_data.
+# Crea un Flink statement (apply: once). Terraform solo lo llama en create del marcador.
 set -euo pipefail
 
 ACTION="${ONCE_ACTION:?ONCE_ACTION}"
