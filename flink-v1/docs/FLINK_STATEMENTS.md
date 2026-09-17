@@ -127,119 +127,7 @@ Fuente: [Documentacion oficial de Confluent](https://docs.confluent.io/cloud/cur
 
 **`CREATE TABLE` no esta permitido** en los YAML de `ddl/`. Los topics se crean como Kafka + schema Avro; Flink los lee por auto-registro. Un `CREATE TABLE` en Terraform intenta definir otra vez la tabla y falla o desalinean el contrato.
 
-El YAML de DDL es solo **`ALTER TABLE`** (metadata que el Avro no tiene). Los ejemplos `CREATE TABLE` mas abajo son **referencia de tipos SQL**, no plantillas para desplegar.
-
-### Ejemplo basico: Topic Avro simple (solo referencia; no desplegar)
-
-```sql
-CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic` (
-  transaction_id STRING,
-  amount DOUBLE,
-  currency STRING,
-  created_at TIMESTAMP(3),
-  WATERMARK FOR created_at AS created_at - INTERVAL '5' SECONDS
-);
-```
-
-### Ejemplo: Topic Avro con schema anidado
-
-```sql
-CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic-complejo` (
-  order_id STRING,
-  customer ROW<
-    name STRING,
-    email STRING,
-    address ROW<
-      street STRING,
-      city STRING,
-      country STRING
-    >
-  >,
-  items ARRAY<ROW<
-    product_id STRING,
-    quantity INT,
-    price DOUBLE
-  >>,
-  metadata MAP<STRING, STRING>,
-  created_at TIMESTAMP_LTZ(3),
-  WATERMARK FOR created_at AS created_at - INTERVAL '10' SECONDS
-);
-```
-
-### Ejemplo: DDL con propiedades de connector y changelog
-
-```sql
-CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic-changelog` (
-  id STRING,
-  name STRING,
-  value DOUBLE,
-  updated_at TIMESTAMP(3),
-  WATERMARK FOR updated_at AS updated_at - INTERVAL '5' SECONDS
-) WITH (
-  'changelog.mode' = 'upsert',
-  'kafka.cleanup-policy' = 'compact',
-  'scan.startup.mode' = 'earliest-offset'
-);
-```
-
-### Propiedades WITH comunes
-
-| Propiedad | Valores | Descripcion |
-|---|---|---|
-| `changelog.mode` | `append`, `upsert`, `retract` | Como Flink interpreta los cambios |
-| `scan.startup.mode` | `earliest-offset`, `latest-offset`, `timestamp` | Desde donde leer el topic |
-| `scan.startup.timestamp-millis` | Epoch en ms | Usado con `scan.startup.mode = timestamp` |
-| `kafka.cleanup-policy` | `delete`, `compact` | Politica de limpieza del topic |
-| `value.format` | `avro-confluent`, `json-sr`, `protobuf` | Formato de serializacion |
-
-### Ejemplos para topics precreados (Dedicated + Avro en Schema Registry)
-
-Cuando el topic ya existe y el schema Avro ya esta registrado, Flink lo lee por auto-registro. **No declares la tabla con `CREATE TABLE` en el IAC.** El offset de un DML se controla con `properties` (carry-over) o, si no hay carry-over, con options en el `SELECT` del DML — no recreando el topic como tabla. Los `CREATE TABLE ... WITH` de abajo son solo referencia.
-
-#### Ejemplo 1: Reproceso completo desde el inicio (`earliest-offset`)
-
-```sql
-CREATE TABLE `{catalog_name}`.`{cluster_name}`.`azc-peve-orders-earliest` (
-  order_id STRING,
-  customer_id STRING,
-  amount DECIMAL(18,2),
-  created_at TIMESTAMP_LTZ(3),
-  WATERMARK FOR created_at AS created_at - INTERVAL '5' SECONDS
-) WITH (
-  'scan.startup.mode' = 'earliest-offset'
-);
-```
-
-#### Ejemplo 2: Solo nuevos eventos (`latest-offset`)
-
-```sql
-CREATE TABLE `{catalog_name}`.`{cluster_name}`.`azc-peve-orders-latest` (
-  order_id STRING,
-  customer_id STRING,
-  amount DECIMAL(18,2),
-  created_at TIMESTAMP_LTZ(3),
-  WATERMARK FOR created_at AS created_at - INTERVAL '5' SECONDS
-) WITH (
-  'scan.startup.mode' = 'latest-offset'
-);
-```
-
-#### Ejemplo 3: Arrancar desde instante especifico (`timestamp`)
-
-```sql
-CREATE TABLE `{catalog_name}`.`{cluster_name}`.`azc-peve-orders-ts` (
-  order_id STRING,
-  customer_id STRING,
-  amount DECIMAL(18,2),
-  created_at TIMESTAMP_LTZ(3),
-  WATERMARK FOR created_at AS created_at - INTERVAL '5' SECONDS
-) WITH (
-  'scan.startup.mode' = 'timestamp',
-  'scan.startup.timestamp-millis' = '1735689600000'
-);
-```
-
-> `1735689600000` corresponde a `2025-01-01T00:00:00Z`. Ajustalo al punto de recuperacion requerido.
+El YAML de DDL es solo **`ALTER TABLE`** (metadata que el Avro no tiene). El offset de un DML se controla con `properties` (carry-over), no recreando la tabla.
 
 ### Propagacion de headers en topics existentes
 
@@ -299,12 +187,26 @@ El `ALTER` va en `ddl/`, no en `dml/`. Los DML esperan a todos los DDL (`depends
 # ddl/alter-azc-peve-transaction-headers.yaml
 statement-name: "alter-azc-peve-transaction-headers"
 flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
-apply: once   # solo la primera vez que agregas la columna
+apply: once          # once | ignore | managed (omitir = managed)
+stopped: "false"     # true para no dejarlo corriendo; un ALTER COMPLETED no aplica
+
+# properties:        # opcional; mismo mapa que DML. En un ALTER casi nunca se usa.
+#   sql.tables.scan.idle-timeout: "30s"
+#   sql.state-ttl: "24h"
 
 statement: |
   ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
     ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;
 ```
+
+| Campo | Obligatorio | Valores | Notas |
+|---|---|---|---|
+| `statement-name` | Sí | string, único, máx. 72 | Clave de Terraform. No lo cambies después. |
+| `flink-compute-pool` | Sí | nombre del pool | `${environment}` → DES/CER/PRO |
+| `apply` | Sí en la práctica | `once` / `ignore` / `managed` | Primera vez: `once`. Si ya corrió hace **más de un mes**: `ignore` **sí o sí**. |
+| `stopped` | No | `"true"` / `"false"` | Default `false`. Un ALTER termina en COMPLETED. |
+| `properties` | No | mapa string→string | Va a `confluent_flink_statement.properties`. No uses `SET` en el SQL. No pongas `sql.tables.initial-offset-from` en un ALTER. |
+| `statement` | Sí | `ALTER TABLE ...` | Solo ALTER. `${catalog_name}` y `${cluster_name}` los reemplaza Terraform. `CREATE TABLE` no está permitido. |
 
 **Si ese `ALTER` ya se ejecutó hace más de un mes, el YAML tiene que llevar `apply: ignore` sí o sí.** CCloud borra el statement terminal a los 30 días; la columna **sí** se queda en el catálogo. Si omites `apply` o dejas `managed`/`once`, Terraform vuelve a mandar el `ALTER TABLE ... ADD`, la columna ya existe y **el apply falla**. Ese fallo bloquea también el DML.
 
@@ -595,28 +497,9 @@ MATCH_RECOGNIZE (
 
 ### 7. Conversion de formato de serializacion
 
-Convertir un topic de AVRO a JSON:
+Los topics (y su formato Avro/JSON) se definen fuera de Flink. El DML solo copia entre tablas ya registradas:
 
 ```sql
--- DDL: Tabla fuente (AVRO)
-CREATE TABLE source_avro (
-  id STRING,
-  name STRING,
-  value DOUBLE
-) WITH (
-  'value.format' = 'avro-confluent'
-);
-
--- DDL: Tabla destino (JSON)
-CREATE TABLE target_json (
-  id STRING,
-  name STRING,
-  value DOUBLE
-) WITH (
-  'value.format' = 'json-sr'
-);
-
--- DML: Copiar datos convirtiendo formato
 INSERT INTO target_json
 SELECT id, name, value FROM source_avro;
 ```
@@ -645,19 +528,15 @@ GROUP BY window_start, window_end, user_id;
 
 ### 1. Validar la estrategia de watermark
 
-El watermark por defecto usa `$rowtime` (timestamp del record Kafka). Los watermarks se calculan **por particion Kafka** y requieren al menos **250 eventos por particion** para activarse. Definir watermark custom cuando:
+El watermark por defecto usa `$rowtime` (timestamp del record Kafka). Los watermarks se calculan **por particion Kafka** y requieren al menos **250 eventos por particion** para activarse. Un watermark custom sobre una columna del payload (si el Avro ya la trae) se agrega con `ALTER TABLE`, no con `CREATE TABLE`. Usalo cuando:
 - El tiempo de evento esta en el payload, no en el timestamp del record
 - Puede haber retrasos mayores a 7 dias
 - Los eventos llegan desordenados
 - Los datos pueden llegar tarde por latencia de red o procesamiento
 
 ```sql
-CREATE TABLE mi_tabla (
-  event_id STRING,
-  event_time TIMESTAMP(3),
-  payload STRING,
-  WATERMARK FOR event_time AS event_time - INTERVAL '30' SECONDS
-);
+ALTER TABLE `${catalog_name}`.`${cluster_name}`.`mi-topic`
+  MODIFY WATERMARK FOR event_time AS event_time - INTERVAL '30' SECONDS;
 ```
 
 ### 2. Configurar idleness handling
@@ -745,7 +624,7 @@ properties:
 
 4. Cuando la nueva este Running, la anterior a `apply: ignore` (el plan propone destroy del job viejo, no de la tabla). Si la dejas `stopped: true` y `managed`, a los ~30 dias CCloud borra el statement terminal y el proximo apply lo **vuelve a crear** (offsets en cero). No apaga la version Running.
 
-No pongas `'scan.startup.mode'` en el SQL ni en el `CREATE TABLE` si quieres carry-over: esa option pisa los offsets.
+No pongas `'scan.startup.mode'` en el SQL del DML si quieres carry-over: esa option pisa los offsets.
 
 Ejemplos: `dml/insert-filtered-passthrough-v2.yaml`, `v3`, `v4`.
 
