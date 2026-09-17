@@ -40,8 +40,13 @@ fi
 STOPPED="$(printf '%s' "${ONCE_STOPPED:-false}" | tr '[:upper:]' '[:lower:]')"
 [[ "${STOPPED}" == "true" ]] && STOPPED_JSON=true || STOPPED_JSON=false
 
+# ${var:-{}} no sirve: bash cierra el default en el primer } y deja un } extra
+# (Terraform jsonencode({}) = "{}" → "{}}" → JSONDecodeError Extra data char 2).
+if [[ -z "${ONCE_PROPERTIES:-}" ]]; then
+  ONCE_PROPERTIES='{}'
+fi
 export STOPPED_JSON
-export ONCE_PROPERTIES="${ONCE_PROPERTIES:-{}}"
+export ONCE_PROPERTIES
 BODY="$(python3 -c '
 import json, os
 props = json.loads(os.environ.get("ONCE_PROPERTIES") or "{}")
