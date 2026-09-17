@@ -55,7 +55,8 @@ Cambios que en la practica deben tratarse como nuevo statement:
 
 - Modificacion del SQL (`statement`)
 - Cambio de `statement-name`
-- Renombrar el archivo YAML (al cambiar la clave del `for_each`)
+
+Renombrar el archivo YAML **no** recrea el job si el `statement-name` no cambia: la clave del `for_each` es el `statement-name`, no el nombre del archivo.
 
 ### Limites importantes
 
@@ -304,6 +305,10 @@ statement-name: "insert-target-from-source-v1"
 flink-compute-pool: "CP_AZC_${environment}_PEVE_01"
 stopped: "false"
 # apply: managed | ignore | once  (si omites, es managed)
+# properties:  # opcional; va al spec.properties de CCloud (no uses SET en el SQL)
+#   sql.tables.initial-offset-from: "insert-target-from-source"  # statement-name de la version anterior
+#   sql.tables.scan.idle-timeout: "30s"
+#   sql.state-ttl: "24h"
 statement: |
   INSERT INTO `${catalog_name}`.`${cluster_name}`.`target-topic`
   SELECT
@@ -313,6 +318,27 @@ statement: |
   FROM `${catalog_name}`.`${cluster_name}`.`source-topic`
   WHERE field1 IS NOT NULL;
 ```
+
+### `properties` (no uses `SET` en el SQL)
+
+En workspace o shell de Flink a veces se ve `SET 'sql.tables...' = '...'`. En este IAC **no** pongas `SET` dentro de `statement:`: el modulo no lo trata como configuracion del resource y puede pisar el carry-over.
+
+Todo lo que sea property de statement va en el mapa YAML `properties`. Terraform lo manda a `confluent_flink_statement.properties`:
+
+```yaml
+properties:
+  sql.tables.initial-offset-from: "insert-filtered-passthrough-v2"
+  sql.tables.scan.idle-timeout: "30s"
+  sql.state-ttl: "24h"
+```
+
+| Property | Para que |
+|---|---|
+| `sql.tables.initial-offset-from` | Carry-over: `statement-name` de la version que esta Running (no el nombre del archivo) |
+| `sql.tables.scan.idle-timeout` | Timeout de particiones idle (`30s`, o `0` para deshabilitar) |
+| `sql.state-ttl` | TTL del state en joins / pattern matching (`24h`) |
+
+Ejemplo de carry-over: `dml/insert-filtered-passthrough-v3.yaml`.
 
 ### `apply` (managed / ignore / once)
 
@@ -616,24 +642,27 @@ CREATE TABLE mi_tabla (
 
 Confluent Cloud implementa **Progressive Idleness**: la deteccion de inactividad inicia en **15 segundos** y crece linealmente con la edad del statement hasta un maximo de **5 minutos**. Si una particion es marcada como idle demasiado rapido, el watermark puede avanzar incorrectamente.
 
-Para configurar manualmente el timeout:
+Para configurar el timeout, en el YAML del statement (no `SET` en el SQL):
 
-```sql
-SET 'sql.tables.scan.idle-timeout' = '30s';
+```yaml
+properties:
+  sql.tables.scan.idle-timeout: "30s"
 ```
 
 O deshabilitar si causa problemas con el progreso del watermark:
 
-```sql
-SET 'sql.tables.scan.idle-timeout' = '0';
+```yaml
+properties:
+  sql.tables.scan.idle-timeout: "0"
 ```
 
 ### 3. Implementar State TTL
 
 Para operaciones stateful (joins, pattern matching), configurar TTL para evitar crecimiento infinito del state:
 
-```sql
-SET 'sql.state-ttl' = '24h';
+```yaml
+properties:
+  sql.state-ttl: "24h"
 ```
 
 ### 4. Usar nombres descriptivos para statements
@@ -673,26 +702,30 @@ Siempre probar en un compute pool de desarrollo antes de desplegar a produccion.
 - El watermark progresa
 - No hay backpressure excesivo
 
-### 9. Versionado de statements
+### 9. Versionado de statements (carry-over de offsets)
 
-Cuando necesitas modificar el SQL de un DML:
-1. Crear un nuevo archivo YAML con el SQL actualizado y nuevo statement-name (ej: `v2`)
-2. Eliminar el archivo YAML anterior o poner `stopped: true`
-3. Ejecutar `terraform plan` para verificar que propone crear el nuevo y eliminar el antiguo
-4. Aplicar el cambio
+**Nunca** cambies el SQL de un statement in-place. El SQL es inmutable: Terraform haria destroy+create y se pierden los offsets.
 
-**Nunca** cambiar el SQL de un statement in-place. El SQL es inmutable en Confluent Cloud; cualquier cambio resulta en la destruccion del statement actual y la creacion de uno nuevo, perdiendo los offsets.
+Para sacar una version nueva **sin perder offsets** (mismo pipeline, SQL distinto, solo **stateless**: sin agregados, ventanas, `LAG`, MATCH, upsert sink):
 
-Para **no perder offsets** al sacar una v2 (mismo pipeline, SQL distinto), crea un YAML nuevo con otro `statement-name` y:
+1. YAML nuevo, **otro** `statement-name` (el nombre del archivo puede ser el que quieras).
+2. Carry-over con `properties`, no con `SET` en el SQL. El valor es el `statement-name` de la version que esta **Running**:
 
 ```yaml
 properties:
-  sql.tables.initial-offset-from: "insert-filtered-passthrough"  # statement-name de la v1
+  sql.tables.initial-offset-from: "insert-filtered-passthrough-v2"
 ```
 
-Eso va al `properties` del resource Terraform, no como `SET` dentro del SQL. La v2 queda `PENDING` hasta que pares la v1 (`stopped: true`). Espera hasta 6 horas. Solo statements **stateless** (sin agregados, ventanas, `LAG`, MATCH, upsert sink). Si el `CREATE TABLE` o el SQL traen `'scan.startup.mode'`, eso pisa el carry-over.
+3. **Dos apply**, nunca create de la nueva + stop de la anterior en el mismo:
 
-Ejemplo: `dml/13_insert-filtered-passthrough-v2.yaml`.
+   - **Apply 1:** deja la version actual `stopped: false` y crea la nueva (`stopped: false`). Plan: solo **create** de la nueva. Queda `PENDING` hasta 6 horas. Terraform da el create por bueno (~segundos). La consola **Statements associated with this pool no la lista** (ni con todos los filtros ni buscando el nombre): el PENDING de offset-from aun no esta asociado al pool / no usa CFU. El chequeo es un `terraform plan` sin cambios: el refresh del GET privado confirma que existe.
+   - **Apply 2:** `stopped: true` **solo** en la version anterior. Plan: un update in-place. CCloud saca savepoint, la nueva pasa a Running y recien ahi se ve en el pool.
+
+4. Cuando la nueva este Running, la anterior a `apply: ignore` (el plan propone destroy del job viejo, no de la tabla). Si la dejas `stopped: true` y `managed`, a los ~30 dias CCloud borra el statement terminal y el proximo apply lo **vuelve a crear** (offsets en cero). No apaga la version Running.
+
+No pongas `'scan.startup.mode'` en el SQL ni en el `CREATE TABLE` si quieres carry-over: esa option pisa los offsets.
+
+Ejemplos: `dml/insert-filtered-passthrough-v2.yaml`, `v3`, `v4`.
 
 ### 10. Orden de ejecucion DDL antes que DML
 
@@ -724,11 +757,11 @@ dml/
 | Cambiar SQL del statement | Destroy + Create (SQL es inmutable) | Se pierden |
 | Cambiar `stopped` (true/false) | Update in-place | Se conservan |
 | Cambiar `statement-name` | Nuevo statement creado | Se pierden |
-| Renombrar archivo YAML | Destroy antiguo + Create nuevo | Se pierden |
-| Agregar nuevo archivo YAML | Create nuevo | N/A |
+| Renombrar archivo YAML (mismo `statement-name`) | Sin cambio de resource | Se conservan |
+| Agregar nuevo archivo YAML (nuevo `statement-name`) | Create nuevo | N/A (usa carry-over si hay `properties`) |
 | Eliminar archivo YAML | Destroy statement | Se pierden |
-| `apply: ignore` (nuevo) | Sale del for_each. Si estaba managed, destroy del job Flink | N/A |
-| `apply: once` (nuevo) | Create una vez; los apply siguientes no lo recrean | N/A |
+| `apply: ignore` | Sale del for_each. Si estaba managed, destroy del job Flink | N/A |
+| `apply: once` | Create una vez; los apply siguientes no lo recrean | N/A |
 
 ### Precondiciones implementadas
 
@@ -749,7 +782,7 @@ lifecycle {
 
 | Estado | Significado | Accion |
 |---|---|---|
-| `PENDING` | Statement enviado, Flink preparando ejecucion | Esperar o verificar max_cfu |
+| `PENDING` | Statement enviado; con carry-over espera el savepoint de la version referenciada | No se ve en la lista del pool. Confirmar con `terraform plan` (refresh). Hasta 6 h |
 | `RUNNING` | Ejecutandose normalmente | Monitorear lag y scaling status |
 | `DEGRADED` | Statement con comportamiento anomalo (sin commits recientes o restarts frecuentes) | Revisar excepciones y metricas |
 | `STOPPING` | Statement en proceso de detencion | Esperar |
@@ -787,16 +820,24 @@ lifecycle {
 **Causa comun**: Particiones idle, no llegan eventos.
 **Solucion**:
 1. Verificar que el topic tiene datos
-2. Configurar `sql.tables.scan.idle-timeout`
+2. Configurar `sql.tables.scan.idle-timeout` en `properties` del YAML
 3. Verificar que el campo de watermark tiene valores validos
 
 ### Statement consume muchos CFUs
 
 **Causa comun**: Streaming join sin TTL, state creciendo infinitamente.
 **Solucion**:
-1. Configurar `sql.state-ttl`
+1. Configurar `sql.state-ttl` en `properties` del YAML
 2. Preferir temporal joins
 3. Reducir complejidad de la query
+
+### La version nueva no aparece en la consola del pool
+
+**Causa comun**: carry-over (`sql.tables.initial-offset-from`). El statement esta `PENDING` hasta que pares la version referenciada. La vista "Statements associated with this pool" no lo lista (busqueda incluida).
+**Solucion**:
+1. `terraform plan` sin cambios: el refresh del resource confirma que existe.
+2. No pares la version Running en el mismo apply que crea la nueva.
+3. `stopped: true` en la anterior; la nueva pasa a Running y ahi se ve en el pool.
 
 ### Datos duplicados en el destino
 
