@@ -1,0 +1,32 @@
+# v3. Carry-over desde v2 (la que está Running).
+# 1) Deja v2 corriendo (stopped: false). No pares v2 todavía.
+# 2) Aplica este archivo. v3 queda PENDING (la consola del pool no la muestra).
+# 3) Pon v2 stopped: true y apply. v3 arranca desde los offsets de v2.
+# 4) Cuando v3 esté Running, v2 puede pasar a apply: ignore.
+# No pongas OPTIONS('scan.startup.mode' = ...) en el SQL: pisa el carry-over.
+statement-name: "insert-filtered-passthrough-v3"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+stopped: "false"
+
+properties:
+  sql.tables.initial-offset-from: "insert-filtered-passthrough-v2"
+
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction-filtered` (
+    `key`,
+    transaction_id,
+    card_id,
+    user_id,
+    purchase_id,
+    store_id
+  )
+  SELECT
+    `key`,
+    transaction_id,
+    card_id,
+    CONCAT('v3:', user_id) AS user_id,
+    purchase_id,
+    store_id
+  FROM `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
+  WHERE store_id >= 0
+    AND user_id IS NOT NULL;
