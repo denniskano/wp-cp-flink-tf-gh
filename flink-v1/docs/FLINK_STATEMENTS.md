@@ -12,26 +12,19 @@
 
 | Tipo | Significado | Que hace | Ejemplo |
 |---|---|---|---|
-| **DDL** | Data Definition Language | Define/modifica metadata (tablas, vistas) | CREATE TABLE, ALTER TABLE, DROP TABLE |
+| **DDL** | Data Definition Language | Modifica metadata de tablas ya registradas | `ALTER TABLE` (en este IAC). `CREATE TABLE` **no** se usa |
 | **DML** | Data Manipulation Language | Procesa/transforma datos | INSERT INTO SELECT, SELECT |
 
 ### Cuando son necesarios los DDLs
 
-En Confluent Cloud Flink, los topics existentes pueden aparecer como tablas en el workspace. De hecho, la documentacion oficial indica que para topics existentes puedes ejecutar `SHOW TABLES` y consultar con `SELECT`, porque Confluent Cloud **registra automaticamente tablas Flink sobre tus topics**.
+Los topics se crean **fuera de Flink** (Kafka + schema Avro en Schema Registry). Confluent Cloud **registra automaticamente** una tabla Flink por topic: `SHOW TABLES` y el `INSERT INTO ... SELECT` leen ese contrato. **No hace falta, y en este IAC no esta permitido, un `CREATE TABLE`**: volver a declarar la tabla en Flink pelea con el topic/Avro ya existentes.
 
-Esto coincide con tu prueba en cluster dedicado: si ya tienes topics creados y schema Avro en Schema Registry, esos topics pueden quedar disponibles para consulta sin definir un `CREATE TABLE` manual.
-
-Entonces, los DDLs (`CREATE TABLE`) no siempre son "obligatorios" para visibilidad basica. Son recomendables cuando necesitas **control explicito** del contrato y del comportamiento de la tabla, por ejemplo:
-
-1. Definir/ajustar watermark personalizado sobre columnas de evento
-2. Configurar propiedades avanzadas (`changelog.mode`, `scan.startup.mode`, etc.)
-3. Declarar metadata columns o computed columns (incluida la propagacion de **headers** de Kafka)
-4. Definir primary key, distribucion o particionado de tabla
-5. Estandarizar y versionar el contrato SQL en IaC (Terraform + YAML)
+El unico DDL que se versiona en `ddl/` es **`ALTER TABLE`**: agregar lo que el Avro no trae (p. ej. `headers` como metadata de Kafka).
 
 **Regla practica**:
-- **Exploracion/lectura rapida** de topics existentes: auto-registro puede ser suficiente.
-- **Pipelines productivos y controlados**: usar DDL explicito para gobernanza, trazabilidad y reproducibilidad.
+- Topic + Avro ya existen → Flink los lee. Cero `CREATE TABLE` en YAML.
+- Columna de metadata (headers, `$rowtime` extra, etc.) → `ALTER TABLE` en `ddl/`.
+- El pipeline es el DML (`INSERT INTO SELECT`).
 
 ### Inmutabilidad de statements
 
@@ -130,9 +123,13 @@ Fuente: [Documentacion oficial de Confluent](https://docs.confluent.io/cloud/cur
 
 ---
 
-## Estructura de un DDL (CREATE TABLE)
+## Estructura de un DDL (`ALTER TABLE`)
 
-### Ejemplo basico: Topic Avro simple
+**`CREATE TABLE` no esta permitido** en los YAML de `ddl/`. Los topics se crean como Kafka + schema Avro; Flink los lee por auto-registro. Un `CREATE TABLE` en Terraform intenta definir otra vez la tabla y falla o desalinean el contrato.
+
+El YAML de DDL es solo **`ALTER TABLE`** (metadata que el Avro no tiene). Los ejemplos `CREATE TABLE` mas abajo son **referencia de tipos SQL**, no plantillas para desplegar.
+
+### Ejemplo basico: Topic Avro simple (solo referencia; no desplegar)
 
 ```sql
 CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic` (
@@ -197,7 +194,7 @@ CREATE TABLE `{catalog_name}`.`{cluster_name}`.`mi-topic-changelog` (
 
 ### Ejemplos para topics precreados (Dedicated + Avro en Schema Registry)
 
-Cuando el topic ya existe y el schema Avro ya esta registrado, puedes consultar via auto-registro. Pero si necesitas controlar desde que offset iniciar, crea/declara la tabla explicitamente con `WITH`.
+Cuando el topic ya existe y el schema Avro ya esta registrado, Flink lo lee por auto-registro. **No declares la tabla con `CREATE TABLE` en el IAC.** El offset de un DML se controla con `properties` (carry-over) o, si no hay carry-over, con options en el `SELECT` del DML — no recreando el topic como tabla. Los `CREATE TABLE ... WITH` de abajo son solo referencia.
 
 #### Ejemplo 1: Reproceso completo desde el inicio (`earliest-offset`)
 
@@ -293,7 +290,31 @@ Si necesitas otro nombre de columna que no sea `headers`, usa `METADATA FROM 'he
 - Los valores por defecto son **bytes** en el mapa; Confluent documenta tambien `MODIFY` a `MAP<STRING, STRING> METADATA` con conversion implicita desde bytes cuando conviene construir headers en el `INSERT`.
 - Las claves de headers deben ser **unicas** (no hay multi-header con la misma clave).
 - Para **cambiar** el SQL del statement (incluida la propagacion de headers), recuerda la **inmutabilidad**: nuevo statement o nuevo `statement-name` segun vuestro flujo con Terraform.
-- El `ALTER TABLE` vive en `ddl/`. Si ya se ejecuto hace **mas de un mes**, el YAML debe tener `apply: ignore` **si o si** (ver seccion DML). Si no, Terraform reintenta el ADD, falla y no despliega el DML.
+
+### Archivo YAML de un `ALTER TABLE`
+
+El `ALTER` va en `ddl/`, no en `dml/`. Los DML esperan a todos los DDL (`depends_on`).
+
+```yaml
+# ddl/alter-azc-peve-transaction-headers.yaml
+statement-name: "alter-azc-peve-transaction-headers"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+apply: once   # solo la primera vez que agregas la columna
+
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
+    ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;
+```
+
+**Si ese `ALTER` ya se ejecutó hace más de un mes, el YAML tiene que llevar `apply: ignore` sí o sí.** CCloud borra el statement terminal a los 30 días; la columna **sí** se queda en el catálogo. Si omites `apply` o dejas `managed`/`once`, Terraform vuelve a mandar el `ALTER TABLE ... ADD`, la columna ya existe y **el apply falla**. Ese fallo bloquea también el DML.
+
+| Situación del ALTER | `apply` obligatorio |
+|---|---|
+| Nunca se corrió (columna nueva) | `once` |
+| Ya se corrió y **pasó más de un mes** (statement purgado en CCloud) | **`ignore` sí o sí** — si no, falla |
+| Ya está en el state como `once` y CCloud aún lo tiene o no | no lo toques; el marcador evita re-ejecutar |
+
+`once` **no** sirve para un ALTER viejo: vuelve a enviar el SQL. `ignore` es el único valor seguro cuando el cambio de catálogo ya está hecho.
 
 ---
 
@@ -341,31 +362,6 @@ properties:
 
 Ejemplo de carry-over: `dml/insert-filtered-passthrough-v3.yaml`.
 
-### `ALTER TABLE` antes del DML
-
-El DML no crea columnas de metadata. Si el `INSERT` lee o escribe `headers` (u otra columna que no está en el Avro), el YAML de **DDL** tiene que haber corrido un `ALTER TABLE` **antes**. Los DML esperan a todos los DDL (`depends_on`).
-
-```yaml
-# ddl/alter-azc-peve-transaction-headers.yaml
-statement-name: "alter-azc-peve-transaction-headers"
-flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
-apply: once   # solo la primera vez que agregas la columna
-
-statement: |
-  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
-    ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;
-```
-
-**Si ese `ALTER` (o cualquier `CREATE`/`ALTER`) ya se ejecutó hace más de un mes, el YAML tiene que llevar `apply: ignore` sí o sí.** CCloud borra el statement terminal a los 30 días; la columna **sí** se queda en el catálogo. Si omites `apply` o dejas `managed`/`once`, Terraform vuelve a mandar el `ALTER TABLE ... ADD`, la columna ya existe y **el apply falla**. Ese fallo bloquea también el DML.
-
-| Situación del ALTER | `apply` obligatorio |
-|---|---|
-| Nunca se corrió (columna nueva) | `once` |
-| Ya se corrió y **pasó más de un mes** (statement purgado en CCloud) | **`ignore` sí o sí** — si no, falla |
-| Ya está en el state como `once` y CCloud aún lo tiene o no | no lo toques; el marcador evita re-ejecutar |
-
-`once` **no** sirve para un ALTER viejo: vuelve a enviar el SQL. `ignore` es el único valor seguro cuando el cambio de catálogo ya está hecho.
-
 ### `apply` (managed / ignore / once)
 
 CCloud borra statements en estado terminal (`COMPLETED`, `STOPPED`, `FAILED`) a los 30 días. El catalog (tabla, columnas del `ALTER`) se queda. Sin este campo, Terraform intenta **crear de nuevo** el statement y un `ALTER` / `CREATE` no idempotente **falla**; los DML no se despliegan hasta que ese DDL termine (`depends_on`).
@@ -376,7 +372,7 @@ CCloud borra statements en estado terminal (`COMPLETED`, `STOPPED`, `FAILED`) a 
 | `ignore` | No lo toma en cuenta. El archivo es documentación | Sí |
 | `once` | Lo ejecuta **una vez** (statement **nuevo**). El marcador queda en el state. No lo vuelve a crear aunque CCloud lo haya borrado | Sí. No lo cambies después |
 
-**DDL que ya corriste hace más de un mes: `apply: ignore` sí o sí**, no `once` y no managed. `once` vuelve a mandar el SQL. Un `ALTER TABLE ... ADD` falla si la columna ya existe y tumba el apply (DDL y DML).
+**`ALTER TABLE` que ya se ejecutó hace más de un mes: `apply: ignore` sí o sí.** Detalle y tabla en [Estructura de un DDL](#estructura-de-un-ddl-alter-table). `once` vuelve a mandar el SQL y el apply falla. No uses `CREATE TABLE`.
 
 Si el statement **ya está en el state** como managed y le pones `ignore`, el primer plan propone **destroy** del job Flink (no de la tabla). En un DDL `COMPLETED` o ya purgado es limpieza; los DML dejan de esperar ese DDL.
 
