@@ -15,7 +15,7 @@ statement: |
   SELECT
     transaction_id,
     card_id,
-    user_id,
+    CONCAT('v2:', user_id) AS user_id,
     purchase_id,
     store_id
   FROM `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
