@@ -3,8 +3,16 @@ flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
 stopped: "false"
 
 statement: |
-  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction-filtered`
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction-filtered` (
+    `key`,
+    transaction_id,
+    card_id,
+    user_id,
+    purchase_id,
+    store_id
+  )
   SELECT
+    `key`,
     transaction_id,
     card_id,
     user_id,

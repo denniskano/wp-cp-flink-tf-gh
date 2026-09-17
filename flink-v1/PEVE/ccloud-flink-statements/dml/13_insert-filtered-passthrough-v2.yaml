@@ -11,8 +11,16 @@ properties:
   sql.tables.initial-offset-from: "insert-filtered-passthrough"
 
 statement: |
-  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction-filtered`
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction-filtered` (
+    `key`,
+    transaction_id,
+    card_id,
+    user_id,
+    purchase_id,
+    store_id
+  )
   SELECT
+    `key`,
     transaction_id,
     card_id,
     CONCAT('v2:', user_id) AS user_id,
