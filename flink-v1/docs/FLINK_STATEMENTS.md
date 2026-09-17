@@ -683,6 +683,17 @@ Cuando necesitas modificar el SQL de un DML:
 
 **Nunca** cambiar el SQL de un statement in-place. El SQL es inmutable en Confluent Cloud; cualquier cambio resulta en la destruccion del statement actual y la creacion de uno nuevo, perdiendo los offsets.
 
+Para **no perder offsets** al sacar una v2 (mismo pipeline, SQL distinto), crea un YAML nuevo con otro `statement-name` y:
+
+```yaml
+properties:
+  sql.tables.initial-offset-from: "insert-filtered-passthrough"  # statement-name de la v1
+```
+
+Eso va al `properties` del resource Terraform, no como `SET` dentro del SQL. La v2 queda `PENDING` hasta que pares la v1 (`stopped: true`). Espera hasta 6 horas. Solo statements **stateless** (sin agregados, ventanas, `LAG`, MATCH, upsert sink). Si el `CREATE TABLE` o el SQL traen `'scan.startup.mode'`, eso pisa el carry-over.
+
+Ejemplo: `dml/13_insert-filtered-passthrough-v2.yaml`.
+
 ### 10. Orden de ejecucion DDL antes que DML
 
 El modulo Terraform ya maneja esto con `depends_on`:

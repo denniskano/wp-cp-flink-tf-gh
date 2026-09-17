@@ -41,17 +41,19 @@ STOPPED="$(printf '%s' "${ONCE_STOPPED:-false}" | tr '[:upper:]' '[:lower:]')"
 [[ "${STOPPED}" == "true" ]] && STOPPED_JSON=true || STOPPED_JSON=false
 
 export STOPPED_JSON
+export ONCE_PROPERTIES="${ONCE_PROPERTIES:-{}}"
 BODY="$(python3 -c '
 import json, os
-print(json.dumps({
-  "name": os.environ["ONCE_NAME"],
-  "spec": {
-    "statement": os.environ["ONCE_SQL"],
-    "compute_pool_id": os.environ["ONCE_POOL_ID"],
-    "principal": os.environ["ONCE_PRINCIPAL"],
-    "stopped": os.environ["STOPPED_JSON"] == "true",
-  },
-}))
+props = json.loads(os.environ.get("ONCE_PROPERTIES") or "{}")
+spec = {
+  "statement": os.environ["ONCE_SQL"],
+  "compute_pool_id": os.environ["ONCE_POOL_ID"],
+  "principal": os.environ["ONCE_PRINCIPAL"],
+  "stopped": os.environ["STOPPED_JSON"] == "true",
+}
+if props:
+  spec["properties"] = props
+print(json.dumps({"name": os.environ["ONCE_NAME"], "spec": spec}))
 ')"
 
 code="$(curl -sS -o "${BODY_FILE}" -w '%{http_code}' -X POST \

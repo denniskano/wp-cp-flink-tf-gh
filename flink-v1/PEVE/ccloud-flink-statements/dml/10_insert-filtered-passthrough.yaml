@@ -1,0 +1,14 @@
+statement-name: "insert-filtered-passthrough"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+stopped: "false"
+
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction-filtered`
+  SELECT
+    transaction_id,
+    card_id,
+    user_id,
+    purchase_id,
+    store_id
+  FROM `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
+  WHERE store_id >= 0;

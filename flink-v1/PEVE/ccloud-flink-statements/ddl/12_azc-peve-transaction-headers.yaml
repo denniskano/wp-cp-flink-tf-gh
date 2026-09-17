@@ -1,0 +1,7 @@
+statement-name: "alter-azc-peve-transaction-headers"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+apply: once
+
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
+    ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;

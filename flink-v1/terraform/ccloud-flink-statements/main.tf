@@ -107,6 +107,15 @@ locals {
     k => replace(replace(v.statement, "$${catalog_name}", var.catalog_name), "$${cluster_name}", var.cluster_name)
   }
 
+  ddl_properties = {
+    for k, v in local.ddl_for_each :
+    k => { for pk, pv in try(v["properties"], {}) : tostring(pk) => tostring(pv) }
+  }
+  dml_properties = {
+    for k, v in local.dml_for_each :
+    k => { for pk, pv in try(v["properties"], {}) : tostring(pk) => tostring(pv) }
+  }
+
   # Pools de lo que Terraform va a tocar (managed + once). ignore no pide data source.
   all_compute_pools = distinct(concat(
     [for k, v in local.ddl_for_each : v["flink-compute-pool"] if local.ddl_apply[k] != "ignore"],
@@ -154,6 +163,8 @@ resource "confluent_flink_statement" "ddl_statements" {
 
   statement = local.ddl_sql[each.key]
 
+  properties = local.ddl_properties[each.key]
+
   stopped = try(each.value["stopped"], false)
 
   organization {
@@ -193,6 +204,8 @@ resource "confluent_flink_statement" "dml_statements" {
   statement_name = try(each.value["statement-name"], each.key)
 
   statement = local.dml_sql[each.key]
+
+  properties = local.dml_properties[each.key]
 
   stopped = try(each.value["stopped"], false)
 
@@ -234,14 +247,15 @@ resource "terraform_data" "ddl_once" {
   for_each = local.ddl_once
 
   input = {
-    name      = try(each.value["statement-name"], each.key)
-    statement = local.ddl_sql[each.key]
-    pool_id   = local.compute_pools_map[each.value["flink-compute-pool"]].id
-    rest      = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
-    org_id    = var.organization_id
-    env_id    = var.environment_id
-    principal = data.confluent_service_account.sa_princial.id
-    stopped   = tostring(try(each.value["stopped"], false))
+    name       = try(each.value["statement-name"], each.key)
+    statement  = local.ddl_sql[each.key]
+    pool_id    = local.compute_pools_map[each.value["flink-compute-pool"]].id
+    rest       = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
+    org_id     = var.organization_id
+    env_id     = var.environment_id
+    principal  = data.confluent_service_account.sa_princial.id
+    stopped    = tostring(try(each.value["stopped"], false))
+    properties = jsonencode(local.ddl_properties[each.key])
   }
 
   provisioner "local-exec" {
@@ -257,6 +271,7 @@ resource "terraform_data" "ddl_once" {
       ONCE_ENV_ID                = self.input.env_id
       ONCE_PRINCIPAL             = self.input.principal
       ONCE_STOPPED               = self.input.stopped
+      ONCE_PROPERTIES            = self.input.properties
       CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
       CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
     }
@@ -280,14 +295,15 @@ resource "terraform_data" "dml_once" {
   for_each = local.dml_once
 
   input = {
-    name      = try(each.value["statement-name"], each.key)
-    statement = local.dml_sql[each.key]
-    pool_id   = local.compute_pools_map[each.value["flink-compute-pool"]].id
-    rest      = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
-    org_id    = var.organization_id
-    env_id    = var.environment_id
-    principal = data.confluent_service_account.sa_princial.id
-    stopped   = tostring(try(each.value["stopped"], false))
+    name       = try(each.value["statement-name"], each.key)
+    statement  = local.dml_sql[each.key]
+    pool_id    = local.compute_pools_map[each.value["flink-compute-pool"]].id
+    rest       = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
+    org_id     = var.organization_id
+    env_id     = var.environment_id
+    principal  = data.confluent_service_account.sa_princial.id
+    stopped    = tostring(try(each.value["stopped"], false))
+    properties = jsonencode(local.dml_properties[each.key])
   }
 
   provisioner "local-exec" {
@@ -303,6 +319,7 @@ resource "terraform_data" "dml_once" {
       ONCE_ENV_ID                = self.input.env_id
       ONCE_PRINCIPAL             = self.input.principal
       ONCE_STOPPED               = self.input.stopped
+      ONCE_PROPERTIES            = self.input.properties
       CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
       CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
     }

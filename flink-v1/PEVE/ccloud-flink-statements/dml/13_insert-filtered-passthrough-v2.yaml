@@ -1,0 +1,23 @@
+# v2 de insert-filtered-passthrough. Carry-over de offsets.
+# 1) Deja v1 corriendo (dml/10 stopped: false).
+# 2) Aplica este archivo (v2 se queda PENDING hasta que v1 pare).
+# 3) Pon v1 stopped: true y apply. v2 arranca desde los offsets de v1.
+# No pongas OPTIONS('scan.startup.mode' = ...) en el SQL: pisa el carry-over.
+statement-name: "insert-filtered-passthrough-v2"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+stopped: "false"
+
+properties:
+  sql.tables.initial-offset-from: "insert-filtered-passthrough"
+
+statement: |
+  INSERT INTO `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction-filtered`
+  SELECT
+    transaction_id,
+    card_id,
+    user_id,
+    purchase_id,
+    store_id
+  FROM `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
+  WHERE store_id >= 0
+    AND user_id IS NOT NULL;
