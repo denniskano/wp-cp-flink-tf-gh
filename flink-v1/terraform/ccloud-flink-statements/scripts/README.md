@@ -69,5 +69,10 @@ chmod +x scripts/*.sh
 scripts/
 ├── configure-dns.sh    # Configurar DNS temporal
 ├── restore-dns.sh      # Restaurar DNS original
+├── apply-once.sh       # Create/delete de statements apply: once
 └── README.md          # Esta documentación
 ```
+
+### `apply-once.sh`
+
+Lo llama Terraform (`terraform_data` + `local-exec`) cuando el YAML tiene `apply: once`. No lo ejecutes a mano. Usa el REST privado de Flink (`ONCE_REST_ENDPOINT`) y las Flink API keys.

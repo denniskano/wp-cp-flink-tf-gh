@@ -303,6 +303,7 @@ Si necesitas otro nombre de columna que no sea `headers`, usa `METADATA FROM 'he
 statement-name: "insert-target-from-source-v1"
 flink-compute-pool: "CP_AZC_${environment}_PEVE_01"
 stopped: "false"
+# apply: managed | ignore | once  (si omites, es managed)
 statement: |
   INSERT INTO `${catalog_name}`.`${cluster_name}`.`target-topic`
   SELECT
@@ -312,6 +313,22 @@ statement: |
   FROM `${catalog_name}`.`${cluster_name}`.`source-topic`
   WHERE field1 IS NOT NULL;
 ```
+
+### `apply` (managed / ignore / once)
+
+CCloud borra statements en estado terminal (`COMPLETED`, `STOPPED`, `FAILED`) a los 30 días. El catalog (tabla, columnas del `ALTER`) se queda. Sin este campo, Terraform intenta **crear de nuevo** el statement y un `ALTER` / `CREATE` no idempotente falla; los DML esperan a todos los DDL (`depends_on`).
+
+| Valor | Qué hace Terraform | El YAML se queda así |
+|---|---|---|
+| omitido o `managed` | Igual que hoy: crea, actualiza, destruye | Sí |
+| `ignore` | No lo toma en cuenta. El archivo es documentación | Sí |
+| `once` | Lo ejecuta **una vez** (statement **nuevo**). El marcador queda en el state. No lo vuelve a crear aunque CCloud lo haya borrado | Sí. No lo cambies después |
+
+**DDL que ya corriste** (el caso de los 30 días): usa **`ignore`**, no `once`. `once` vuelve a mandar el SQL. Un `ALTER TABLE ... ADD` falla si la columna ya existe.
+
+Si el statement **ya está en el state** como managed y le pones `ignore`, el primer plan propone **destroy** del job Flink (no de la tabla). En un DDL `COMPLETED` o ya purgado es limpieza; los DML dejan de esperar ese DDL.
+
+`once` no re-dispara si solo cambias el SQL. Para volver a correrlo, cambia `statement-name`. Un DML streaming con `stopped` tiene que ser `managed`. No pases `once` → `ignore` en un DML que siga `RUNNING`: el destroy del marcador intenta borrar el job en CCloud.
 
 ### Variables soportadas en statements
 
@@ -699,6 +716,8 @@ dml/
 | Renombrar archivo YAML | Destroy antiguo + Create nuevo | Se pierden |
 | Agregar nuevo archivo YAML | Create nuevo | N/A |
 | Eliminar archivo YAML | Destroy statement | Se pierden |
+| `apply: ignore` (nuevo) | Sale del for_each. Si estaba managed, destroy del job Flink | N/A |
+| `apply: once` (nuevo) | Create una vez; los apply siguientes no lo recrean | N/A |
 
 ### Precondiciones implementadas
 

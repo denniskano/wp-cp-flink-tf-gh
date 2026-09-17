@@ -73,10 +73,44 @@ locals {
     coalesce(try(local.dml_data[idx]["statement-name"], null), trimsuffix(local.dml_files[idx], ".yaml")) => local.dml_data[idx]
   }
 
-  # Extraer compute pools únicos de los archivos YAML
+  # apply: managed (default) | ignore | once
+  # ignore = fuera del for_each. once = se crea una vez; el marcador queda en el state.
+  apply_modes = toset(["managed", "ignore", "once"])
+
+  ddl_apply = {
+    for k, v in local.ddl_for_each :
+    k => coalesce(try(trimspace(lower(tostring(v["apply"]))), null), "managed")
+  }
+  dml_apply = {
+    for k, v in local.dml_for_each :
+    k => coalesce(try(trimspace(lower(tostring(v["apply"]))), null), "managed")
+  }
+
+  apply_flag_errors = concat(
+    [for k, m in local.ddl_apply : "ddl/${k}=${m}" if !contains(local.apply_modes, m)],
+    [for k, m in local.dml_apply : "dml/${k}=${m}" if !contains(local.apply_modes, m)]
+  )
+
+  ddl_managed = { for k, v in local.ddl_for_each : k => v if local.ddl_apply[k] == "managed" }
+  dml_managed = { for k, v in local.dml_for_each : k => v if local.dml_apply[k] == "managed" }
+  ddl_once    = { for k, v in local.ddl_for_each : k => v if local.ddl_apply[k] == "once" }
+  dml_once    = { for k, v in local.dml_for_each : k => v if local.dml_apply[k] == "once" }
+  ddl_ignored = { for k, v in local.ddl_for_each : k => v if local.ddl_apply[k] == "ignore" }
+  dml_ignored = { for k, v in local.dml_for_each : k => v if local.dml_apply[k] == "ignore" }
+
+  ddl_sql = {
+    for k, v in local.ddl_for_each :
+    k => replace(replace(v.statement, "$${catalog_name}", var.catalog_name), "$${cluster_name}", var.cluster_name)
+  }
+  dml_sql = {
+    for k, v in local.dml_for_each :
+    k => replace(replace(v.statement, "$${catalog_name}", var.catalog_name), "$${cluster_name}", var.cluster_name)
+  }
+
+  # Pools de lo que Terraform va a tocar (managed + once). ignore no pide data source.
   all_compute_pools = distinct(concat(
-    [for ddl in local.ddl_data : ddl["flink-compute-pool"]],
-    [for dml in local.dml_data : dml["flink-compute-pool"]]
+    [for k, v in local.ddl_for_each : v["flink-compute-pool"] if local.ddl_apply[k] != "ignore"],
+    [for k, v in local.dml_for_each : v["flink-compute-pool"] if local.dml_apply[k] != "ignore"]
   ))
 
   # Mapeo de compute pools (necesario para asociar statements con compute pools)
@@ -102,18 +136,23 @@ locals {
 #   terraform state mv 'confluent_flink_statement.ddl_statements[N]' 'confluent_flink_statement.ddl_statements["NOMBRE_STATEMENT"]'
 # No añadimos bloques moved fijos aquí: el índice [N] significa cosas distintas por CODAPP/statements_dir.
 # -----------------------------------------------------------------------------
+resource "terraform_data" "apply_flag_guard" {
+  input = "apply-flag-guard"
+
+  lifecycle {
+    precondition {
+      condition     = length(local.apply_flag_errors) == 0
+      error_message = "apply debe ser managed, ignore o once (o omitirse). Inválido: ${join(", ", local.apply_flag_errors)}"
+    }
+  }
+}
+
 resource "confluent_flink_statement" "ddl_statements" {
-  for_each = local.ddl_for_each
+  for_each = local.ddl_managed
 
   statement_name = try(each.value["statement-name"], each.key)
 
-  statement = replace(
-    replace(
-      each.value.statement,
-      "$${catalog_name}", var.catalog_name
-    ),
-    "$${cluster_name}", var.cluster_name
-  )
+  statement = local.ddl_sql[each.key]
 
   stopped = try(each.value["stopped"], false)
 
@@ -139,6 +178,8 @@ resource "confluent_flink_statement" "ddl_statements" {
   }
 
   rest_endpoint = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
+
+  depends_on = [terraform_data.apply_flag_guard]
 }
 
 # -----------------------------------------------------------------------------
@@ -147,17 +188,11 @@ resource "confluent_flink_statement" "ddl_statements" {
 # Migración dml_statements[N] -> dml_statements["statement-name"]: mismo patrón que DDL arriba.
 # -----------------------------------------------------------------------------
 resource "confluent_flink_statement" "dml_statements" {
-  for_each = local.dml_for_each
+  for_each = local.dml_managed
 
   statement_name = try(each.value["statement-name"], each.key)
 
-  statement = replace(
-    replace(
-      each.value.statement,
-      "$${catalog_name}", var.catalog_name
-    ),
-    "$${cluster_name}", var.cluster_name
-  )
+  statement = local.dml_sql[each.key]
 
   stopped = try(each.value["stopped"], false)
 
@@ -184,5 +219,127 @@ resource "confluent_flink_statement" "dml_statements" {
 
   rest_endpoint = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
 
-  depends_on = [confluent_flink_statement.ddl_statements]
+  depends_on = [
+    confluent_flink_statement.ddl_statements,
+    terraform_data.ddl_once,
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# apply: once — el statement se crea una vez (API). El marcador vive en el state.
+# CCloud puede borrar el job a los 30 días; Terraform no lo vuelve a crear.
+# ignore_changes: cambiar el SQL no re-dispara. Para repetir, cambia statement-name.
+# -----------------------------------------------------------------------------
+resource "terraform_data" "ddl_once" {
+  for_each = local.ddl_once
+
+  input = {
+    name      = try(each.value["statement-name"], each.key)
+    statement = local.ddl_sql[each.key]
+    pool_id   = local.compute_pools_map[each.value["flink-compute-pool"]].id
+    rest      = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
+    org_id    = var.organization_id
+    env_id    = var.environment_id
+    principal = data.confluent_service_account.sa_princial.id
+    stopped   = tostring(try(each.value["stopped"], false))
+  }
+
+  provisioner "local-exec" {
+    when    = create
+    command = "bash ${path.module}/scripts/apply-once.sh"
+    environment = {
+      ONCE_ACTION                = "create"
+      ONCE_NAME                  = self.input.name
+      ONCE_SQL                   = self.input.statement
+      ONCE_POOL_ID               = self.input.pool_id
+      ONCE_REST_ENDPOINT         = self.input.rest
+      ONCE_ORG_ID                = self.input.org_id
+      ONCE_ENV_ID                = self.input.env_id
+      ONCE_PRINCIPAL             = self.input.principal
+      ONCE_STOPPED               = self.input.stopped
+      CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
+      CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
+    }
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "bash ${path.module}/scripts/apply-once.sh"
+    environment = {
+      ONCE_ACTION                = "delete"
+      ONCE_NAME                  = self.input.name
+      ONCE_REST_ENDPOINT         = self.input.rest
+      ONCE_ORG_ID                = self.input.org_id
+      ONCE_ENV_ID                = self.input.env_id
+      CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
+      CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [input]
+    precondition {
+      condition     = length(local.apply_flag_errors) == 0
+      error_message = "apply debe ser managed, ignore o once (o omitirse). Inválido: ${join(", ", local.apply_flag_errors)}"
+    }
+  }
+
+  depends_on = [terraform_data.apply_flag_guard]
+}
+
+resource "terraform_data" "dml_once" {
+  for_each = local.dml_once
+
+  input = {
+    name      = try(each.value["statement-name"], each.key)
+    statement = local.dml_sql[each.key]
+    pool_id   = local.compute_pools_map[each.value["flink-compute-pool"]].id
+    rest      = local.compute_pools_map[each.value["flink-compute-pool"]].private_rest_endpoint
+    org_id    = var.organization_id
+    env_id    = var.environment_id
+    principal = data.confluent_service_account.sa_princial.id
+    stopped   = tostring(try(each.value["stopped"], false))
+  }
+
+  provisioner "local-exec" {
+    when    = create
+    command = "bash ${path.module}/scripts/apply-once.sh"
+    environment = {
+      ONCE_ACTION                = "create"
+      ONCE_NAME                  = self.input.name
+      ONCE_SQL                   = self.input.statement
+      ONCE_POOL_ID               = self.input.pool_id
+      ONCE_REST_ENDPOINT         = self.input.rest
+      ONCE_ORG_ID                = self.input.org_id
+      ONCE_ENV_ID                = self.input.env_id
+      ONCE_PRINCIPAL             = self.input.principal
+      ONCE_STOPPED               = self.input.stopped
+      CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
+      CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
+    }
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "bash ${path.module}/scripts/apply-once.sh"
+    environment = {
+      ONCE_ACTION                = "delete"
+      ONCE_NAME                  = self.input.name
+      ONCE_REST_ENDPOINT         = self.input.rest
+      ONCE_ORG_ID                = self.input.org_id
+      ONCE_ENV_ID                = self.input.env_id
+      CONFLUENT_FLINK_API_KEY    = var.confluent_flink_api_key
+      CONFLUENT_FLINK_API_SECRET = var.confluent_flink_api_secret
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [input]
+  }
+
+  depends_on = [
+    confluent_flink_statement.ddl_statements,
+    terraform_data.ddl_once,
+    terraform_data.apply_flag_guard,
+  ]
 }
