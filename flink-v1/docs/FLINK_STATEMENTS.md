@@ -293,6 +293,7 @@ Si necesitas otro nombre de columna que no sea `headers`, usa `METADATA FROM 'he
 - Los valores por defecto son **bytes** en el mapa; Confluent documenta tambien `MODIFY` a `MAP<STRING, STRING> METADATA` con conversion implicita desde bytes cuando conviene construir headers en el `INSERT`.
 - Las claves de headers deben ser **unicas** (no hay multi-header con la misma clave).
 - Para **cambiar** el SQL del statement (incluida la propagacion de headers), recuerda la **inmutabilidad**: nuevo statement o nuevo `statement-name` segun vuestro flujo con Terraform.
+- El `ALTER TABLE` vive en `ddl/`. Si ya se ejecuto hace **mas de un mes**, el YAML debe tener `apply: ignore` **si o si** (ver seccion DML). Si no, Terraform reintenta el ADD, falla y no despliega el DML.
 
 ---
 
@@ -340,9 +341,34 @@ properties:
 
 Ejemplo de carry-over: `dml/insert-filtered-passthrough-v3.yaml`.
 
+### `ALTER TABLE` antes del DML
+
+El DML no crea columnas de metadata. Si el `INSERT` lee o escribe `headers` (u otra columna que no está en el Avro), el YAML de **DDL** tiene que haber corrido un `ALTER TABLE` **antes**. Los DML esperan a todos los DDL (`depends_on`).
+
+```yaml
+# ddl/alter-azc-peve-transaction-headers.yaml
+statement-name: "alter-azc-peve-transaction-headers"
+flink-compute-pool: "CP_AZC_${environment}_PEVE_02"
+apply: once   # solo la primera vez que agregas la columna
+
+statement: |
+  ALTER TABLE `${catalog_name}`.`${cluster_name}`.`azc-peve-transaction`
+    ADD `headers` MAP<BYTES, BYTES> METADATA VIRTUAL;
+```
+
+**Si ese `ALTER` (o cualquier `CREATE`/`ALTER`) ya se ejecutó hace más de un mes, el YAML tiene que llevar `apply: ignore` sí o sí.** CCloud borra el statement terminal a los 30 días; la columna **sí** se queda en el catálogo. Si omites `apply` o dejas `managed`/`once`, Terraform vuelve a mandar el `ALTER TABLE ... ADD`, la columna ya existe y **el apply falla**. Ese fallo bloquea también el DML.
+
+| Situación del ALTER | `apply` obligatorio |
+|---|---|
+| Nunca se corrió (columna nueva) | `once` |
+| Ya se corrió y **pasó más de un mes** (statement purgado en CCloud) | **`ignore` sí o sí** — si no, falla |
+| Ya está en el state como `once` y CCloud aún lo tiene o no | no lo toques; el marcador evita re-ejecutar |
+
+`once` **no** sirve para un ALTER viejo: vuelve a enviar el SQL. `ignore` es el único valor seguro cuando el cambio de catálogo ya está hecho.
+
 ### `apply` (managed / ignore / once)
 
-CCloud borra statements en estado terminal (`COMPLETED`, `STOPPED`, `FAILED`) a los 30 días. El catalog (tabla, columnas del `ALTER`) se queda. Sin este campo, Terraform intenta **crear de nuevo** el statement y un `ALTER` / `CREATE` no idempotente falla; los DML esperan a todos los DDL (`depends_on`).
+CCloud borra statements en estado terminal (`COMPLETED`, `STOPPED`, `FAILED`) a los 30 días. El catalog (tabla, columnas del `ALTER`) se queda. Sin este campo, Terraform intenta **crear de nuevo** el statement y un `ALTER` / `CREATE` no idempotente **falla**; los DML no se despliegan hasta que ese DDL termine (`depends_on`).
 
 | Valor | Qué hace Terraform | El YAML se queda así |
 |---|---|---|
@@ -350,7 +376,7 @@ CCloud borra statements en estado terminal (`COMPLETED`, `STOPPED`, `FAILED`) a 
 | `ignore` | No lo toma en cuenta. El archivo es documentación | Sí |
 | `once` | Lo ejecuta **una vez** (statement **nuevo**). El marcador queda en el state. No lo vuelve a crear aunque CCloud lo haya borrado | Sí. No lo cambies después |
 
-**DDL que ya corriste** (el caso de los 30 días): usa **`ignore`**, no `once`. `once` vuelve a mandar el SQL. Un `ALTER TABLE ... ADD` falla si la columna ya existe.
+**DDL que ya corriste hace más de un mes: `apply: ignore` sí o sí**, no `once` y no managed. `once` vuelve a mandar el SQL. Un `ALTER TABLE ... ADD` falla si la columna ya existe y tumba el apply (DDL y DML).
 
 Si el statement **ya está en el state** como managed y le pones `ignore`, el primer plan propone **destroy** del job Flink (no de la tabla). En un DDL `COMPLETED` o ya purgado es limpieza; los DML dejan de esperar ese DDL.
 
