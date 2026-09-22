@@ -1,91 +1,64 @@
-<mxfile host="app.diagrams.net" modified="2026-09-22T19:33:00.000Z" agent="Cursor Agent" version="24.0.0" type="device">
-  <diagram name="Ciclo de vida statements" id="flink-lifecycle">
-    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1480" pageHeight="780" math="0" shadow="0">
+<mxfile host="app.diagrams.net" modified="2026-09-22T19:37:00.000Z" agent="Cursor Agent" version="24.0.0" type="device">
+  <diagram name="Ciclo de vida" id="lifecycle-min">
+    <mxGraphModel dx="1200" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="520" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
 
-        <mxCell id="title" value="Ciclo de vida de statements Flink (flink-v1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=18;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="40" y="16" width="640" height="28" as="geometry"/>
-        </mxCell>
-        <mxCell id="sub" value="Topics + Avro ya existen. DDL = solo ALTER TABLE. DML = INSERT (SQL inmutable). Clave Terraform = statement-name." style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;fontColor=#555555;" vertex="1" parent="1">
-          <mxGeometry x="40" y="44" width="900" height="22" as="geometry"/>
+        <mxCell id="t" value="Ciclo de vida de statements" style="text;html=1;fontSize=16;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="400" height="24" as="geometry"/>
         </mxCell>
 
-        <!-- DDL -->
-        <mxCell id="ddl" value="DDL  ·  ALTER TABLE  ·  ddl/*.yaml" style="swimlane;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;startSize=36;" vertex="1" parent="1">
-          <mxGeometry x="40" y="80" width="1400" height="260" as="geometry"/>
+        <mxCell id="ddl-l" value="DDL  ALTER" style="text;html=1;fontSize=13;fontStyle=1;align=left;fontColor=#827717;" vertex="1" parent="1">
+          <mxGeometry x="40" y="64" width="140" height="20" as="geometry"/>
         </mxCell>
 
-        <mxCell id="d1" value="1. YAML nuevo&lt;br&gt;apply: once" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="ddl">
-          <mxGeometry x="24" y="60" width="160" height="70" as="geometry"/>
+        <mxCell id="d1" value="once" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="96" width="120" height="56" as="geometry"/>
         </mxCell>
-        <mxCell id="d2" value="2. terraform apply&lt;br&gt;ALTER … ADD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="ddl">
-          <mxGeometry x="244" y="60" width="160" height="70" as="geometry"/>
+        <mxCell id="d2" value="COMPLETED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="220" y="96" width="140" height="56" as="geometry"/>
         </mxCell>
-        <mxCell id="d3" value="3. COMPLETED&lt;br&gt;columna queda en catálogo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="ddl">
-          <mxGeometry x="464" y="60" width="180" height="70" as="geometry"/>
+        <mxCell id="d3" value="30 días&#xa;CCloud lo borra" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="96" width="150" height="56" as="geometry"/>
         </mxCell>
-        <mxCell id="d4" value="4. ~30 días&lt;br&gt;CCloud borra el statement&lt;br&gt;(la columna no)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="ddl">
-          <mxGeometry x="704" y="52" width="200" height="86" as="geometry"/>
-        </mxCell>
-        <mxCell id="d5" value="5a. apply: ignore&lt;br&gt;OK · no re-ejecuta" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="ddl">
-          <mxGeometry x="964" y="36" width="180" height="64" as="geometry"/>
-        </mxCell>
-        <mxCell id="d6" value="5b. managed / once&lt;br&gt;re-ADD → falla&lt;br&gt;bloquea el DML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="ddl">
-          <mxGeometry x="964" y="116" width="180" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="dnote" value="Si el marcador once sigue en el state, no re-crea. ignore sí o sí cuando el ALTER ya corrió hace más de un mes." style="text;html=1;align=left;fontSize=11;fontColor=#666666;" vertex="1" parent="ddl">
-          <mxGeometry x="24" y="200" width="900" height="36" as="geometry"/>
+        <mxCell id="d4" value="ignore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="630" y="96" width="120" height="56" as="geometry"/>
         </mxCell>
 
-        <mxCell id="ad1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;endArrow=classic;" edge="1" parent="ddl" source="d1" target="d2"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="ad2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;endArrow=classic;" edge="1" parent="ddl" source="d2" target="d3"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="ad3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=classic;" edge="1" parent="ddl" source="d3" target="d4"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="ad4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=classic;" edge="1" parent="ddl" source="d4" target="d5"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="ad5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;endArrow=classic;" edge="1" parent="ddl" source="d4" target="d6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ad1" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1" source="d1" target="d2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ad2" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1" source="d2" target="d3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ad3" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1" source="d3" target="d4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="adl1" value="apply" style="edgeLabel;fontSize=10;" vertex="1" connectable="0" parent="ad1"><mxGeometry x="-0.1" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry></mxCell>
+        <mxCell id="adl3" value="si no: re-ALTER falla" style="edgeLabel;fontSize=10;" vertex="1" connectable="0" parent="ad3"><mxGeometry x="-0.2" relative="1" as="geometry"><mxPoint y="12" as="offset"/></mxGeometry></mxCell>
 
-        <!-- DML -->
-        <mxCell id="dml" value="DML  ·  INSERT INTO SELECT  ·  dml/*.yaml  ·  apply omitido = managed" style="swimlane;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;startSize=36;" vertex="1" parent="1">
-          <mxGeometry x="40" y="368" width="1400" height="380" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="m1" value="1. YAML v1&lt;br&gt;stopped: false" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="dml">
-          <mxGeometry x="24" y="56" width="150" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="m2" value="2. apply&lt;br&gt;RUNNING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="dml">
-          <mxGeometry x="214" y="56" width="140" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="m3" value="3. YAML v2&lt;br&gt;otro statement-name&lt;br&gt;offset-from: v1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="dml">
-          <mxGeometry x="394" y="48" width="180" height="86" as="geometry"/>
-        </mxCell>
-        <mxCell id="m4" value="4. Apply 1&lt;br&gt;v2 PENDING&lt;br&gt;no se ve en el pool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="dml">
-          <mxGeometry x="614" y="48" width="170" height="86" as="geometry"/>
-        </mxCell>
-        <mxCell id="m5" value="5. Apply 2&lt;br&gt;v1 stopped: true&lt;br&gt;savepoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="dml">
-          <mxGeometry x="824" y="48" width="160" height="86" as="geometry"/>
-        </mxCell>
-        <mxCell id="m6" value="6. v1 STOPPED&lt;br&gt;v2 RUNNING&lt;br&gt;mismos offsets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="dml">
-          <mxGeometry x="1024" y="48" width="160" height="86" as="geometry"/>
-        </mxCell>
-        <mxCell id="m7" value="7. v1 apply: ignore&lt;br&gt;sale del state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="dml">
-          <mxGeometry x="1224" y="56" width="150" height="70" as="geometry"/>
+        <mxCell id="dml-l" value="DML  INSERT" style="text;html=1;fontSize=13;fontStyle=1;align=left;fontColor=#1a5276;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="140" height="20" as="geometry"/>
         </mxCell>
 
-        <mxCell id="am1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="dml" source="m1" target="m2"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="am2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="dml" source="m2" target="m3"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="am3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="dml" source="m3" target="m4"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="am4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="dml" source="m4" target="m5"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="am5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=classic;" edge="1" parent="dml" source="m5" target="m6"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="am6" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=2;endArrow=classic;" edge="1" parent="dml" source="m6" target="m7"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-        <mxCell id="warn" value="No pares v1 en el mismo apply que crea v2. No uses SET ni scan.startup.mode (pisa el carry-over). Chequeo de PENDING = terraform plan (refresh), no la consola del pool. Si dejas v1 Stopped + managed, a los 30 días CCloud lo borra y Terraform lo recrea." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#6c8ebf;align=left;spacingLeft=12;fontSize=11;" vertex="1" parent="dml">
-          <mxGeometry x="24" y="168" width="1350" height="56" as="geometry"/>
+        <mxCell id="m1" value="v1 RUNNING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="232" width="130" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="m2" value="v2 PENDING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="230" y="232" width="130" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="m3" value="v1 STOPPED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="420" y="232" width="130" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="m4" value="v2 RUNNING" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="610" y="232" width="130" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="m5" value="v1 ignore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="800" y="232" width="120" height="56" as="geometry"/>
         </mxCell>
 
-        <mxCell id="leg" value="paused / in-place: solo stopped true|false · cambiar el SQL = nuevo YAML y nuevo statement-name · properties.initial-offset-from = nombre de la versión Running · latest_offsets solo cuando está Stopped" style="text;html=1;align=left;fontSize=11;fontColor=#555555;" vertex="1" parent="dml">
-          <mxGeometry x="24" y="236" width="1350" height="40" as="geometry"/>
-        </mxCell>
+        <mxCell id="am1" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1" source="m1" target="m2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="am2" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1" source="m2" target="m3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="am3" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1" source="m3" target="m4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="am4" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" edge="1" parent="1" source="m4" target="m5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="aml1" value="apply v2 + offset-from" style="edgeLabel;fontSize=10;" vertex="1" connectable="0" parent="am1"><mxGeometry relative="1" as="geometry"><mxPoint y="-12" as="offset"/></mxGeometry></mxCell>
+        <mxCell id="aml2" value="stopped: true en v1" style="edgeLabel;fontSize=10;" vertex="1" connectable="0" parent="am2"><mxGeometry relative="1" as="geometry"><mxPoint y="-12" as="offset"/></mxGeometry></mxCell>
+        <mxCell id="aml3" value="savepoint" style="edgeLabel;fontSize=10;" vertex="1" connectable="0" parent="am3"><mxGeometry relative="1" as="geometry"><mxPoint y="-12" as="offset"/></mxGeometry></mxCell>
       </root>
     </mxGraphModel>
   </diagram>
