@@ -47,3 +47,5 @@ Casos típicos:
 | Timeouts o deadlocks al subir batch | Task se reinicia; el ciclo no entra en `max.poll.interval.ms` | Reduce `batch.sizes` y `max.poll.records`; aumenta `max.poll.interval.ms` | Consultas largas sobre la misma tabla. Particiona o mueve reportes a réplica. No uses PgBouncer en *transaction pooling*: el JDBC sink usa prepared statements; conecta directo o *session*. |
 
 Antes de aumentar tasks, revisa en la base: `pg_stat_activity` (conexiones y waits), `pg_stat_user_tables` (`n_tup_ins` / `n_dead_tup`), IOPS y CPU del Flexible Server. Si el disco o el SKU ya están al límite, el YAML no alcanza.
+
+Corrida PEVE DES (Datagen + sink, 5 escenarios): [../../PEVE/desa/use-case-name-02/performance.md](../../PEVE/desa/use-case-name-02/performance.md).
