@@ -11,12 +11,14 @@ trap 'rm -rf "${OUT}"' EXIT
 ok() { echo "OK  $*"; }
 fail() { echo "FAIL $*"; exit 1; }
 
+POOLS="${HERE}/fixtures/PEVE/desa/compute-pool"
+
 echo "== fixtures (plan): debe pasar =="
-"${VALIDATE}" pools "${HERE}/fixtures" plan || fail "fixtures plan"
+"${VALIDATE}" pools "${POOLS}" plan || fail "fixtures plan"
 ok "fixtures plan"
 
 echo "== fixtures (destroy): debe pasar =="
-"${VALIDATE}" pools "${HERE}/fixtures" destroy || fail "fixtures destroy"
+"${VALIDATE}" pools "${POOLS}" destroy || fail "fixtures destroy"
 ok "fixtures destroy"
 
 echo "== compute-pool/ vacío (plan): debe fallar =="
@@ -32,10 +34,11 @@ else
   export ENVIRONMENT_HV=dev
   (
     cd "${ROOT}"
-    "${GEN}" "env-xxxxx" "${HERE}/fixtures" "${OUT}"
+    "${GEN}" "env-xxxxx" "${POOLS}" "${OUT}"
   ) || fail "codegen"
   [[ -f "${OUT}/cp_flink.tf" ]] || fail "no se escribió cp_flink.tf"
   grep -q 'CP_AZC_EU2_DES_PEVE_01' "${OUT}/cp_flink.tf" || fail "pool_name ausente en generado"
+  grep -q 'CP_AZC_EU2_DES_PEVE_03' "${OUT}/cp_flink.tf" || fail "pool PEVE_03 de PEVE ausente"
   ok "codegen cp_flink.tf"
 fi
 

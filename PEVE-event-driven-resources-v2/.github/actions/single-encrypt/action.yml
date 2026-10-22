@@ -42,10 +42,13 @@ runs:
         echo "::add-mask::${PLAINTEXT}"
         echo "::add-mask::${KEY}"
 
+        #Cifrar (OpenSSL AES-256-CBC + PBKDF2 + 200k iter + Base64 en una sola línea)
+        #    *NO* imprime variables en consola; solo redirige a $GITHUB_OUTPUT
         CT="$(printf '%s' "${PLAINTEXT}" \
               | openssl enc -"${ALG}" -pbkdf2 -iter "${ITER}" -md sha256 \
                             -salt -base64 -A -pass pass:"${KEY}")"
 
+        #Exponer outputs: ciphertext y hostname
         {
           echo "CIPHER=${CT}"
           echo "HOST=${HOST_EPHEMERAL}"

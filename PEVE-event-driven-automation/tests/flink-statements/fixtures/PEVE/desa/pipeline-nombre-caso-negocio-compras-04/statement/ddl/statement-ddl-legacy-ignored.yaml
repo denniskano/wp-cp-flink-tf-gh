@@ -1,0 +1,12 @@
+# apply: ignore — no se genera resource (corte de versión o post-30d).
+statement-name: "statement-ddl-legacy-ignored"
+flink-compute-pool: "CP_AZC_EU2_DES_PEVE_01"
+service-account: "SA_AZC_DES_APPV_CDPEVEFL_01"
+api-key: "AK_AZC_DES_APPV_FLINK_CDPEVEFL_01"
+apply: ignore
+stopped: "false"
+
+statement: |
+  CREATE TABLE IF NOT EXISTS `azc-peve-poc-legacy`(
+    my_field1 int
+  );

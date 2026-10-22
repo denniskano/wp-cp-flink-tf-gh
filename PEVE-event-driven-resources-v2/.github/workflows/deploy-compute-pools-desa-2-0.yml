@@ -25,7 +25,7 @@ run-name: >
 env:
   VAULT_ADDR: "https://vaultdev.lima.bcp.com.pe:443"
   COD_APP: ${{ github.event.inputs.CODAPP }}
-  TF_VAR_compute_pool_flink_dir: "./externo/${{ github.event.inputs.CODAPP }}/ccloud-flink/desa/compute-pool"
+  TF_VAR_compute_pool_flink_dir: "./externo/${{ github.event.inputs.CODAPP }}/desa/compute-pool"
   TERRAFORM_VERSION: "1.5.0"
   NODE_VERSION: "16.13.1"
   TERRAFORM_WORKDIR: iac/stacks/flink-compute-pool
@@ -38,12 +38,15 @@ env:
   ENVIRONMENT_HV: dev
   REVERSION_FLAG: ${{ github.event.inputs.reversion }}
   REVERSION_COMMIT: ${{ github.event.inputs.reversion_commit }}  
+  BRANCH_AUTOMATION: automation-v3-flink-stream-processing
+  #  
   GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
   OWNER_EXTERNO: "BCP-Integration-Automation"
-  REPO_IAC: PEVE-event-driven-automation
-  IAC_REF: main
   REPO_EXTERNO: "PEVE-stream-processing-resources-v2"
-  RESOURCES_BRANCH_EXTERNO: develop
+  OWNER_IAC: "BCP-Integration-Automation"
+  REPO_IAC: "PEVE-event-driven-automation"
+  BRANCH_IAC: master
+  RESOURCES_BRANCH_EXTERNO: master
 ############################################################
 #
 #
@@ -60,9 +63,6 @@ jobs:
       HOST:   ${{ steps.enc.outputs.HOST }}    
     
     steps:
-      - name: Checkout workflows repo
-        uses: actions/checkout@v4
-
       - name: Install basic tools
         run: |
           sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git tree dnsutils ca-certificates gettext -y  > /dev/null 2>&1
@@ -71,6 +71,16 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 16.13.1 
+#          
+      - name: Validate Branch Workflow
+        run: |
+          echo "ejecutando rama ${{ github.ref_name }}"
+          echo "PR description: ${{ github.event.pull_request.title }}"
+          echo "PR description: ${{ github.event.pull_request.base.ref }}"
+          if [[ "automation-v3-flink" != ${{ github.ref_name }} ]]; then
+            echo "Este job solo esta permitido en la rama automation-v3-flink"
+            echo "exit 1"
+          fi
 #          
       - name: Get GithubApp from Secrets HV
         id: get-ghapp-peve-key
@@ -91,12 +101,28 @@ jobs:
           app-id: ${{ env.GITHUB_APP_ID }}
           private-key: ${{ steps.get-ghapp-peve-key.outputs.ghapp_peve_self_service_pk }}
           owner: ${{ env.OWNER_EXTERNO }}
-          repositories: ${{ env.REPO_IAC }},${{ env.REPO_EXTERNO }}
+          repositories: |
+            ${{ env.REPO_EXTERNO }}
+            ${{ env.REPO_IAC }}
           skip-token-revoke: true
+#
+      - name: Clone ${{ env.COD_APP }} resources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: resources
+#
+      - name: View directory and tree
+        shell: bash
+        run: |
+          echo "Directorio actual"
+          pwd
+          echo "********* Arbol *********"
+          tree
 #
       - name: Cifrar token de sesion de githubapp
         id: enc
-        uses: ./.github/actions/single-encrypt
+        uses: ./resources/.github/actions/single-encrypt
         with:
           plaintext: ${{ steps.app-token.outputs.token }}
           extra_key: ${{ secrets.APP_ROLEID_PEVE_DESA }}
@@ -138,12 +164,15 @@ jobs:
         run: |
           sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
 #
-      - name: Checkout workflows repo
+      - name: Checkout ${{ env.COD_APP }} resources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: resources
 #
       - name: Descifrar token de sesion de githubapp
         id: dec
-        uses: ./.github/actions/single-decrypt
+        uses: ./resources/.github/actions/single-decrypt
         with:
           ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
           host: ${{ needs.PREPARE.outputs.HOST }}
@@ -153,28 +182,28 @@ jobs:
         run: |
           echo "GHAPP_TOKEN_REPO_V3=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
 #
-      - name: Checkout IaC (PEVE-event-driven-automation)
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_IAC }}
-          ref: ${{ env.IAC_REF }}
-          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
-          path: ./iac
-
-      - name: Checkout Flink resources
+      - name: Checkout base del repo externo
         uses: actions/checkout@v4
         with:
           repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
           ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
           token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
           path: ./externo
+#
+      - name: Checkout IAC PEVE-event-driven-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_IAC }}/${{ env.REPO_IAC }}
+          ref: ${{ env.BRANCH_IAC }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./iac
 
-      - name: Layout codegen (resources/template + scripts)
+      - name: Link IAC scripts y templates
         run: |
-          cp -R ./iac/resources ./resources
-          mkdir -p ./scripts
-          cp ./iac/scripts/gen_cp_flink_dinamic.sh ./scripts/
-          chmod +x ./scripts/gen_cp_flink_dinamic.sh
+          ln -sfn "$(pwd)/iac/scripts" ./scripts
+          rm -rf ./resources/template
+          cp -a iac/resources/template ./resources/template
+          echo "✅ IAC scripts → ./scripts, templates → ./resources/template"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -182,13 +211,19 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Install yq
-        uses: ./.github/actions/install-yq
+        uses: ./resources/.github/actions/install-yq
 
       - name: export path yq
         run: |
           echo "$HOME/bin" >> $GITHUB_PATH
           yq --version        
-      
+
+      - name: Validate Flink YAML
+        run: |
+          ./scripts/ci/validate-flink-yaml.sh pools \
+            "${{ env.TF_VAR_compute_pool_flink_dir }}" \
+            plan
+
       - name: Install NodeJs
         uses: actions/setup-node@v2
         with:
@@ -293,12 +328,15 @@ jobs:
         run: |
           sudo apt-get update  > /dev/null 2>&1; sudo apt-get install jq unzip git wget tree ca-certificates gettext -y  > /dev/null 2>&1
   #
-      - name: Checkout workflows repo
+      - name: Checkout ${{ env.COD_APP }} resources
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH_AUTOMATION }}
+          path: resources
   #
       - name: Descifrar token de sesion de githubapp
         id: dec
-        uses: ./.github/actions/single-decrypt
+        uses: ./resources/.github/actions/single-decrypt
         with:
           ciphertext: ${{ needs.PREPARE.outputs.CIPHER }}
           host: ${{ needs.PREPARE.outputs.HOST }}
@@ -308,28 +346,28 @@ jobs:
         run: |
           echo "GHAPP_TOKEN_REPO_V3=${{ steps.dec.outputs.plaintext }}" >> "$GITHUB_ENV"
   #
-      - name: Checkout IaC (PEVE-event-driven-automation)
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_IAC }}
-          ref: ${{ env.IAC_REF }}
-          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
-          path: ./iac
-
-      - name: Checkout Flink resources
+      - name: Checkout base del repo externo
         uses: actions/checkout@v4
         with:
           repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
           ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
           token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
           path: ./externo
+  #
+      - name: Checkout IAC PEVE-event-driven-automation
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_IAC }}/${{ env.REPO_IAC }}
+          ref: ${{ env.BRANCH_IAC }}
+          token: ${{ env.GHAPP_TOKEN_REPO_V3 }}
+          path: ./iac
 
-      - name: Layout codegen (resources/template + scripts)
+      - name: Link IAC scripts y templates
         run: |
-          cp -R ./iac/resources ./resources
-          mkdir -p ./scripts
-          cp ./iac/scripts/gen_cp_flink_dinamic.sh ./scripts/
-          chmod +x ./scripts/gen_cp_flink_dinamic.sh
+          ln -sfn "$(pwd)/iac/scripts" ./scripts
+          rm -rf ./resources/template
+          cp -a iac/resources/template ./resources/template
+          echo "✅ IAC scripts → ./scripts, templates → ./resources/template"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -337,13 +375,19 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Install yq
-        uses: ./.github/actions/install-yq
+        uses: ./resources/.github/actions/install-yq
 
       - name: export path yq
         run: |
           echo "$HOME/bin" >> $GITHUB_PATH
           yq --version        
-      
+
+      - name: Validate Flink YAML
+        run: |
+          ./scripts/ci/validate-flink-yaml.sh pools \
+            "${{ env.TF_VAR_compute_pool_flink_dir }}" \
+            plan
+
       - name: Install NodeJs
         uses: actions/setup-node@v2
         with:

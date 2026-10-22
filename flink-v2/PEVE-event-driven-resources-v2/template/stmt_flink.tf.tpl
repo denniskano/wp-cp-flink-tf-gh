@@ -7,8 +7,8 @@ resource "confluent_flink_statement" "statement_${STATEMENT_NAME}" {
   compute_pool { id = data.confluent_flink_compute_pool.cp_${COMPUTE_POOL}.id }
   principal    { id = data.confluent_service_account.sa_${PRINCIPAL}.id }
   credentials {
-    key    = "${APIKEY_KEY}"
-    secret = "${APIKEY_SECRET}"
+    ${VAR_FLINK_APIKEY}
+    ${VAR_FLINK_APISECRET}
   }
   #rest_endpoint = local.compute_pools_map[${configurations_rest_endpoint}].private_rest_endpoint
   #rest_endpoint = "${REST_ENDPOINT}"

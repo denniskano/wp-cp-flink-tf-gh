@@ -35,7 +35,7 @@ case "${STACK}" in
     ENVIRONMENT_ID="${ENVIRONMENT_ID:?ENVIRONMENT_ID (env-xxxxx)}"
     "${ROOT}/scripts/gen_cp_flink_dinamic.sh" \
       "${ENVIRONMENT_ID}" \
-      "${EXTERNO}/${CODAPP}/ccloud-flink/${ENV_FOLDER}/compute-pool" \
+      "${EXTERNO}/${CODAPP}/${ENV_FOLDER}/compute-pool" \
       "${CHDIR}"
     ;;
   flink-statements)
@@ -48,12 +48,17 @@ case "${STACK}" in
     SCHEMA_REGISTRY_ID="${SCHEMA_REGISTRY_ID:-lsrc-9rgmm7}"
     ENVIRONMENT="${ENVIRONMENT:-DES}"
     FLINK_CREDS_B64="${FLINK_CREDS_B64:-$(printf '%s' '{}' | base64)}"
+    # Sin IS_ONLY_DDL: DDL+DML. CI: true = DDL; false = DML + marcadores once.
+    export IS_ONLY_DDL="${IS_ONLY_DDL:-}"
+    if [[ -n "${FLINK_PRIVATE_REST_ENDPOINT:-}" ]]; then
+      export TF_VAR_flink_private_rest_endpoint="${FLINK_PRIVATE_REST_ENDPOINT}"
+    fi
     "${ROOT}/scripts/gen_rbac_flink_dinamic.sh" \
       "${ORGANIZATION_ID}" \
       "${ENVIRONMENT_ID}" \
       "${CLUSTER_ID}" \
       "${SCHEMA_REGISTRY_ID}" \
-      "${EXTERNO}/${CODAPP}/ccloud-flink/${ENV_FOLDER}/${PIPELINE}/security" \
+      "${EXTERNO}/${CODAPP}/${ENV_FOLDER}/${PIPELINE}/security" \
       "${CHDIR}"
     "${ROOT}/scripts/gen_stmt_flink_dinamic.sh" \
       "${ORGANIZATION_ID}" \
@@ -61,7 +66,7 @@ case "${STACK}" in
       "${CATALOG_NAME}" \
       "${CLUSTER_NAME}" \
       "${FLINK_CREDS_B64}" \
-      "${EXTERNO}/${CODAPP}/ccloud-flink/${ENV_FOLDER}/${PIPELINE}/statement" \
+      "${EXTERNO}/${CODAPP}/${ENV_FOLDER}/${PIPELINE}/statement" \
       "${ENVIRONMENT}" \
       "${CHDIR}"
     ;;

@@ -5,7 +5,7 @@
 | PEVE-event-driven-automation (este) | Terraform, scripts |
 | PEVE-event-driven-resources-v2 | GitHub Actions |
 | PEVE-kafka-connect-resources-v1 | YAML Connect `{CODAPP}/{env}/{use-case}/connects` + `security`; SMT `{CODAPP}/{env}/smt.yaml` |
-| PEVE-stream-processing-resources-v2 | YAML Flink `{CODAPP}/ccloud-flink/{env}/…` |
+| PEVE-stream-processing-resources-v2 | YAML Flink `{CODAPP}/{env}/…` |
 | PEVE-event-driven-resources-v3 | topics, schemas, RBAC/SA |
 
 Cada job de v2 hace más o menos lo mismo:

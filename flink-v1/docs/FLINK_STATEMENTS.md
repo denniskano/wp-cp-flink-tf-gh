@@ -624,6 +624,22 @@ properties:
 
 4. Cuando la nueva este Running, la anterior a `apply: ignore` (el plan propone destroy del job viejo, no de la tabla). Si la dejas `stopped: true` y `managed`, a los ~30 dias CCloud borra el statement terminal y el proximo apply lo **vuelve a crear** (offsets en cero). No apaga la version Running.
 
+`sql.tables.initial-offset-from` exige un **savepoint de un stop limpio**. La version referenciada tiene que estar **Running** y luego pasar a **Stopped**. `latest_offsets` del provider solo se llena en Stopped.
+
+**Si la version anterior esta `FAILED`, el carry-over no sirve tal cual.** Stop solo aplica a un job Running: de FAILED no hay savepoint. `stopped: true` en el YAML **no** la para (Terraform no tiene a quien enviarle el stop; el plan no muestra change). El camino es:
+
+```text
+FAILED  →  resume (RUNNING)  →  stop  →  STOPPED + savepoint  →  la nueva sale de PENDING
+```
+
+CCloud permite reanudar un `FAILED` (`INSERT INTO`). Si falló **por dato** y reanudas sin tocar el record, vuelve a fallar: no da tiempo al stop. Opciones:
+
+1. Saltar o corregir el dato (filtro en la version nueva, o arreglar el record en el topic). Resume, que quede Running, `stopped: true`, savepoint.
+2. Resume y stop al toque (consola o CLI). El resume restaura el ultimo checkpoint bueno; si paras antes de reprocesar el veneno, el savepoint queda ahi. Es una carrera.
+3. Si no hay savepoint: abandonar `initial-offset-from`. La nueva arranca desde `latest` (hueco), `earliest` (duplicados) o offsets a mano. En FAILED casi nunca hay `latest_offsets`.
+
+No crees la version nueva (apply 1) mientras la anterior este FAILED: queda PENDING hasta 6 h y ella tambien falla. Primero resume + stop de la anterior.
+
 No pongas `'scan.startup.mode'` en el SQL del DML si quieres carry-over: esa option pisa los offsets.
 
 Ejemplos: `dml/insert-filtered-passthrough-v2.yaml`, `v3`, `v4`.
@@ -688,7 +704,7 @@ lifecycle {
 | `DEGRADED` | Statement con comportamiento anomalo (sin commits recientes o restarts frecuentes) | Revisar excepciones y metricas |
 | `STOPPING` | Statement en proceso de detencion | Esperar |
 | `STOPPED` | Pausado intencionalmente | Reanudar con `stopped: false` |
-| `FAILED` | Error terminal, statement dejo de ejecutar | Revisar logs, corregir y reenviar |
+| `FAILED` | Error terminal, statement dejo de ejecutar | No hay stop ni savepoint. Resume (si aplica) o version nueva. Ver [Carry-over y statement FAILED](#carry-over-y-statement-failed) |
 | `COMPLETED` | Finalizado (solo DDL y SELECT acotados) | Normal para DDLs |
 | `DELETING` | En proceso de eliminacion | Esperar |
 
@@ -710,11 +726,24 @@ lifecycle {
 
 ### Statement en FAILED
 
-**Causa comun**: Schema incompatible, topic no existe, permisos insuficientes.
+**Causa comun**: Schema incompatible, topic no existe, permisos insuficientes, record que rompe el SQL (CAST, NULL, filtro).
 **Solucion**:
 1. Revisar el error en Confluent Cloud Console > Flink > Statements > [statement] > Exceptions
 2. Verificar que el DDL coincide con el schema del topic
 3. Verificar permisos RBAC del SA
+
+`FAILED` no consume CFU. No es Stopped: **no hay `latest_offsets`**. `stopped: true` no cambia nada. Un `INSERT INTO` se puede **reanudar** (consola / CLI / `stopped: false` si el provider manda resume); hay que corregir la causa o vuelve a fallar.
+
+### Carry-over y statement FAILED
+
+**Causa comun**: quieres `sql.tables.initial-offset-from` apuntando a una version en `FAILED` (a menudo por un dato malo).
+**Por que no arranca**: el carry-over espera un savepoint de **stop limpio**. FAILED es terminal y no lo produce. La version nueva se queda PENDING (hasta 6 h) y falla por timeout.
+
+**Solucion**:
+1. No apliques la version nueva hasta tener la anterior en Stopped.
+2. No pongas `apply: ignore` ni `stopped: true` en la FAILED: ignore la destruye; `stopped: true` no la para.
+3. Resume → cuando este Running, apply **solo** con `stopped: "true"` (plan: `stopped = false → true`). CCloud saca savepoint; la nueva pasa a Running.
+4. Si el fallo es por dato: primero salta o corrige el record. Si no, resume + stop inmediato (carrera: el job puede volver a leer el veneno). Si no hay savepoint, tira `initial-offset-from` y arranca la nueva desde `latest` / `earliest` / offsets a mano.
 
 ### Watermark no progresa
 

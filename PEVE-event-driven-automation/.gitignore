@@ -23,6 +23,7 @@ stacks/flink-statements/stmt_flink.tf
 stacks/flink-statements/data_cp_flink.tf
 cc_sr_properties.json
 local_data_cp.txt
+*.with.environment
 # Codegen eda-core (runtime; no versionar)
 automation/
 stacks/eda-core/topics.tf

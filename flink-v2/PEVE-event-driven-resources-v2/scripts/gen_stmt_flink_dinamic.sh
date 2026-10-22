@@ -19,6 +19,7 @@ echo "PATH_HV_APP=$PATH_HV_APP; para validar si se pueden usar variables de ento
 #
 #
 #
+echo "IS_ONLY_DDL = $IS_ONLY_DDL"
 ##### SET PATHS: DIRECTORY DDL DML AUTOMATIONS #####
 AUTOMATION_DIRNAME="./resources"
 echo "AUTOMATION_DIRNAME: $AUTOMATION_DIRNAME"
@@ -79,17 +80,40 @@ load_file_stmts_all(){
     echo "STATEMENT_NAME: $STATEMENT_NAME"
     echo "COMPUTE_POOL: $COMPUTE_POOL"
     echo "APIKEY_KEY: $APIKEY_KEY"
-    echo "APIKEY_SECRET: $APIKEY_SECRET"
+    #echo "APIKEY_SECRET: $APIKEY_SECRET"
     #Validate
     require_var $COMPUTE_POOL "no se encontró flink-compute-pool en $stmt"
     require_var $APIKEY_KEY "Sin credenciales para: $PRINCIPAL/$APIKEY"
     require_var $APIKEY_SECRET "Sin credenciales para: $PRINCIPAL/$APIKEY"
     #push --> file
+      echo "is_resultado_yaml_ddl= $is_resultado_yaml_ddl"
+    if [  $is_resultado_yaml_ddl == true ] ; then
+      echo "********* Credentials DDL ********* "
+      export VAR_FLINK_APIKEY="key    = \"$VAR_confluent_flink_api_key\""
+      export VAR_FLINK_APISECRET="secret = \"${VAR_confluent_flink_api_secret}\""
+    else
+      echo "********* Credentials DML ********* "
+      export VAR_FLINK_APIKEY="key    = \"$APIKEY_KEY\""
+      export VAR_FLINK_APISECRET="secret = \"${APIKEY_SECRET}\""
+    fi
+
     cat <<EOF >> "$tf_stmt_final"
 $(envsubst < $tpl_stmt)
 EOF
     #load CPS-file $LIST_CPS_PATH
     echo $COMPUTE_POOL >> $list_cps
+
+  if ! grep -q "$PRINCIPAL" "$ARCHIVO_TF_SA"; then
+    #
+    echo "...(data sa) Principal: $PRINCIPAL"
+    echo "... INI LOAD DATA SA **stmt**"
+    cat <<EOF >> "$ARCHIVO_TF_SA"
+$(envsubst < $ARCHIVO_TPL_SA)
+EOF
+    echo "... FIN LOAD DATA SA **stmt**"
+  fi
+
+
   done
 }
 #Valida path ddl/dml
@@ -130,6 +154,21 @@ touch $ARCHIVO_DATA_TF_CP
 #
 #
 #
+#
+#ARCHIVO_TPL_SA="${AUTOMATION_DIRNAME}/template/data_sa_flink.tf.tpl"
+#NAME_ARCHIVO_TF_SA=$(basename "${ARCHIVO_TPL_SA%.*}")
+#ARCHIVO_TF_SA="$RELATIVE_SUBPATH_TERRAFORM/$NAME_ARCHIVO_TF_SA"
+#echo "ARCHIVO_TF_SA   : ${ARCHIVO_TF_SA}"
+
+ARCHIVO_TPL_SA="${AUTOMATION_DIRNAME}/template/data_sa_flink.tf.tpl"
+ARCHIVO_TF_SA=$(basename "${ARCHIVO_TPL_SA%.*}")
+rm -f $ARCHIVO_TF_SA    ; touch $ARCHIVO_TF_SA
+echo "ARCHIVO_TF_SA   : ${ARCHIVO_TF_SA}"
+
+#
+#
+#
+
 echo "... Load depends_on__rbac_resources to DDLs"
 ARCHIVO_TPL_RBAC="${AUTOMATION_DIRNAME}/template/rbac_flink.tf.tpl"
 ARCHIVO_TF_RBAC=$(basename "${ARCHIVO_TPL_RBAC%.*}")
@@ -142,8 +181,8 @@ if [[ -f "$ARCHIVO_TF_RBAC_FULL" ]]; then
   depends_on__rbacs_block=$(echo "$depends_on__rbac_resources" | awk '{print "  "$0}' | awk 'NR>1{printf ",\n"}{printf "%s", $0}')
   export DEPENDS_ON_BLOCK="$depends_on__rbacs_block"
 fi
-resultado=$(validate_path_yamls $YAML_FILES_DDL_PATH)
-if [ $resultado == true ] ; then
+export is_resultado_yaml_ddl=$(validate_path_yamls $YAML_FILES_DDL_PATH)
+if [[ $is_resultado_yaml_ddl == true && $IS_ONLY_DDL == "true" ]] ; then
   echo "... ... Procesar DDLs with $DEPENDS_ON_BLOCK"
   load_file_stmts_all "$YAML_FILES_DDL_PATH" "$TF_VAR_flink_credentials" "$ARCHIVO_TF_STMTS_ALL" "$ARCHIVO_TPL_STMTS" "$LIST_CPS_PATH"
 else 
@@ -152,6 +191,8 @@ fi
 #
 #
 #
+export is_resultado_yaml_ddl=false
+
 echo "... Load depends_on rbcas y ddl, to DMLs"
 depends_on__stmts_block=""
 if [[ -s "$ARCHIVO_TF_STMTS_ALL" ]]; then
@@ -164,7 +205,7 @@ if [[ -s "$ARCHIVO_TF_STMTS_ALL" ]]; then
 fi
 #
 resultado=$(validate_path_yamls $YAML_FILES_DML_PATH)
-if [ $resultado == true ] ; then
+if [[ $resultado == true && $IS_ONLY_DDL == "false" ]] ; then
   echo "... ... Procesar DMLs with $DEPENDS_ON_BLOCK"
   load_file_stmts_all "$YAML_FILES_DML_PATH" "$TF_VAR_flink_credentials" "$ARCHIVO_TF_STMTS_ALL" "$ARCHIVO_TPL_STMTS" "$LIST_CPS_PATH" 
 else
@@ -185,6 +226,13 @@ EOF
   done
 mv $ARCHIVO_DATA_TF_CP $RELATIVE_SUBPATH_TERRAFORM
 mv $ARCHIVO_TF_STMTS_ALL $RELATIVE_SUBPATH_TERRAFORM
+
+#
+#echo "********** contenido de archivo: $ARCHIVO_TF_SA *******"
+#cat $ARCHIVO_TF_SA
+echo "********** contenido de archivo: $ARCHIVO_TF_SA *******"
+mv $ARCHIVO_TF_SA $RELATIVE_SUBPATH_TERRAFORM
+cat $RELATIVE_SUBPATH_TERRAFORM/$ARCHIVO_TF_SA
 #
 echo "********** contenido de archivo: $ARCHIVO_DATA_TF_CP *******"
 cat $RELATIVE_SUBPATH_TERRAFORM/$ARCHIVO_DATA_TF_CP

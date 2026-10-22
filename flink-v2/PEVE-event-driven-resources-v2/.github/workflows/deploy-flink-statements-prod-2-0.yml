@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - plan-apply
-          - destroy
       CODAPP:
         description: 'Código applicación de 4 letras XXXX. "XXXX-PARTNER" para casos de componentes partners.'
         required: true
@@ -19,6 +18,11 @@ on:
         description: 'Nombre de Pipeline flink para desplegar.'
         required: true
         type: string
+      IS_ONLY_DDL:
+        type: boolean
+        description: "Permitir solo DDL"
+        required: false
+        default: false
 #
 run-name: >
    ${{ github.event.inputs.CODAPP }} ${{ github.workflow }} [${{ github.event.inputs.action }}]
@@ -26,9 +30,9 @@ run-name: >
 env:
   VAULT_ADDR: "https://vault.lima.bcp.com.pe:443"
   COD_APP: ${{ github.event.inputs.CODAPP }}
-  TF_VAR_statements_dir: "./externo/${{ github.event.inputs.CODAPP }}/ccloud-flink/prod/${{ github.event.inputs.pipeline_flink }}"
-  PATH_YAML_STMTS_DDL:   "./externo/${{ github.event.inputs.CODAPP }}/ccloud-flink/prod/${{ github.event.inputs.pipeline_flink }}/statement/ddl"
-  PATH_YAML_STMTS_DML:   "./externo/${{ github.event.inputs.CODAPP }}/ccloud-flink/prod/${{ github.event.inputs.pipeline_flink }}/statement/dml"
+  TF_VAR_statements_dir: "./externo/${{ github.event.inputs.CODAPP }}/prod/${{ github.event.inputs.pipeline_flink }}"
+  PATH_YAML_STMTS_DDL:   "./externo/${{ github.event.inputs.CODAPP }}/prod/${{ github.event.inputs.pipeline_flink }}/statement/ddl"
+  PATH_YAML_STMTS_DML:   "./externo/${{ github.event.inputs.CODAPP }}/prod/${{ github.event.inputs.pipeline_flink }}/statement/dml"
   CATALOG_NAME: "bcp_prod"
   CLUSTER_NAME: "AZURE_EU2_PROD_KAFKA01"
   CLUSTER_ID: "lkc-8p0ror"
@@ -38,10 +42,13 @@ env:
   TERRAFORM_WORKDIR: terraform/ccloud-flink-statements
   RESOURCE_GROUP_NAME: RSGREU2PEVEP01
   STORAGE_CONTAINER_NAME: tf-flink-stm-prod
-  STORAGE_CONTAINER_APP_PATH: prod/${{ github.event.inputs.CODAPP }}/ccloud-flink/${{ github.event.inputs.pipeline_flink }}/tf-flink-rbacs-stmts.tfstate
+#  STORAGE_CONTAINER_APP_PATH: prod/${{ github.event.inputs.CODAPP }}/ccloud-flink/${{ github.event.inputs.pipeline_flink }}/tf-flink-rbacs-stmts.tfstate
+  STORAGE_CONTAINER_APP_PATH_RBAC: prod/${{ github.event.inputs.CODAPP }}/ccloud-flink/${{ github.event.inputs.pipeline_flink }}/tf-flink-rbacs.tfstate
+  STORAGE_CONTAINER_APP_PATH_DML: prod/${{ github.event.inputs.CODAPP }}/ccloud-flink/${{ github.event.inputs.pipeline_flink }}/tf-flink-stmts.tfstate
   FLINK_PRIVATE_REST_ENDPOINT: "https://flink.domjg56my4p.eastus2.azure.confluent.cloud"
   SERVICE_ACCOUNT: SA_AZC_PRO_PEVE_FLK_01
   API_KEY_TERRAFORM: AK_AZC_PRO_PEVE_CRMAN_COMPPOOL_01
+  API_KEY_FLINK: AK_AZC_PRO_PEVE_FLINK_STATEMEN_01
   ENVIRONMENT: PRO
   ENVIRONMENT_HV: prod     #dev/cert/prod
   REVERSION_FLAG: ${{ github.event.inputs.reversion }}
@@ -309,7 +316,6 @@ jobs:
           SORTED_CONTENT=$(
           {
             process_dir "${{ env.PATH_YAML_STMTS_DML }}"
-            process_dir "${{ env.PATH_YAML_STMTS_DDL }}"
           } | sort -u
           )
           {
@@ -329,10 +335,12 @@ jobs:
           roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
           secrets: |
-            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
-            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
-            ${{ env.PATH_HV_APP }}PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
-            ${{ env.PATH_HV_APP }}PEVE_GHA_CC_SR_KEY_SECRETS * ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} username | CONFLUENT_FLINK_API_KEY ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} password | CONFLUENT_FLINK_API_SECRET ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
             ${{ steps.get-sa-apikey-id-secrets-app.outputs.concat_ids_sa_apikey}}
 #
       - name: Load TF_VAR_flink_credentials
@@ -363,8 +371,71 @@ jobs:
             | base64 -w0
             )"
           echo "TF_VAR_flink_credentials=$json" >> "$GITHUB_ENV"
-#PASO B - RBACS
+#--------------------------------------------------------------------------------------------
+#----  DDL ----
+#--------------------------------------------------------------------------------------------
+      - name: Generate stmts_flink.tf files DDL
+        shell: bash
+        env:
+          VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
+        run: |
+          script_name=gen_stmt_flink_dinamic.sh
+          chmod +x ./scripts/$script_name
+          ./scripts/$script_name \
+            "${{ env.ORGANIZATION_ID }}" \
+            "${{ env.ENVIRONMENT_ID }}" \
+            "${{ env.CATALOG_NAME }}" \
+            "${{ env.CLUSTER_NAME }}" \
+            "${{ env.TF_VAR_flink_credentials }}" \
+            "${{ env.TF_VAR_statements_dir }}/statement" \
+            "${{ env.ENVIRONMENT }}" \
+            "${{ env.TERRAFORM_WORKDIR }}"
+#
+      - name: Terraform Init - DDL - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          cp provider-b.tf.tpl provider.tf
+          terraform init
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+
+      - name: Terraform Plan - DDL - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform plan
+#        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+
+#---------------------------------------------------------------------------------------------------
+# RBAC
+#---------------------------------------------------------------------------------------------------
+#
+#-------- CLEAN 1
+      - name: Clean TF *** 1 ***
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        shell: bash
+        run: |
+            ls -liah .
+            rm -f data_sa_flink.tf
+            rm -f rbac_flink.tf
+            rm -f stmt_flink.tf
+            rm -f provider.tf
+            rm -f .terraform.lock.hcl
+            rm -rf .terraform
+            cp provider-a.tf.tpl provider.tf
+            echo "other ls -lia ."
+            ls -liah .
+
       - name: Generate rbac_flink.tf files
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         shell: bash
         env:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
@@ -379,9 +450,66 @@ jobs:
             "${{ env.SCHEMA_REGISTRY_ID }}" \
             "${{ env.TF_VAR_statements_dir }}/security" \
             "${{ env.TERRAFORM_WORKDIR }}"
-#PASO C - DDL DML
-      - name: Generate stmts_flink.tf files
+
+#
+#
+#
+#
+      - name: Terraform Init - RBAC - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH_RBAC }}" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+#
+      - name: Terraform Plan - RBAC - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform plan
+#        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+
+
+#---------------------------------------------------------------------------------------------------
+# DML
+#---------------------------------------------------------------------------------------------------
+#
+#-------- CLEAN 2
+      - name: Cleam *** 2 ***
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
         shell: bash
+        run: |
+            ls -liah .
+            rm -f data_sa_flink.tf
+            rm -f rbac_flink.tf
+            rm -f stmt_flink.tf
+            rm -f provider.tf
+            rm -f .terraform.lock.hcl
+            rm -rf .terraform
+            cp provider-a.tf.tpl provider.tf
+            echo "other ls -lia ."
+            ls -liah .
+
+#PASO C - DML
+      - name: Generate stmts_flink.tf files *** DML ***
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        shell: bash
+        env:
+          VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
         run: |
           script_name=gen_stmt_flink_dinamic.sh
           chmod +x ./scripts/$script_name
@@ -395,28 +523,31 @@ jobs:
             "${{ env.ENVIRONMENT }}" \
             "${{ env.TERRAFORM_WORKDIR }}"
 #
-      - name: Terraform Init - ${{ env.TERRAFORM_WORKDIR }}
+      - name: Terraform Init - DML - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: |
           terraform init \
             -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
-            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH }}" \
+            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH_DML }}" \
             -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
             -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
         env:
           ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
 #
-      - name: Terraform Plan - ${{ env.TERRAFORM_WORKDIR }}
+      - name: Terraform Plan - DML - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: terraform plan
-        if: github.event.inputs.action != 'destroy'
+#        if: github.event.inputs.action != 'destroy'
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
           TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+
 ############################################################
 #
 #
@@ -579,7 +710,6 @@ jobs:
           SORTED_CONTENT=$(
           {
             process_dir "${{ env.PATH_YAML_STMTS_DML }}"
-            process_dir "${{ env.PATH_YAML_STMTS_DDL }}"
           } | sort -u
           )
           {
@@ -599,10 +729,12 @@ jobs:
           roleId: ${{ secrets.APP_ROLEID_PEVE_PROD }}
           secretId: ${{ secrets.APP_ROLESECRET_PEVE_PROD }}
           secrets: |
-            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
-            ${{ env.PATH_HV_APP }}${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
-            ${{ env.PATH_HV_APP }}PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
-            ${{ env.PATH_HV_APP }}PEVE_GHA_CC_SR_KEY_SECRETS * ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} username | CONFLUENT_CLOUD_API_KEY ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_TERRAFORM }} password | CONFLUENT_CLOUD_API_SECRET ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} username | CONFLUENT_FLINK_API_KEY ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/${{ env.SERVICE_ACCOUNT }}/${{ env.API_KEY_FLINK }} password | CONFLUENT_FLINK_API_SECRET ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            cos/kv2/data/${{ env.ENVIRONMENT_HV }}/peve/ccloud/PEVE_GHA_CC_SR_KEY_SECRETS * ;
             ${{ steps.get-sa-apikey-id-secrets-app.outputs.concat_ids_sa_apikey}}
   #
       - name: Load TF_VAR_flink_credentials
@@ -633,8 +765,74 @@ jobs:
             | base64 -w0
             )"
           echo "TF_VAR_flink_credentials=$json" >> "$GITHUB_ENV"
+
+
+#--------------------------------------------------------------------------------------------
+#----  DDL ----
+#--------------------------------------------------------------------------------------------
+      - name: Generate stmts_flink.tf files DDL
+        shell: bash
+        env:
+          VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
+        run: |
+          script_name=gen_stmt_flink_dinamic.sh
+          chmod +x ./scripts/$script_name
+          ./scripts/$script_name \
+            "${{ env.ORGANIZATION_ID }}" \
+            "${{ env.ENVIRONMENT_ID }}" \
+            "${{ env.CATALOG_NAME }}" \
+            "${{ env.CLUSTER_NAME }}" \
+            "${{ env.TF_VAR_flink_credentials }}" \
+            "${{ env.TF_VAR_statements_dir }}/statement" \
+            "${{ env.ENVIRONMENT }}" \
+            "${{ env.TERRAFORM_WORKDIR }}"
+#
+      - name: Terraform Init - DDL - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          cp provider-b.tf.tpl provider.tf
+          terraform init
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+#
+      - name: Terraform Apply - DDL - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform apply -auto-approve 
+#        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+
+#---------------------------------------------------------------------------------------------------
+# RBAC
+#---------------------------------------------------------------------------------------------------
+#
+#-------- CLEAN 1
+      - name: Clean TF *** 1 ***
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        shell: bash
+        run: |
+            ls -liah .
+            rm -f data_sa_flink.tf
+            rm -f rbac_flink.tf
+            rm -f stmt_flink.tf
+            rm -f provider.tf
+            rm -f .terraform.lock.hcl
+            rm -rf .terraform
+            cp provider-a.tf.tpl provider.tf
+            echo "other ls -lia ."
+            ls -liah .
+
   #PASO B - RBACS
       - name: Generate rbac_flink.tf files
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         shell: bash
         env:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
@@ -649,9 +847,66 @@ jobs:
             "${{ env.SCHEMA_REGISTRY_ID }}" \
             "${{ env.TF_VAR_statements_dir }}/security" \
             "${{ env.TERRAFORM_WORKDIR }}"
-  #PASO C - DDL DML
-      - name: Generate stmts_flink.tf files
+
+#
+#
+#
+#
+      - name: Terraform Init - RBAC - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH_RBAC }}" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
+        env:
+          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+#
+      - name: Terraform Apply - RBAC - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        run: terraform apply -auto-approve 
+#        if: github.event.inputs.action != 'destroy'
+        env:
+          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
+          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
+          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
+          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
+
+
+#---------------------------------------------------------------------------------------------------
+# DML
+#---------------------------------------------------------------------------------------------------
+#
+#-------- CLEAN 2
+      - name: Cleam *** 2 ***
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
         shell: bash
+        run: |
+            ls -liah .
+            rm -f data_sa_flink.tf
+            rm -f rbac_flink.tf
+            rm -f stmt_flink.tf
+            rm -f provider.tf
+            rm -f .terraform.lock.hcl
+            rm -rf .terraform
+            cp provider-a.tf.tpl provider.tf
+            echo "other ls -lia ."
+            ls -liah .
+
+  #PASO C - DML
+      - name: Generate stmts_flink.tf files  *** DML ***
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+        shell: bash
+        env:
+          VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
+          VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
+          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
         run: |
           script_name=gen_stmt_flink_dinamic.sh
           chmod +x ./scripts/$script_name
@@ -665,23 +920,25 @@ jobs:
             "${{ env.ENVIRONMENT }}" \
             "${{ env.TERRAFORM_WORKDIR }}"
   #
-      - name: Terraform Init - ${{ env.TERRAFORM_WORKDIR }}
+      - name: Terraform Init - DML - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: |
           terraform init \
             -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
             -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
-            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH }}" \
+            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH_DML }}" \
             -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
             -backend-config="access_key=${{ env.PEVE_GHA_ARM_ACCESS_KEY }}"
         env:
           ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
   #
-      - name: Terraform Apply - ${{ env.TERRAFORM_WORKDIR }}
+      - name: Terraform Apply - DML - ${{ env.TERRAFORM_WORKDIR }}
+        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: terraform apply -auto-approve 
-        if: github.event.inputs.action != 'destroy'
+#        if: github.event.inputs.action != 'destroy'
         env:
           TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
           TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}

@@ -8,7 +8,7 @@ export ENVIRONMENT_ID=$2        #"env-156n66s"
 export CLUSTER_ID=$3            #"lkc-xzyppq"  #DESARROLLO"
 export SCHEMA_REGISTRY_ID=$4 #"lsrc-9rgmm7"
 #$5     #Ruta completa pipeline-nombre-caso-negocio-compras-02
-RELATIVE_SUBPATH_SRC=$5         #/mnt/d/Project_GitHub/PEVE-stream-processing-resources-v1/PEVE/ccloud-flink/desa/pipeline-nombre-caso-negocio-compras-02
+RELATIVE_SUBPATH_SRC=$5         #/mnt/d/Project_GitHub/PEVE-stream-processing-resources-v1/PEVE/desa/pipeline-nombre-caso-negocio-compras-02
 RELATIVE_SUBPATH_TERRAFORM=$6   #/mnt/d/Utilitarios/Terraform/output
 #
 #

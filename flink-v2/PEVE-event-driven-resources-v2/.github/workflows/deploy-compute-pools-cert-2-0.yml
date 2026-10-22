@@ -25,8 +25,7 @@ run-name: >
 env:
   VAULT_ADDR: "https://vaultcert.lima.bcp.com.pe:443"
   COD_APP: ${{ github.event.inputs.CODAPP }}
-  TF_VAR_compute_pool_flink_dir: "./externo/${{ github.event.inputs.CODAPP }}/ccloud-flink/cert/compute-pool"
-  RESOURCES_REPO: BCP-Integration-Automation/peve-ccloud-flink-template
+  TF_VAR_compute_pool_flink_dir: "./externo/${{ github.event.inputs.CODAPP }}/cert/compute-pool"
   TERRAFORM_VERSION: "1.5.0"
   NODE_VERSION: "16.13.1"
   TERRAFORM_WORKDIR: terraform/ccloud-flink-compute-pool
@@ -251,7 +250,7 @@ jobs:
           echo "PATH_HV_APP=$PATH_HV_APP"
           echo "PATH_HV_APP=$PATH_HV_APP" >> $GITHUB_ENV
 #
-      - name: Get Secrets from HV      
+      - name: Get Secrets from HV
         id: get-secrets-flink
         uses: hashicorp/vault-action@v2
         with:
@@ -406,7 +405,7 @@ jobs:
           echo "PATH_HV_APP=$PATH_HV_APP"
           echo "PATH_HV_APP=$PATH_HV_APP" >> $GITHUB_ENV
   #
-      - name: Get Secrets from HV      
+      - name: Get Secrets from HV
         id: get-secrets-flink
         uses: hashicorp/vault-action@v2
         with:

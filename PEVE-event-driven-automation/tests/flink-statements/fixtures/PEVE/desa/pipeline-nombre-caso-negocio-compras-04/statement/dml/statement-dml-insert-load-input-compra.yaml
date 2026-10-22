@@ -1,0 +1,52 @@
+statement-name: "statement-dml-insert-load-input-compra"
+flink-compute-pool: "CP_AZC_EU2_DES_PEVE_01"
+service-account: "SA_AZC_DES_PEVE_CDPEVEFL_04"
+api-key: "AK_AZC_DES_PEVE_FLINK_CDPEVEFL_01"
+stopped: "false"
+statement: |
+  EXECUTE STATEMENT SET 
+  BEGIN
+    insert into `azc-peve-poc-input-compra` (my_field1, my_field2, my_field3) values
+    (11,110.0,'GENESIS 2'),
+    (12,120.0,'GENESIS 2'),
+    (13,130.0,'GENESIS 2'),
+    (14,140.0,'GENESIS 2'),
+    (15,150.0,'GENESIS 2'),
+    (16,160.0,'GENESIS 2'),
+    (17,170.0,'GENESIS 2'),
+    (18,180.0,'GENESIS 2'),
+    (19,190.0,'GENESIS 2'),
+    (20,200.0,'GENESIS 2'),
+    (11,110.0,'GENESIS 2'),
+    (12,120.0,'GENESIS 2'),
+    (13,130.0,'GENESIS 2'),
+    (14,140.0,'GENESIS 2'),
+    (15,150.0,'GENESIS 2'),
+    (16,160.0,'GENESIS 2'),
+    (17,170.0,'GENESIS 2'),
+    (18,180.0,'GENESIS 2'),
+    (19,190.0,'GENESIS 2'),
+    (20,200.0,'GENESIS 2'),
+    (11,110.0,'GENESIS 2'),
+    (12,120.0,'GENESIS 2'),
+    (13,130.0,'GENESIS 2'),
+    (14,140.0,'GENESIS 2'),
+    (15,150.0,'GENESIS 2'),
+    (16,160.0,'GENESIS 2'),
+    (17,170.0,'GENESIS 2'),
+    (18,180.0,'GENESIS 2'),
+    (19,190.0,'GENESIS 2'),
+    (20,200.0,'GENESIS 2'),
+    (11,110.0,'GENESIS 2'),
+    (12,120.0,'GENESIS 2'),
+    (13,130.0,'GENESIS 2'),
+    (14,140.0,'GENESIS 2'),
+    (15,150.0,'GENESIS 2'),
+    (16,160.0,'GENESIS 2'),
+    (17,170.0,'GENESIS 2'),
+    (18,180.0,'GENESIS 2'),
+    (19,190.0,'GENESIS 2'),
+    (20,200.0,'GENESIS 2');
+  END;
+
+

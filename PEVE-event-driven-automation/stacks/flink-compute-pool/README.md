@@ -6,7 +6,7 @@
 export ENVIRONMENT_HV=dev
 ./scripts/gen_cp_flink_dinamic.sh \
   env-xxxxx \
-  /ruta/PEVE-stream-processing-resources-v2/PEVE/ccloud-flink/desa/compute-pool \
+  /ruta/PEVE-stream-processing-resources-v2/PEVE/desa/compute-pool \
   stacks/flink-compute-pool
 ```
 

@@ -13,3 +13,7 @@ sudo ./restore-dns.sh
 ```
 
 Si restore se queja de que no hay backup, no ejecutaste configure. Vault y el resto de servicios del runner no deberían quedar apuntando a 8.8.8.8: por eso el restore es obligatorio.
+
+## `apply-once.sh`
+
+Lo llama Terraform (`terraform_data` + `local-exec`) cuando el YAML tiene `apply: once`. No lo ejecutes a mano. Usa el REST de Flink (`ONCE_REST_ENDPOINT`) y las API keys del statement. `409` = ya existe, no re-ejecuta.

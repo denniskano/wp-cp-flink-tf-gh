@@ -1,0 +1,159 @@
+cluster:
+  cc:
+    properties:
+      - name: "azure_eu2_kafka01"
+    rbac:
+########## SA_AZC_DES_APPV_CDPEVEFL_01 ##########
+    - principal: SA_AZC_DES_APPV_CDPEVEFL_01
+      resources:
+      #subjects
+      - resource_type: subject
+        resource_name: 'azc-peve-poc-flink-internal-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      - resource_type: subject
+        resource_name: 'azc-peve-poc-input-compra-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+      #topics
+      - resource_type: topic
+        resource_name: 'azc-peve-poc-input-compra'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperManage
+      - resource_type: topic
+        resource_name: 'azc-peve-poc-flink-internal'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        - operation: DeveloperManage
+        #run stmts
+      - resource_type: compute-pool
+        resource_name: CP_AZC_EU2_DES_PEVE_01
+        resource_region: azure.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+        #Write/Read transaction-id
+      - resource_type: transactional-id
+        resource_name: '_confluent-flink_'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite
+#
+########## SA_AZC_DES_APPV_PEVEMQFL_02 ##########
+    - principal: SA_AZC_DES_APPV_PEVEMQFL_02
+      resources:
+      #subjects
+      - resource_type: subject
+        resource_name: 'azc-peve-poc-flink-internal-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: subject
+        resource_name: 'azc-peve-poc-input-compra-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      #topics
+      - resource_type: topic
+        resource_name: 'azc-peve-poc-input-compra'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+      - resource_type: topic
+        resource_name: 'azc-peve-poc-flink-internal'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+        #run stmts
+      - resource_type: compute-pool
+        resource_name: CP_AZC_EU2_DES_PEVE_02
+        resource_region: azure.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+        #Write/Read transaction-id
+      - resource_type: transactional-id
+        resource_name: '_confluent-flink_'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite        
+#
+########## SA_AZC_DES_PEVE_PEVEMQFL_03 ##########
+    - principal: SA_AZC_DES_PEVE_PEVEMQFL_03
+      resources:
+      #subjects
+      - resource_type: subject
+        resource_name: 'azc-peve-poc-flink-internal-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: subject
+        resource_name: 'azc-peve-poc-input-compra-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      #topics
+      - resource_type: topic
+        resource_name: 'azc-peve-poc-input-compra'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      - resource_type: topic
+        resource_name: 'azc-peve-poc-flink-internal'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        #run stmts
+      - resource_type: compute-pool
+        resource_name: CP_AZC_EU2_DES_PEVE_03
+        resource_region: azure.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+        #Write/Read transaction-id
+      - resource_type: transactional-id
+        resource_name: '_confluent-flink_'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite                
+#
+########## SA_AZC_DES_PEVE_CDPEVEFL_04 ##########
+    - principal: SA_AZC_DES_PEVE_CDPEVEFL_04
+      resources:
+      #subjects
+      - resource_type: subject
+        resource_name: 'azc-peve-poc-input-compra-value'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperRead
+      #topics
+      - resource_type: topic
+        resource_name: 'azc-peve-poc-input-compra'
+        pattern_type: LITERAL
+        role:
+        - operation: DeveloperWrite
+        #run stmts
+      - resource_type: compute-pool
+        resource_name: CP_AZC_EU2_DES_PEVE_01
+        resource_region: azure.eastus2
+        pattern_type: LITERAL
+        role:
+        - operation: FlinkDeveloper
+        #Write/Read transaction-id
+      - resource_type: transactional-id
+        resource_name: '_confluent-flink_'
+        pattern_type: PREFIXED
+        role:
+        - operation: DeveloperRead
+        - operation: DeveloperWrite                
+##### FIN #####

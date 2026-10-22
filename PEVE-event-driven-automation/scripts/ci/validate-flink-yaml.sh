@@ -67,4 +67,17 @@ if [[ ! -d "${SECURITY_DIR}" && "${ACTION}" != "destroy" ]]; then
   exit 1
 fi
 
+# apply: managed | ignore | once (omitir = managed). Igual que flink-v1.
+while IFS= read -r yf; do
+  apply_val="$(grep -E '^apply:' "${yf}" | head -1 | awk -F: '{print $2}' | tr -d ' "' | tr '[:upper:]' '[:lower:]' || true)"
+  [[ -z "${apply_val}" ]] && continue
+  case "${apply_val}" in
+    managed|ignore|once) ;;
+    *)
+      echo "❌ apply inválido en ${yf}: ${apply_val} (managed|ignore|once)"
+      exit 1
+      ;;
+  esac
+done < <(find "${STATEMENTS_DIR}/ddl" "${STATEMENTS_DIR}/dml" -maxdepth 1 -type f -name '*.yaml' 2>/dev/null)
+
 echo "OK statements ddl=${DDL_N} dml=${DML_N} security_dir=${SECURITY_DIR}"

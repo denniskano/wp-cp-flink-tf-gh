@@ -25,8 +25,7 @@ run-name: >
 env:
   VAULT_ADDR: "https://vault.lima.bcp.com.pe:443"
   COD_APP: ${{ github.event.inputs.CODAPP }}
-  TF_VAR_compute_pool_flink_dir: "./externo/${{ github.event.inputs.CODAPP }}/ccloud-flink/prod/compute-pool"
-  RESOURCES_REPO: BCP-Integration-Automation/peve-ccloud-flink-template
+  TF_VAR_compute_pool_flink_dir: "./externo/${{ github.event.inputs.CODAPP }}/prod/compute-pool"
   TERRAFORM_VERSION: "1.5.0"
   NODE_VERSION: "16.13.1"
   TERRAFORM_WORKDIR: terraform/ccloud-flink-compute-pool
@@ -34,7 +33,7 @@ env:
   STORAGE_CONTAINER_NAME: tf-flink-cps-prod
   STORAGE_CONTAINER_APP_PATH: prod/${{ github.event.inputs.CODAPP }}/ccloud-flink/compute-pool/tf-flink-cps.tfstate
   SERVICE_ACCOUNT: SA_AZC_PRO_PEVE_FLK_01
-  API_KEY: AK_AZC_PRO_PEVE_CRMAN_COMPPOOL_01
+  API_KEY_TERRAFORM: AK_AZC_PRO_PEVE_CRMAN_COMPPOOL_01
   ENVIRONMENT: PRO
   ENVIRONMENT_HV: prod
   REVERSION_FLAG: ${{ github.event.inputs.reversion }}

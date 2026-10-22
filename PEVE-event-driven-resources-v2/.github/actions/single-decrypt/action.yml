@@ -42,6 +42,7 @@ runs:
         KEY="${HOST_FOR_KEY}${KEY_PART2}"
         echo "::add-mask::${KEY}"
 
+        # Descifrar (mismas opciones que en el cifrado)
         PT="$(printf '%s' "${CIPHER}" \
                       | openssl enc -"${ALG}" -pbkdf2 -iter "${ITER}" -md sha256 \
                                   -d -salt -base64 -A -pass pass:"${KEY}")"
