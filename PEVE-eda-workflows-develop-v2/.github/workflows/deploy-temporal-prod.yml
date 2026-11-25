@@ -105,12 +105,26 @@ jobs:
 
       - name: Validate Temporal YAML
         run: |
-          chmod +x ./iac/scripts/ci/validate-temporal-yaml.sh ./iac/scripts/ci/push-temporal-apikeys-vault.sh
+          chmod +x ./iac/scripts/ci/validate-temporal-yaml.sh \
+            ./iac/scripts/ci/push-temporal-apikeys-vault.sh \
+            ./iac/scripts/ci/fetch-temporal-ca-vault.sh
           ./iac/scripts/ci/validate-temporal-yaml.sh \
             "${{ env.CODAPP }}" \
             "${{ env.ENV_FOLDER }}" \
             "./externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}" \
             "${{ github.event.inputs.action }}"
+
+      - name: Fetch mTLS CA from Vault
+        env:
+          VAULT_ADDR: ${{ env.VAULT_ADDR }}
+          VAULT_SKIP_VERIFY: "true"
+        run: |
+          curl -fsSL -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.15.6/vault_1.15.6_linux_amd64.zip
+          sudo unzip -o /tmp/vault.zip -d /usr/local/bin
+          mkdir -p "${{ github.workspace }}/.temporal-ca"
+          ./iac/scripts/ci/fetch-temporal-ca-vault.sh \
+            "${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/namespaces" \
+            "${{ github.workspace }}/.temporal-ca"
 
       - name: Terraform Init
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
@@ -132,6 +146,7 @@ jobs:
           TF_VAR_temporal_cloud_api_key: ${{ steps.vault.outputs.TEMPORAL_CLOUD_API_KEY }}
           TF_VAR_namespaces_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/namespaces
           TF_VAR_nexus_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/nexus
+          TF_VAR_mtls_ca_dir: ${{ github.workspace }}/.temporal-ca
         run: terraform plan -input=false -out=tfplan
 
       - name: Terraform Apply
@@ -142,6 +157,7 @@ jobs:
           TF_VAR_temporal_cloud_api_key: ${{ steps.vault.outputs.TEMPORAL_CLOUD_API_KEY }}
           TF_VAR_namespaces_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/namespaces
           TF_VAR_nexus_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/nexus
+          TF_VAR_mtls_ca_dir: ${{ github.workspace }}/.temporal-ca
         run: terraform apply -input=false -auto-approve tfplan
 
       - name: Push worker API keys to Vault
@@ -150,8 +166,6 @@ jobs:
           VAULT_ADDR: ${{ env.VAULT_ADDR }}
           VAULT_SKIP_VERIFY: "true"
         run: |
-          curl -fsSL -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.15.6/vault_1.15.6_linux_amd64.zip
-          sudo unzip -o /tmp/vault.zip -d /usr/local/bin
           ./iac/scripts/ci/push-temporal-apikeys-vault.sh \
             "${{ env.CODAPP }}" \
             "${{ env.ENV_FOLDER }}" \
@@ -165,4 +179,5 @@ jobs:
           TF_VAR_temporal_cloud_api_key: ${{ steps.vault.outputs.TEMPORAL_CLOUD_API_KEY }}
           TF_VAR_namespaces_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/namespaces
           TF_VAR_nexus_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/nexus
+          TF_VAR_mtls_ca_dir: ${{ github.workspace }}/.temporal-ca
         run: terraform destroy -input=false -auto-approve

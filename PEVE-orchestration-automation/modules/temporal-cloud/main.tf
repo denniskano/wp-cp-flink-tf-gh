@@ -92,6 +92,54 @@ locals {
     }
     if length(merge(try(ns.labels, {}), try(ns.tags, {}))) > 0
   }
+
+  namespaces_need_vault_ca = {
+    for ns_name, ns in local.namespaces :
+    ns_name => ns
+    if try(ns.accepted_client_ca_vault.path, "") != ""
+  }
+
+  # 1) PEM bajado de Vault a mtls_ca_dir/<name>.pem  2) inline  3) archivo en git (solo pruebas)
+  fetched_ca = {
+    for ns_name, ns in local.namespaces :
+    ns_name => (
+      try(ns.accepted_client_ca_vault.path, "") != "" && var.mtls_ca_dir != ""
+      ? file("${var.mtls_ca_dir}/${ns_name}.pem")
+      : ""
+    )
+  }
+
+  namespace_client_ca = {
+    for ns_name, ns in local.namespaces :
+    ns_name => (
+      local.fetched_ca[ns_name] != ""
+      ? (
+        startswith(trimspace(local.fetched_ca[ns_name]), "-----BEGIN")
+        ? base64encode(local.fetched_ca[ns_name])
+        : trimspace(local.fetched_ca[ns_name])
+      )
+      : (
+        try(trimspace(ns.accepted_client_ca), "") != ""
+        ? (
+          startswith(trimspace(ns.accepted_client_ca), "-----BEGIN")
+          ? base64encode(ns.accepted_client_ca)
+          : trimspace(ns.accepted_client_ca)
+        )
+        : (
+          try(ns.accepted_client_ca_file, "") != ""
+          ? base64encode(file("${var.namespaces_dir}/${ns.accepted_client_ca_file}"))
+          : null
+        )
+      )
+    )
+  }
+}
+
+check "mtls_ca_from_vault" {
+  assert {
+    condition     = length(local.namespaces_need_vault_ca) == 0 || var.mtls_ca_dir != ""
+    error_message = "Hay accepted_client_ca_vault en el YAML: corré scripts/ci/fetch-temporal-ca-vault.sh y pasá TF_VAR_mtls_ca_dir."
+  }
 }
 
 resource "temporalcloud_connectivity_rule" "this" {
@@ -108,14 +156,25 @@ resource "temporalcloud_connectivity_rule" "this" {
 resource "temporalcloud_namespace" "this" {
   for_each = local.namespaces
 
-  name           = each.value.name
-  regions        = each.value.regions
-  api_key_auth   = try(each.value.api_key_auth, true)
-  retention_days = try(each.value.retention_days, 14)
+  name               = each.value.name
+  regions            = each.value.regions
+  api_key_auth       = try(each.value.api_key_auth, true)
+  accepted_client_ca = local.namespace_client_ca[each.key]
+  retention_days     = try(each.value.retention_days, 14)
 
   connectivity_rule_ids = [
     for c in try(each.value.connectivity, []) : temporalcloud_connectivity_rule.this[c.name].id
   ]
+
+  dynamic "certificate_filters" {
+    for_each = try(each.value.certificate_filters, [])
+    content {
+      common_name              = try(certificate_filters.value.common_name, null)
+      organization             = try(certificate_filters.value.organization, null)
+      organizational_unit      = try(certificate_filters.value.organizational_unit, null)
+      subject_alternative_name = try(certificate_filters.value.subject_alternative_name, null)
+    }
+  }
 
   timeouts {
     create = "10m"

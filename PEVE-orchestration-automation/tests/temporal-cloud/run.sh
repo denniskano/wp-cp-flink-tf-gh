@@ -46,4 +46,14 @@ if "${VALIDATE}" PEVE dev "${FIX}/bad-tags" plan; then
 fi
 ok "labels mayúsculas bloqueadas"
 
+echo "== mTLS con path de Vault: debe pasar =="
+"${VALIDATE}" PEVE dev "${FIX}/mtls-ok" plan || fail "mtls-ok"
+ok "mTLS + Vault path"
+
+echo "== api_key_auth=false sin CA: debe fallar =="
+if "${VALIDATE}" PEVE dev "${FIX}/mtls-no-ca" plan; then
+  fail "mTLS sin CA debió fallar"
+fi
+ok "mTLS sin CA bloqueado"
+
 echo "tests/temporal-cloud: OK"

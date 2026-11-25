@@ -1,0 +1,13 @@
+name: peve-dev
+regions:
+  - azure-centralus
+retention_days: 14
+api_key_auth: false
+accepted_client_ca_vault:
+  path: dev/peve/temporal/mtls/peve-dev
+  field: pem
+certificate_filters:
+  - organization: bcp
+labels:
+  codapp: peve
+  env: dev

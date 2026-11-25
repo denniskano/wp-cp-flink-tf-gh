@@ -1,0 +1,43 @@
+# Copiá a {CODAPP}/{dev|cert|prod}/namespaces/<archivo>.yaml
+# Guía de campos: docs/NAMESPACE.md
+# No despliegues esta carpeta TEMPLATE.
+
+name: peve-dev                    # {codapp}-{dev|cert|prod}[-suffix]  — no cambiar después
+regions:
+  - azure-centralus               # prod: 2 regiones, par HA (azure-centralus no tiene Azure–Azure)
+retention_days: 14                # entero ≥ 1
+api_key_auth: true                # true = API key (default). false = mTLS (CA en Vault)
+# mTLS: el PEM no va en git. Security lo carga en Vault; el CD lo baja a un .pem temporal.
+# api_key_auth: false
+# accepted_client_ca_vault:
+#   path: dev/peve/temporal/mtls/peve-dev   # {env}/{codapp}/temporal/mtls/{namespace}
+#   field: pem
+# certificate_filters:                      # opcional
+#   - organization: bcp
+labels:                           # máx. 10; solo a-z 0-9 . _ - @
+  codapp: peve
+  env: dev                        # o cert | prod
+connectivity:                     # rule por namespace; el PE es por entorno (mismo ID en todos los YAML del env)
+  - name: peve-dev-pl-centralus   # unique en el env
+    type: private                 # private | public
+    region: azure-centralus       # tiene que estar en regions
+    azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-del-entorno>"
+    # AWS: connection_id: vpce-…
+    # GCP: connection_id + gcp_project_id
+search_attributes:                # opcional; type no se cambia in-place
+  - name: CustomerId
+    type: keyword                 # bool | datetime | double | int | keyword | keyword_list | text
+service_accounts:
+  - name: peve-dev-worker         # unique en el env
+    permission: write             # admin | write | read
+    account_access: developer     # admin | developer | read | financeadmin | metricsread
+    # extra_namespaces:
+    #   - name: peve-dev-pagos    # otro namespace del mismo env
+    #     permission: read
+    api_keys:
+      - display_name: peve-dev-worker-key   # unique en el env; rotar = otro nombre
+        expiry_time: "2028-12-31T00:00:00Z" # RFC3339
+        # disabled: false
+users:                            # opcional; email unique en el env
+  - email: peve-temporal-dev@bcp.com.pe
+    permission: write             # admin | write | read

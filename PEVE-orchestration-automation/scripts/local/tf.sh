@@ -21,6 +21,12 @@ case "${STACK}" in
     export TF_VAR_nexus_dir="${EXTERNO}/${CODAPP}/${ENV_FOLDER}/nexus"
     "${ROOT}/scripts/ci/validate-temporal-yaml.sh" "${CODAPP}" "${ENV_FOLDER}" \
       "${EXTERNO}/${CODAPP}/${ENV_FOLDER}" "${ACTION}"
+    CA_OUT="${ROOT}/.temporal-ca"
+    mkdir -p "${CA_OUT}"
+    if grep -lR 'accepted_client_ca_vault' "${TF_VAR_namespaces_dir}" >/dev/null 2>&1; then
+      "${ROOT}/scripts/ci/fetch-temporal-ca-vault.sh" "${TF_VAR_namespaces_dir}" "${CA_OUT}"
+    fi
+    export TF_VAR_mtls_ca_dir="${CA_OUT}"
     ;;
   *)
     echo "❌ stack no cableado: ${STACK}"

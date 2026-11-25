@@ -16,4 +16,6 @@ make lint
 
 No cambies el `name` de un namespace ya aplicado (ForceNew). Tampoco `regions`.
 
-Search attributes, SA, users, Nexus y `labels`/`tags` van en el mismo apply si están en el YAML de ese env. Los tags de Temporal van en minúsculas (máx. 10).
+Search attributes, SA, users, Nexus, `labels`/`tags` y auth (API key o mTLS+CA en Vault) van en el mismo apply si están en el YAML de ese env. Los tags de Temporal van en minúsculas (máx. 10). mTLS: `VAULT_ADDR` + `VAULT_TOKEN`; `tf.sh` corre `fetch-temporal-ca-vault.sh`.
+
+Campos y valores para equipos de app: `PEVE-orchestration-resources/docs/NAMESPACE.md` y `docs/NEXUS.md`.

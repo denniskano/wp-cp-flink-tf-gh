@@ -14,3 +14,9 @@ variable "nexus_dir" {
   type        = string
   default     = ""
 }
+
+variable "mtls_ca_dir" {
+  description = "Dir con PEM de CA mTLS bajados de Vault"
+  type        = string
+  default     = ""
+}

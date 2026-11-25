@@ -78,8 +78,37 @@ for yf in "${NS_FILES[@]}"; do
   done
   NAMES+=("${name}")
 
-  auth="$(yq -r '.api_key_auth // true' "${yf}")"
-  [[ "${auth}" == "true" ]] || fail "solo api_key_auth=true (${yf})"
+  if yq -e 'has("api_key_auth")' "${yf}" >/dev/null; then
+    auth="$(yq -r '.api_key_auth' "${yf}")"
+  else
+    auth="true"
+  fi
+  case "${auth}" in
+    true|false) ;;
+    *) fail "api_key_auth debe ser true o false (${yf})" ;;
+  esac
+
+  ca_inline="$(yq -r '.accepted_client_ca // ""' "${yf}")"
+  [[ "${ca_inline}" == "null" ]] && ca_inline=""
+  ca_file="$(yq -r '.accepted_client_ca_file // ""' "${yf}")"
+  [[ "${ca_file}" == "null" ]] && ca_file=""
+  ca_vault="$(yq -r '.accepted_client_ca_vault.path // ""' "${yf}")"
+  [[ "${ca_vault}" == "null" ]] && ca_vault=""
+
+  if [[ "${auth}" == "false" ]]; then
+    if [[ -z "${ca_vault}" && -z "${ca_inline}" && -z "${ca_file}" ]]; then
+      fail "${name}: api_key_auth=false requiere accepted_client_ca_vault.path (CA en Vault)"
+    fi
+  fi
+  if [[ -n "${ca_file}" ]]; then
+    capath="${NS_DIR}/${ca_file}"
+    [[ -f "${capath}" ]] || fail "${name}: no existe accepted_client_ca_file ${ca_file} (buscado en ${capath})"
+    [[ -s "${capath}" ]] || fail "${name}: accepted_client_ca_file vacío (${ca_file})"
+  fi
+  filt_n="$(yq -r '.certificate_filters | length // 0' "${yf}")"
+  if [[ "${filt_n}" -gt 0 ]] && [[ -z "${ca_vault}" && -z "${ca_inline}" && -z "${ca_file}" ]]; then
+    fail "${name}: certificate_filters requiere accepted_client_ca_vault (o CA inline/file)"
+  fi
 
   retention="$(yq -r '.retention_days // 14' "${yf}")"
   if [[ ! "${retention}" =~ ^[0-9]+$ ]] || [[ "${retention}" -lt 1 ]]; then

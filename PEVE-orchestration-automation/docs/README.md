@@ -8,6 +8,6 @@
 
 El job: checkout IAC → `./iac`, YAML → `./externo`, `validate-temporal-yaml.sh`, Vault, `terraform -chdir=./iac/stacks/temporal-cloud`.
 
-Auth de namespace: **solo `api_key_auth`**. Las API keys de workers salen como output sensible y el CD las escribe a Vault.
+Auth de namespace: **API key** (`api_key_auth: true`, default) o **mTLS** (`false` + CA en Vault). Las API keys de workers (modo API key) salen como output sensible y el CD las escribe a Vault. La CA mTLS la baja el CD de Vault a un `.pem` temporal; la clave privada del client cert **no** va en este IAC.
 
 Ver [TEMPORAL-HA.md](TEMPORAL-HA.md), [PRIVATELINK.md](PRIVATELINK.md), [STATE.md](STATE.md), [VAULT.md](VAULT.md).

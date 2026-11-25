@@ -8,3 +8,9 @@ variable "nexus_dir" {
   type        = string
   default     = ""
 }
+
+variable "mtls_ca_dir" {
+  description = "Dir con <namespace>.pem bajados de Vault (fetch-temporal-ca-vault.sh). Vacío si ningún YAML usa accepted_client_ca_vault."
+  type        = string
+  default     = ""
+}

@@ -6,6 +6,10 @@ output "namespace_endpoints" {
   value = module.temporal.namespace_endpoints
 }
 
+output "namespace_mtls_endpoints" {
+  value = module.temporal.namespace_mtls_endpoints
+}
+
 output "service_account_ids" {
   value = module.temporal.service_account_ids
 }

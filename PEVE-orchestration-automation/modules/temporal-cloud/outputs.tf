@@ -4,8 +4,16 @@ output "namespace_ids" {
 }
 
 output "namespace_endpoints" {
-  description = "Endpoints gRPC de los namespaces"
-  value       = { for k, n in temporalcloud_namespace.this : k => try(n.endpoints.grpc_address, n.id) }
+  description = "gRPC API key, o mTLS si el namespace no tiene API key"
+  value = {
+    for k, n in temporalcloud_namespace.this :
+    k => coalesce(try(n.endpoints.grpc_address, ""), try(n.endpoints.mtls_grpc_address, ""), n.id)
+  }
+}
+
+output "namespace_mtls_endpoints" {
+  description = "gRPC mTLS (vacío si el namespace es solo API key)"
+  value       = { for k, n in temporalcloud_namespace.this : k => try(n.endpoints.mtls_grpc_address, null) }
 }
 
 output "service_account_ids" {
