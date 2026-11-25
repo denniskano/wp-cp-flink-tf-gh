@@ -1,6 +1,6 @@
-# Prod exige 2 regiones y un par HA válido.
+# Prod exige 2 regiones y un par HA válido (eso es réplica Temporal, no PrivateLink).
 # azure-centralus NO tiene réplica Azure–Azure; el par documentado es multi-cloud.
-# Cambia el segundo valor según scripts/ci/temporal-ha-pairs.json (IAC).
+# Sin PE por ahora. Con PE: una rule por región, IDs reales de Governance.
 name: peve-prod
 regions:
   - azure-centralus
@@ -10,15 +10,15 @@ api_key_auth: true
 labels:
   codapp: peve
   env: prod
-connectivity:
-  - name: peve-prod-pl-centralus
-    type: private
-    region: azure-centralus
-    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-prod/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-prod-centralus"
-  - name: peve-prod-pl-use1
-    type: private
-    region: aws-us-east-1
-    connection_id: "vpce-00000000000000000"
+# connectivity:
+#   - name: peve-prod-pl-centralus
+#     type: private
+#     region: azure-centralus
+#     azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-azure>"
+#   - name: peve-prod-pl-use1
+#     type: private
+#     region: aws-us-east-1
+#     connection_id: "vpce-…"
 service_accounts:
   - name: peve-prod-worker
     permission: write

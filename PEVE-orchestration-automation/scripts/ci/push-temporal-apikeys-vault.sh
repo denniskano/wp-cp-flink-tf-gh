@@ -17,7 +17,7 @@ command -v jq >/dev/null || { echo "jq requerido" >&2; exit 1; }
 [[ -n "${VAULT_ADDR:-}" && -n "${VAULT_TOKEN:-}" ]] || { echo "VAULT_ADDR y VAULT_TOKEN requeridos" >&2; exit 1; }
 
 cd "${TFDIR}"
-raw="$(terraform output -json apikey_tokens 2>/dev/null || echo '{}')"
+raw="$(terraform output -json apikey_tokens)" || { echo "terraform output apikey_tokens falló" >&2; exit 1; }
 n="$(printf '%s' "${raw}" | jq 'length')"
 if [[ "${n}" -eq 0 ]]; then
   echo "sin apikey_tokens; nada que subir"
@@ -25,7 +25,8 @@ if [[ "${n}" -eq 0 ]]; then
 fi
 
 while IFS=$'\t' read -r name token; do
-  [[ -n "${name}" && -n "${token}" && "${token}" != "null" ]] || continue
+  [[ -n "${name}" ]] || { echo "apikey_tokens: display_name vacío" >&2; exit 1; }
+  [[ -n "${token}" && "${token}" != "null" ]] || { echo "apikey_tokens: token vacío para ${name}" >&2; exit 1; }
   vault kv put -mount=peve/kv2 \
     "${ENV}/${CODAPP_LO}/temporal/apikeys/${name}" \
     token="${token}" >/dev/null

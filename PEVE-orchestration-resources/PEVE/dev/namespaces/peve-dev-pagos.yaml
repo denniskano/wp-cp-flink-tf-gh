@@ -1,4 +1,5 @@
 # Segundo namespace del mismo CODAPP/env (opción de varios).
+# Sin PE por ahora. Con PE: mismo azure_pe_resource_id que peve-dev.yaml (un PE por entorno).
 name: peve-dev-pagos
 regions:
   - azure-centralus
@@ -8,11 +9,11 @@ labels:
   codapp: peve
   env: dev
   suffix: pagos
-connectivity:
-  - name: peve-dev-pagos-pl-centralus
-    type: private
-    region: azure-centralus
-    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-dev/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-dev-pagos"
+# connectivity:
+#   - name: peve-dev-pagos-pl-centralus
+#     type: private
+#     region: azure-centralus
+#     azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-del-entorno>"
 service_accounts:
   - name: peve-dev-pagos-worker
     permission: write

@@ -60,6 +60,8 @@ NAMES=()
 CONN_NAMES=()
 SA_NAMES=()
 KEY_NAMES=()
+USER_EMAILS=()
+EXTRA_NS=()
 
 for yf in "${NS_FILES[@]}"; do
   name="$(yq -r '.name // ""' "${yf}")"
@@ -200,6 +202,22 @@ for yf in "${NS_FILES[@]}"; do
       admin|write|read) ;;
       *) fail "permission debe ser admin|write|read (${san})" ;;
     esac
+    acc="$(yq -r ".service_accounts[$i].account_access // \"developer\"" "${yf}")"
+    case "${acc}" in
+      admin|developer|read|financeadmin|metricsread) ;;
+      *) fail "account_access debe ser admin|developer|read|financeadmin|metricsread (${san})" ;;
+    esac
+    en_n="$(yq -r ".service_accounts[$i].extra_namespaces | length // 0" "${yf}")"
+    for ((e = 0; e < en_n; e++)); do
+      ename="$(yq -r ".service_accounts[$i].extra_namespaces[$e].name // \"\"" "${yf}")"
+      eperm="$(yq -r ".service_accounts[$i].extra_namespaces[$e].permission // \"read\"" "${yf}")"
+      [[ -n "${ename}" ]] || fail "${san}: extra_namespaces.name vacío"
+      case "${eperm}" in
+        admin|write|read) ;;
+        *) fail "${san}: extra_namespaces.permission debe ser admin|write|read (${ename})" ;;
+      esac
+      EXTRA_NS+=("${ename}")
+    done
     kn="$(yq -r ".service_accounts[$i].api_keys | length // 0" "${yf}")"
     for ((j = 0; j < kn; j++)); do
       knm="$(yq -r ".service_accounts[$i].api_keys[$j].display_name // \"\"" "${yf}")"
@@ -221,6 +239,29 @@ for yf in "${NS_FILES[@]}"; do
       *) fail "search_attributes.type inválido en ${yf}: ${st}" ;;
     esac
   done
+
+  user_n="$(yq -r '.users | length // 0' "${yf}")"
+  for ((i = 0; i < user_n; i++)); do
+    em="$(yq -r ".users[$i].email // \"\"" "${yf}")"
+    uperm="$(yq -r ".users[$i].permission // \"write\"" "${yf}")"
+    [[ -n "${em}" && "${em}" != "null" ]] || fail "users.email vacío en ${yf}"
+    for existing in "${USER_EMAILS[@]+"${USER_EMAILS[@]}"}"; do
+      [[ "${existing}" != "${em}" ]] || fail "users.email duplicado en el env: ${em}"
+    done
+    USER_EMAILS+=("${em}")
+    case "${uperm}" in
+      admin|write|read) ;;
+      *) fail "users.permission debe ser admin|write|read (${em})" ;;
+    esac
+  done
+done
+
+for extra in "${EXTRA_NS[@]+"${EXTRA_NS[@]}"}"; do
+  found=0
+  for n in "${NAMES[@]}"; do
+    [[ "${n}" == "${extra}" ]] && found=1
+  done
+  [[ "${found}" -eq 1 ]] || fail "extra_namespaces ${extra} no está en este env"
 done
 
 NEXUS_DIR="${APP_ROOT}/nexus"

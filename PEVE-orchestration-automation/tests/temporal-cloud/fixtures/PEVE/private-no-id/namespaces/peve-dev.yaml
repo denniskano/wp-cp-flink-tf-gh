@@ -1,0 +1,9 @@
+name: peve-dev
+regions:
+  - azure-centralus
+retention_days: 14
+api_key_auth: true
+connectivity:
+  - name: peve-dev-pl-centralus
+    type: private
+    region: azure-centralus

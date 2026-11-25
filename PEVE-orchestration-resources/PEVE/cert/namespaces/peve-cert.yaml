@@ -6,11 +6,12 @@ api_key_auth: true
 labels:
   codapp: peve
   env: cert
-connectivity:
-  - name: peve-cert-pl-centralus
-    type: private
-    region: azure-centralus
-    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-cert/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-cert"
+# Sin PE. Con Private Endpoint: descomentá connectivity (mismo ARM en todos los YAML de cert).
+# connectivity:
+#   - name: peve-cert-pl-centralus
+#     type: private
+#     region: azure-centralus
+#     azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-del-entorno>"
 service_accounts:
   - name: peve-cert-worker
     permission: write

@@ -46,6 +46,12 @@ if "${VALIDATE}" PEVE dev "${FIX}/bad-tags" plan; then
 fi
 ok "labels mayúsculas bloqueadas"
 
+echo "== type private sin PE id: debe fallar =="
+if "${VALIDATE}" PEVE dev "${FIX}/private-no-id" plan; then
+  fail "private sin azure_pe_resource_id debió fallar"
+fi
+ok "private sin PE id bloqueado"
+
 echo "== mTLS con path de Vault: debe pasar =="
 "${VALIDATE}" PEVE dev "${FIX}/mtls-ok" plan || fail "mtls-ok"
 ok "mTLS + Vault path"

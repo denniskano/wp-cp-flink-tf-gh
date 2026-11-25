@@ -162,9 +162,12 @@ resource "temporalcloud_namespace" "this" {
   accepted_client_ca = local.namespace_client_ca[each.key]
   retention_days     = try(each.value.retention_days, 14)
 
-  connectivity_rule_ids = [
-    for c in try(each.value.connectivity, []) : temporalcloud_connectivity_rule.this[c.name].id
-  ]
+  # Vacío hay que omitir: el provider rechaza connectivity_rule_ids = [].
+  connectivity_rule_ids = (
+    length(try(each.value.connectivity, [])) > 0
+    ? [for c in each.value.connectivity : temporalcloud_connectivity_rule.this[c.name].id]
+    : null
+  )
 
   dynamic "certificate_filters" {
     for_each = try(each.value.certificate_filters, [])

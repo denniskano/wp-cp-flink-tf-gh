@@ -1,4 +1,5 @@
 # Namespace principal DES. Región: azure-centralus (sin HA Azure–Azure).
+# Sin connectivity = sin Private Endpoint (público). Cuando Governance entregue el PE, pegá el bloque (mismo ARM en todos los YAML del env).
 name: peve-dev
 regions:
   - azure-centralus
@@ -7,12 +8,11 @@ api_key_auth: true
 labels:
   codapp: peve
   env: dev
-connectivity:
-  - name: peve-dev-pl-centralus
-    type: private
-    region: azure-centralus
-    # Lo emite Cloud Governance (ver docs/PRIVATELINK.md del IAC).
-    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-dev/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-dev"
+# connectivity:
+#   - name: peve-dev-pl-centralus
+#     type: private
+#     region: azure-centralus
+#     azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-del-entorno>"
 search_attributes:
   - name: CustomerId
     type: keyword

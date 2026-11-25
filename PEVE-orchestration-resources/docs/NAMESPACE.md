@@ -6,7 +6,8 @@ El CI (`validate-temporal-yaml.sh` en el IAC) y Terraform leen **solo** estos ca
 
 GHA: `deploy-temporal-dev` | `deploy-temporal-cert` | `deploy-temporal-prod` en `PEVE-eda-workflows-develop-v2`. Input `CODAPP` = carpeta (ej. `PEVE`, mayúsculas).
 
-Nexus (otro archivo): [NEXUS.md](NEXUS.md). PrivateLink: [PRIVATELINK.md](PRIVATELINK.md).
+Nexus (otro archivo): [NEXUS.md](NEXUS.md).  
+**Red del worker (internet vs Private Endpoint):** [PRIVATELINK.md](PRIVATELINK.md).
 
 ---
 
@@ -35,7 +36,7 @@ Varios YAML en `namespaces/` = varios namespaces en el **mismo** apply.
 | `certificate_filters` | No | omitir | Lista. Ver [Auth](#auth-api-key-o-mtls) | Restringe qué client certs entran. Requiere CA. |
 | `labels` | No | `{}` | Mapa string→string, máx. 10 pares | Tags del namespace en Temporal. Preferí `labels`. |
 | `tags` | No | `{}` | Igual que `labels` | Alias. Si una clave está en ambos, **gana `tags`**. |
-| `connectivity` | Recomendado | `[]` | Lista. Ver [connectivity](#connectivity) | Rules de red (PrivateLink). Lista vacía la rechaza el provider. |
+| `connectivity` | No | omitir | Lista. Ver [connectivity](#connectivity) | **Opcional.** Sin bloque = sin Private Endpoint (público, con API key/mTLS). Con `type: private` = PE. |
 | `search_attributes` | No | `[]` | Ver [search_attributes](#search_attributes) | Atributos custom de visibilidad. |
 | `service_accounts` | No | `[]` | Ver [service_accounts](#service_accounts) | Identidades de workers + API keys (van a Vault). |
 | `users` | No | `[]` | Ver [users](#users) | Personas (email) con acceso al namespace. |
@@ -43,8 +44,7 @@ Varios YAML en `namespaces/` = varios namespaces en el **mismo** apply.
 ### `name`
 
 - Regex: empieza con letra, `[a-z0-9-]`, 2–64 caracteres, no termina en `-`.
-- Debe coincidir con la carpeta de env: `peve-dev`, `peve-cert`, `peve-prod`.
-- Suffix opcional: `peve-dev-pagos` → segundo namespace del mismo CODAPP/env.
+- Prefijo del env: `peve-dev`, `peve-cert` o `peve-prod`. Suffix opcional para más de un namespace: `peve-dev-pagos`.
 - El `codapp` del nombre es **minúsculas** (`peve`), la carpeta del repo suele ser **mayúsculas** (`PEVE`).
 - **No renombres** un namespace ya aplicado.
 
@@ -131,27 +131,31 @@ labels:
 
 ## `connectivity`
 
-Una entrada = una **connectivity rule** de Temporal, **adjunta a este namespace**.
+**Opcional.** Qué hacer en cada camino (pasos, worker, DNS, pasar de uno a otro): **[PRIVATELINK.md](PRIVATELINK.md)**.
 
-Modelo del banco: **un Private Endpoint por entorno** (y en prod, uno por región del par HA), compartido. Las rules sí son **por namespace**: copiá el **mismo** ID de PE en cada YAML del env. No abras un PE por aplicación ni por namespace.
+| Camino | YAML | Red del worker |
+|---|---|---|
+| **A. Internet (sin PE)** | **Omití** `connectivity` | Egress público a `*.tmprl.cloud:7233` |
+| **B. Private Endpoint** | `type: private` + ID | VNet → PE. Mismo host del namespace; DNS privado |
 
-El PE / VPC Endpoint lo crea **Cloud Governance**. Acá solo el ID. Pasos: [PRIVATELINK.md](PRIVATELINK.md).
+Auth (API key / mTLS) no cambia con la red. Con PE: **uno por entorno** (prod HA: uno por región); las rules son **por namespace** (mismo ID en cada YAML). El PE lo crea Cloud Governance.
 
-`connectivity.name` debe ser **único en todo el env** (todos los YAML de `namespaces/`).
+`connectivity.name` debe ser **único en todo el env** si el bloque existe (un `name` por namespace; el **ID del PE** sí se repite).
 
 | Campo | Obligatorio | Valores | Qué es |
 |---|---|---|---|
-| `name` | Sí | Unique en el env. Ej. `{codapp}-{env}-pl-centralus` | Nombre de la rule en Terraform (no el nombre del PE de Azure). |
-| `type` | Sí | `private` \| `public` | Banco: `private`. |
+| `name` | Sí, si hay entrada | Unique en el env. Ej. `{codapp}-{env}-pl-centralus` | Nombre de la rule en Terraform (no el del PE de Azure). |
+| `type` | Sí, si hay entrada | `private` \| `public` | Con PE: `private`. `public` es rule pública explícita (casi nunca hace falta: omitir el bloque alcanza). |
 | `region` | Si `private` | Uno de los `regions` del namespace | Región Temporal de **esta** rule. |
 | `azure_pe_resource_id` | Si `private` y `region` es `azure-*` | ARM del Private Endpoint | Lo entrega Governance. |
 | `connection_id` | Si `private` y AWS (`vpce-…`) o GCP | ID del endpoint | AWS: `vpce-…`. GCP: PSC. |
 | `gcp_project_id` | Si `private` y `region` es `gcp-*` | Project ID GCP | Junto con `connection_id`. |
 | `enable_stable_ips` | No | `true` / `false` | AWS PrivateLink IPs estables. No lo pongas salvo que Governance lo pida. |
 
-Prod HA: **una rule por región** del par (Azure + AWS si el par es multi-cloud).
+Prod HA **con PE**: una rule por región del par. Prod **sin PE** igual exige 2 regiones (eso es réplica de Temporal, no PrivateLink).
 
 ```yaml
+# Con PE (cuando Governance entregue el ARM):
 connectivity:
   - name: peve-dev-pl-centralus
     type: private
@@ -257,11 +261,7 @@ api_key_auth: true
 labels:
   codapp: peve
   env: dev
-connectivity:
-  - name: peve-dev-pl-centralus
-    type: private
-    region: azure-centralus
-    azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-del-entorno>"
+# Sin connectivity = internet (camino A). Con PE: docs/PRIVATELINK.md camino B.
 service_accounts:
   - name: peve-dev-worker
     permission: write

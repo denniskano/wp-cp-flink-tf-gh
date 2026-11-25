@@ -17,13 +17,13 @@ api_key_auth: true                # true = API key (default). false = mTLS (CA e
 labels:                           # máx. 10; solo a-z 0-9 . _ - @
   codapp: peve
   env: dev                        # o cert | prod
-connectivity:                     # rule por namespace; el PE es por entorno (mismo ID en todos los YAML del env)
-  - name: peve-dev-pl-centralus   # unique en el env
-    type: private                 # private | public
-    region: azure-centralus       # tiene que estar en regions
-    azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-del-entorno>"
-    # AWS: connection_id: vpce-…
-    # GCP: connection_id + gcp_project_id
+# connectivity es opcional. Sin bloque = sin Private Endpoint (namespace público).
+# Con PE (mismo ARM en todos los YAML del env):
+# connectivity:
+#   - name: peve-dev-pl-centralus
+#     type: private
+#     region: azure-centralus
+#     azure_pe_resource_id: "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/privateEndpoints/<pe-del-entorno>"
 search_attributes:                # opcional; type no se cambia in-place
   - name: CustomerId
     type: keyword                 # bool | datetime | double | int | keyword | keyword_list | text

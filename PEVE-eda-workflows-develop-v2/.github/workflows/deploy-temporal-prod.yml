@@ -165,6 +165,7 @@ jobs:
         env:
           VAULT_ADDR: ${{ env.VAULT_ADDR }}
           VAULT_SKIP_VERIFY: "true"
+          ARM_ACCESS_KEY: ${{ steps.vault.outputs.PEVE_GHA_ARM_ACCESS_KEY }}
         run: |
           ./iac/scripts/ci/push-temporal-apikeys-vault.sh \
             "${{ env.CODAPP }}" \

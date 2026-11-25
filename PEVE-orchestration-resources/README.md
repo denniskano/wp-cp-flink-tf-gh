@@ -18,6 +18,6 @@ El nombre del namespace es `{codapp}-{dev|cert|prod}[-suffix]`.
 
 Prod: **dos** regiones que sean par HA de Temporal (no hay Azure–Azure desde `azure-centralus`). Detalle: IAC `docs/TEMPORAL-HA.md`.
 
-PrivateLink: **un PE por entorno** (prod: uno por región HA); las connectivity rules van **por namespace** con el mismo ID. [docs/PRIVATELINK.md](docs/PRIVATELINK.md).
+Red del worker: **internet** (omití `connectivity`) o **Private Endpoint** (`type: private` + ID). Guía: [docs/PRIVATELINK.md](docs/PRIVATELINK.md).
 
 GHA: `deploy-temporal-dev|cert|prod` en PEVE-eda-workflows-develop-v2.
