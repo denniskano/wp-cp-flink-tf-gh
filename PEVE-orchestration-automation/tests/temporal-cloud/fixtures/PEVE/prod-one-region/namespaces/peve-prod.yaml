@@ -1,0 +1,5 @@
+name: peve-prod
+regions:
+  - azure-centralus
+retention_days: 30
+api_key_auth: true

@@ -8,6 +8,6 @@ Objetivo: que un equipo haga **fork** de `PEVE-stream-processing-resources-v1`, 
 |---|---|
 | [MODELO_OPERATIVO.md](MODELO_OPERATIVO.md) | Carpetas, YAML, fork, PR, prerrequisito de SA y tickets de despliegue |
 | [FLINK_COMPUTE_POOLS.md](FLINK_COMPUTE_POOLS.md) | Compute pool, CFU, Autopilot y lifecycle |
-| [FLINK_STATEMENTS.md](FLINK_STATEMENTS.md) | DDL/DML, campos YAML, inmutabilidad del SQL y prácticas |
+| [FLINK_STATEMENTS.md](FLINK_STATEMENTS.md) | DDL/DML, campos YAML, inmutabilidad del SQL, FAILED/DLQ, evolución de schema y prácticas |
 
 El repositorio que versiona el equipo es `PEVE-stream-processing-resources-v1` (solo YAML).

@@ -44,3 +44,8 @@ El workflow baja `api-key`/`service-account` de Vault a `flink_credentials["{SA}
 ## Validación
 
 `validate-flink-yaml.sh` (existencia) corre en GHA **antes** de Terraform. Aún **no** hay JSON Schema para Flink; el de Connect no aplica aquí.
+
+## Operación
+
+- Evolucionar schema del tópico con Flink corriendo (orden `BACKWARD`, carry-over, recuperación si ya está `FAILED`): [docs/SCHEMA-EVOLUTION.md](docs/SCHEMA-EVOLUTION.md).
+- Statement `FAILED`, Resume y DLQ (`error-handling.mode`): [docs/ERROR-HANDLING.md](docs/ERROR-HANDLING.md).

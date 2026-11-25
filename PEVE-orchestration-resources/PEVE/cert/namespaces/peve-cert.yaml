@@ -1,0 +1,20 @@
+name: peve-cert
+regions:
+  - azure-centralus
+retention_days: 14
+api_key_auth: true
+labels:
+  codapp: peve
+  env: cert
+connectivity:
+  - name: peve-cert-pl-centralus
+    type: private
+    region: azure-centralus
+    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-cert/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-cert"
+service_accounts:
+  - name: peve-cert-worker
+    permission: write
+    account_access: developer
+    api_keys:
+      - display_name: peve-cert-worker-key
+        expiry_time: "2028-12-31T00:00:00Z"

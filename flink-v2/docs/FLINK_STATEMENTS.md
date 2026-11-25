@@ -39,6 +39,8 @@ Entonces, los DDLs (`CREATE TABLE`) no siempre son "obligatorios" para visibilid
 
 El SQL de un statement es **inmutable**: no se puede modificar una vez enviado. Si necesitas editar un statement, debes detener el statement actual y crear uno nuevo con el SQL corregido.
 
+El **schema de lectura** tambien queda pineado al crear el statement (latest de SR en ese instante). Resume y `ALTER TABLE` no lo actualizan. Evolucionar el tópico con Flink `RUNNING` (orden `BACKWARD`: Flink nuevo primero, productor despues; carry-over; que hacer si ya esta `FAILED`): procedimiento completo en `PEVE-stream-processing-resources-v2/docs/SCHEMA-EVOLUTION.md`.
+
 ### Qué implica un cambio de SQL
 
 Cualquier cambio en el campo `statement` se trata como **reemplazo**: se elimina el statement y se crea uno nuevo.
@@ -752,6 +754,35 @@ El despliegue aplica DDL y después DML. El pool tiene que existir antes (ticket
 1. Revisar el error en Confluent Cloud Console > Flink > Statements > [statement] > Exceptions
 2. Verificar que el DDL coincide con el schema del topic
 3. Verificar permisos RBAC del SA
+
+Un `INSERT INTO` se puede **Resume** en la consola. Restaura el ultimo checkpoint y vuelve a leer el **mismo offset**. Si el veneno sigue en el topic, vuelve a `FAILED`.
+
+### `error-handling.mode`: `fail` / `ignore` / `log`
+
+Propiedad de la **tabla origen** (la que lees). No va en el `SELECT`, ni en un `SET` de sesion, ni en el destino. Actua solo al **deserializar**. El record **no se mueve** del topic origen. `CAST` / UDF / sink no entran aqui.
+
+| Modo | Statement | El row al INSERT | Rastro | Cuando usarlo |
+|---|---|---|---|---|
+| `fail` (default) | `FAILED` | no | Exceptions | Parar ante schema raro |
+| `ignore` | sigue | no | solo metrica `num_records_in_errors` | DES / basura conocida. En CERT/PROD: perdida silenciosa |
+| `log` | sigue | no | copia al DLQ (offset + bytes + error) | Seguir el pipeline y poder auditar/reprocesar |
+
+`ignore` no crea topic. Flink descarta el row para el query, avanza offset, el origen sigue igual.
+
+`log` hace lo mismo para el pipeline y **ademas** produce al DLQ (`error-handling.log.target`; default `error_log`). No altera el origen; puede crear el topic DLQ + schema.
+
+```sql
+ALTER TABLE mi_tabla_origen SET (
+  'error-handling.mode' = 'log',   -- o 'ignore'
+  'error-handling.log.target' = 'mi_tabla_origen_error_log'
+);
+```
+
+En el YAML: DDL de esa tabla (`CREATE TABLE … WITH` o `ALTER` con `apply: once`). No en el DML.
+
+Si el statement ya esta `FAILED` por schema: `ALTER` a `log` o `ignore` y despues Resume. Con `fail`, Resume vuelve a caer si el veneno sigue en el topic.
+
+Detalle: `PEVE-stream-processing-resources-v2/docs/ERROR-HANDLING.md`. Oficial: [CREATE TABLE](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html), [DLQ](https://docs.confluent.io/cloud/current/flink/how-to-guides/configure-dlq.html).
 
 ### Watermark no progresa
 

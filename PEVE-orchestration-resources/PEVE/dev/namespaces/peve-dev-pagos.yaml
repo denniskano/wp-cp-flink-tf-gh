@@ -1,0 +1,22 @@
+# Segundo namespace del mismo CODAPP/env (opción de varios).
+name: peve-dev-pagos
+regions:
+  - azure-centralus
+retention_days: 14
+api_key_auth: true
+labels:
+  codapp: peve
+  env: dev
+  suffix: pagos
+connectivity:
+  - name: peve-dev-pagos-pl-centralus
+    type: private
+    region: azure-centralus
+    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-dev/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-dev-pagos"
+service_accounts:
+  - name: peve-dev-pagos-worker
+    permission: write
+    account_access: developer
+    api_keys:
+      - display_name: peve-dev-pagos-worker-key
+        expiry_time: "2028-12-31T00:00:00Z"

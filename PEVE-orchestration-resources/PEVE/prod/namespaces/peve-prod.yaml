@@ -1,0 +1,28 @@
+# Prod exige 2 regiones y un par HA válido.
+# azure-centralus NO tiene réplica Azure–Azure; el par documentado es multi-cloud.
+# Cambia el segundo valor según scripts/ci/temporal-ha-pairs.json (IAC).
+name: peve-prod
+regions:
+  - azure-centralus
+  - aws-us-east-1
+retention_days: 30
+api_key_auth: true
+labels:
+  codapp: peve
+  env: prod
+connectivity:
+  - name: peve-prod-pl-centralus
+    type: private
+    region: azure-centralus
+    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-prod/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-prod-centralus"
+  - name: peve-prod-pl-use1
+    type: private
+    region: aws-us-east-1
+    connection_id: "vpce-00000000000000000"
+service_accounts:
+  - name: peve-prod-worker
+    permission: write
+    account_access: developer
+    api_keys:
+      - display_name: peve-prod-worker-key
+        expiry_time: "2028-12-31T00:00:00Z"

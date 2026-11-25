@@ -644,6 +644,8 @@ No pongas `'scan.startup.mode'` en el SQL del DML si quieres carry-over: esa opt
 
 Ejemplos: `dml/insert-filtered-passthrough-v2.yaml`, `v3`, `v4`.
 
+Evolucion de **schema del topico** (no solo del SQL) con jobs corriendo: [SCHEMA-EVOLUTION.md](../../PEVE-stream-processing-resources-v2/docs/SCHEMA-EVOLUTION.md). Con `BACKWARD` (default CCloud) el statement Flink nuevo tiene que estar `RUNNING` **antes** de que el productor escriba la version nueva. Resume del mismo job no toma el schema nuevo. `FAILED` + `initial-offset-from` no hay savepoint: hay que recreate sin carry-over.
+
 ### 10. Orden de ejecucion DDL antes que DML
 
 El modulo Terraform ya maneja esto con `depends_on`:
@@ -733,6 +735,31 @@ lifecycle {
 3. Verificar permisos RBAC del SA
 
 `FAILED` no consume CFU. No es Stopped: **no hay `latest_offsets`**. `stopped: true` no cambia nada. Un `INSERT INTO` se puede **reanudar** (consola / CLI / `stopped: false` si el provider manda resume); hay que corregir la causa o vuelve a fallar.
+
+### `error-handling.mode`: `fail` / `ignore` / `log`
+
+Propiedad de la **tabla origen** (deserializacion al leer). No va en el `SELECT`, ni `SET` de sesion, ni en el destino. El record **sigue en el origen**. `CAST` / UDF / sink no van aca.
+
+| Modo | Statement | El row al INSERT | Rastro | Cuando usarlo |
+|---|---|---|---|---|
+| `fail` (default) | `FAILED` | no | Exceptions | Parar ante schema raro |
+| `ignore` | sigue | no | solo metrica | DES / basura conocida. CERT/PROD: perdida silenciosa |
+| `log` | sigue | no | copia al DLQ | Seguir y auditar/reprocesar |
+
+`ignore`: deserializa, falla, **descarta el row** para el query, avanza offset. No crea topic. No hay payload en ningun DLQ.
+
+`log`: igual para el pipeline, mas produce al DLQ (`error-handling.log.target`; default `error_log`). No altera el origen.
+
+```sql
+ALTER TABLE mi_tabla_origen SET (
+  'error-handling.mode' = 'log',   -- o 'ignore'
+  'error-handling.log.target' = 'mi_tabla_origen_error_log'
+);
+```
+
+En el YAML: DDL de esa tabla. Si ya esta `FAILED` por schema: `ALTER` a `log` o `ignore` y Resume.
+
+Detalle: `PEVE-stream-processing-resources-v2/docs/ERROR-HANDLING.md`. Oficial: [CREATE TABLE](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html), [Configure a DLQ](https://docs.confluent.io/cloud/current/flink/how-to-guides/configure-dlq.html).
 
 ### Carry-over y statement FAILED
 

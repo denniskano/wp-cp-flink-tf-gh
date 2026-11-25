@@ -1,0 +1,168 @@
+name: Deploy-Temporal-Cert
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      CODAPP:
+        description: 'Código de aplicación de 4 letras'
+        required: true
+        type: string
+
+run-name: >
+  ${{ github.event.inputs.CODAPP }} ${{ github.workflow }} [${{ github.event.inputs.action }}]
+
+env:
+  VAULT_ADDR: "https://vaultcert.lima.bcp.com.pe:443"
+  CODAPP: ${{ github.event.inputs.CODAPP }}
+  ENV_FOLDER: cert
+  ENVIRONMENT_HV: cert
+  TERRAFORM_VERSION: "1.5.0"
+  TERRAFORM_WORKDIR: iac/stacks/temporal-cloud
+  RESOURCE_GROUP_NAME: RSGREU2PEVEC01
+  STORAGE_CONTAINER_NAME: tf-temporal-cert
+  STORAGE_CONTAINER_APP_PATH: cert/${{ github.event.inputs.CODAPP }}/temporal-cloud/tf-temporal.tfstate
+  GITHUB_APP_ID: ${{ vars.NUM_GITHUB_APP_ID }}
+  OWNER_EXTERNO: "BCP-Integration-Automation"
+  REPO_EXTERNO: "PEVE-orchestration-resources"
+  OWNER_IAC: "BCP-Integration-Automation"
+  REPO_IAC: "PEVE-orchestration-automation"
+  BRANCH_IAC: master
+  RESOURCES_BRANCH_EXTERNO: master
+
+jobs:
+  deploy-temporal:
+    name: "Temporal ${{ github.event.inputs.CODAPP }} ${{ env.ENV_FOLDER }}"
+    runs-on: arc-runner-cert-set
+    environment: APP_PEVE_CI_CERT
+    steps:
+      - name: Install basic tools
+        run: |
+          sudo apt-get update >/dev/null 2>&1
+          sudo apt-get install -y jq unzip git wget tree ca-certificates gettext >/dev/null 2>&1
+
+      - name: Get secrets from Vault
+        id: vault
+        uses: hashicorp/vault-action@v3
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          tlsSkipVerify: true
+          method: approle
+          roleId: ${{ secrets.APP_ROLEID_PEVE_CERT }}
+          secretId: ${{ secrets.APP_ROLESECRET_PEVE_CERT }}
+          exportToken: true
+          secrets: |
+            peve/kv2/data/cert/peve/ccloud/PEVE_GHA_ARM_ACCESS_KEY secret | PEVE_GHA_ARM_ACCESS_KEY ;
+            peve/kv2/data/cert/peve/temporal/PEVE_GHA_TEMPORAL_CLOUD_API_KEY secret | TEMPORAL_CLOUD_API_KEY ;
+            peve/kv2/data/cert/peve/temporal/ghapp_peve_self_service_pk secret | ghapp_pk ;
+
+      - name: GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ env.GITHUB_APP_ID }}
+          private-key: ${{ steps.vault.outputs.ghapp_pk }}
+          owner: ${{ env.OWNER_EXTERNO }}
+          repositories: |
+            ${{ env.REPO_EXTERNO }}
+            ${{ env.REPO_IAC }}
+
+      - name: Checkout IAC
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_IAC }}/${{ env.REPO_IAC }}
+          ref: ${{ env.BRANCH_IAC }}
+          path: iac
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Checkout YAML
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OWNER_EXTERNO }}/${{ env.REPO_EXTERNO }}
+          ref: ${{ env.RESOURCES_BRANCH_EXTERNO }}
+          path: externo
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Install yq
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Validate Temporal YAML
+        run: |
+          chmod +x ./iac/scripts/ci/validate-temporal-yaml.sh ./iac/scripts/ci/push-temporal-apikeys-vault.sh
+          ./iac/scripts/ci/validate-temporal-yaml.sh \
+            "${{ env.CODAPP }}" \
+            "${{ env.ENV_FOLDER }}" \
+            "./externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}" \
+            "${{ github.event.inputs.action }}"
+
+      - name: Terraform Init
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        env:
+          ARM_ACCESS_KEY: ${{ steps.vault.outputs.PEVE_GHA_ARM_ACCESS_KEY }}
+        run: |
+          terraform init \
+            -backend-config="storage_account_name=${{ vars.STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ env.STORAGE_CONTAINER_NAME }}" \
+            -backend-config="key=${{ env.STORAGE_CONTAINER_APP_PATH }}" \
+            -backend-config="resource_group_name=${{ env.RESOURCE_GROUP_NAME }}" \
+            -backend-config="access_key=${ARM_ACCESS_KEY}"
+
+      - name: Terraform Plan
+        if: github.event.inputs.action != 'destroy'
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        env:
+          ARM_ACCESS_KEY: ${{ steps.vault.outputs.PEVE_GHA_ARM_ACCESS_KEY }}
+          TF_VAR_temporal_cloud_api_key: ${{ steps.vault.outputs.TEMPORAL_CLOUD_API_KEY }}
+          TF_VAR_namespaces_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/namespaces
+          TF_VAR_nexus_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/nexus
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        env:
+          ARM_ACCESS_KEY: ${{ steps.vault.outputs.PEVE_GHA_ARM_ACCESS_KEY }}
+          TF_VAR_temporal_cloud_api_key: ${{ steps.vault.outputs.TEMPORAL_CLOUD_API_KEY }}
+          TF_VAR_namespaces_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/namespaces
+          TF_VAR_nexus_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/nexus
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Push worker API keys to Vault
+        if: github.event.inputs.action == 'apply'
+        env:
+          VAULT_ADDR: ${{ env.VAULT_ADDR }}
+          VAULT_SKIP_VERIFY: "true"
+        run: |
+          curl -fsSL -o /tmp/vault.zip https://releases.hashicorp.com/vault/1.15.6/vault_1.15.6_linux_amd64.zip
+          sudo unzip -o /tmp/vault.zip -d /usr/local/bin
+          ./iac/scripts/ci/push-temporal-apikeys-vault.sh \
+            "${{ env.CODAPP }}" \
+            "${{ env.ENV_FOLDER }}" \
+            "${{ env.TERRAFORM_WORKDIR }}"
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        working-directory: ${{ env.TERRAFORM_WORKDIR }}
+        env:
+          ARM_ACCESS_KEY: ${{ steps.vault.outputs.PEVE_GHA_ARM_ACCESS_KEY }}
+          TF_VAR_temporal_cloud_api_key: ${{ steps.vault.outputs.TEMPORAL_CLOUD_API_KEY }}
+          TF_VAR_namespaces_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/namespaces
+          TF_VAR_nexus_dir: ${{ github.workspace }}/externo/${{ env.CODAPP }}/${{ env.ENV_FOLDER }}/nexus
+        run: terraform destroy -input=false -auto-approve

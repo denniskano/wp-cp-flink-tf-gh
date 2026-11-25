@@ -1,0 +1,33 @@
+# Namespace principal DES. Región: azure-centralus (sin HA Azure–Azure).
+name: peve-dev
+regions:
+  - azure-centralus
+retention_days: 14
+api_key_auth: true
+labels:
+  codapp: peve
+  env: dev
+connectivity:
+  - name: peve-dev-pl-centralus
+    type: private
+    region: azure-centralus
+    # Lo emite Cloud Governance (ver docs/PRIVATELINK.md del IAC).
+    azure_pe_resource_id: "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-peve-dev/providers/Microsoft.Network/privateEndpoints/pe-temporal-peve-dev"
+search_attributes:
+  - name: CustomerId
+    type: keyword
+  - name: OrderAmount
+    type: double
+service_accounts:
+  - name: peve-dev-worker
+    permission: write
+    account_access: developer
+    extra_namespaces:
+      - name: peve-dev-pagos
+        permission: read
+    api_keys:
+      - display_name: peve-dev-worker-key
+        expiry_time: "2028-12-31T00:00:00Z"
+users:
+  - email: peve-temporal-dev@bcp.com.pe
+    permission: write

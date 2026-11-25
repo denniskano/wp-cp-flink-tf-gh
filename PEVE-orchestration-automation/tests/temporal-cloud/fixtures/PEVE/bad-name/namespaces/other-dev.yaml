@@ -1,0 +1,5 @@
+name: other-dev
+regions:
+  - azure-centralus
+retention_days: 14
+api_key_auth: true

@@ -1,0 +1,7 @@
+name: peve-pagos-nexus
+description: |
+  Nexus de ejemplo: pagos invoca workers en peve-dev.
+target_namespace: peve-dev
+task_queue: peve-dev-tq
+allowed_callers:
+  - peve-dev-pagos
