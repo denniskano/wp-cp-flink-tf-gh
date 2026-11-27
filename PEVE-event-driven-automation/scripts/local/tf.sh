@@ -48,8 +48,6 @@ case "${STACK}" in
     SCHEMA_REGISTRY_ID="${SCHEMA_REGISTRY_ID:-lsrc-9rgmm7}"
     ENVIRONMENT="${ENVIRONMENT:-DES}"
     FLINK_CREDS_B64="${FLINK_CREDS_B64:-$(printf '%s' '{}' | base64)}"
-    # Sin IS_ONLY_DDL: DDL+DML. CI: true = DDL; false = DML + marcadores once.
-    export IS_ONLY_DDL="${IS_ONLY_DDL:-}"
     if [[ -n "${FLINK_PRIVATE_REST_ENDPOINT:-}" ]]; then
       export TF_VAR_flink_private_rest_endpoint="${FLINK_PRIVATE_REST_ENDPOINT}"
     fi

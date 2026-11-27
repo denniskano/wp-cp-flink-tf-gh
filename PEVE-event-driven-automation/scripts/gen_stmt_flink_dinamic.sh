@@ -23,9 +23,6 @@ echo "PATH_HV_APP=$PATH_HV_APP; para validar si se pueden usar variables de ento
 #
 #
 #
-# true = solo DDL; false = solo DML; vacío/omitido = los dos (local / tf.sh).
-: "${IS_ONLY_DDL:=}"
-echo "IS_ONLY_DDL = ${IS_ONLY_DDL:-both}"
 ##### SET PATHS: DIRECTORY DDL DML AUTOMATIONS #####
 AUTOMATION_DIRNAME="./resources"
 echo "AUTOMATION_DIRNAME: $AUTOMATION_DIRNAME"
@@ -122,6 +119,16 @@ load_file_stmts_all(){
       rm -f "$tmp"
       echo "ERROR: apply debe ser managed, ignore o once (o omitirse). $stmt: apply=$APPLY" >&2
       exit 1
+    fi
+    if [[ -n "${STOP_STATEMENT_NAME:-}" && "${STATEMENT_NAME}" == "${STOP_STATEMENT_NAME}" && "${stmts_path}" == "${YAML_FILES_DML_PATH}" ]]; then
+      if [[ "${APPLY}" != "managed" ]]; then
+        rm -f "$tmp"
+        echo "ERROR: stop_statement ${STATEMENT_NAME} debe ser un DML managed (apply=${APPLY})" >&2
+        exit 1
+      fi
+      export STOPPED="true"
+      STOP_DML_HIT=1
+      echo "... Action: ${STATEMENT_NAME} → stopped=true (solo este DML)"
     fi
     if [[ -n "$only_apply" && "$APPLY" != "$only_apply" ]]; then
       rm -f "$tmp"
@@ -272,18 +279,11 @@ if [[ -f "$ARCHIVO_TF_RBAC_FULL" ]]; then
   export DEPENDS_ON_BLOCK="$depends_on__rbacs_block"
 fi
 export is_resultado_yaml_ddl=$(validate_path_yamls $YAML_FILES_DDL_PATH)
-if [[ $is_resultado_yaml_ddl == true && ( -z "${IS_ONLY_DDL}" || "${IS_ONLY_DDL}" == "true" ) ]] ; then
+if [[ $is_resultado_yaml_ddl == true ]]; then
   echo "... ... Procesar DDLs with $DEPENDS_ON_BLOCK"
   load_file_stmts_all "$YAML_FILES_DDL_PATH" "$TF_VAR_flink_credentials" "$ARCHIVO_TF_STMTS_ALL" "$ARCHIVO_TPL_STMTS" "$LIST_CPS_PATH"
-elif [[ "${IS_ONLY_DDL}" == "false" && $is_resultado_yaml_ddl == true ]]; then
-  # Pase DML (CI, con backend): los marcadores once tienen que entrar al state
-  # remoto. Managed se omite (ya se aplicó en el pase DDL sin backend).
-  echo "... IS_ONLY_DDL=false: persistir DDL apply:once en el state de DML"
-  load_file_stmts_all "$YAML_FILES_DDL_PATH" "$TF_VAR_flink_credentials" "$ARCHIVO_TF_STMTS_ALL" "$ARCHIVO_TPL_STMTS" "$LIST_CPS_PATH" "once"
-elif [[ "${IS_ONLY_DDL}" == "false" ]]; then
-  echo "... Skip DDL (IS_ONLY_DDL=false, sin YAML DDL)"
 else
-  echo "... Warning DDL: path o yamls no exiten en $YAML_FILES_DDL_PATH. Pasa a DML"
+  echo "... Warning DDL: path o yamls no existen en $YAML_FILES_DDL_PATH. Pasa a DML"
 fi
 #
 #
@@ -302,13 +302,16 @@ if [[ -s "$ARCHIVO_TF_STMTS_ALL" ]]; then
 fi
 #
 resultado=$(validate_path_yamls $YAML_FILES_DML_PATH)
-if [[ $resultado == true && ( -z "${IS_ONLY_DDL}" || "${IS_ONLY_DDL}" == "false" ) ]] ; then
+STOP_DML_HIT=0
+if [[ $resultado == true ]]; then
   echo "... ... Procesar DMLs with $DEPENDS_ON_BLOCK"
-  load_file_stmts_all "$YAML_FILES_DML_PATH" "$TF_VAR_flink_credentials" "$ARCHIVO_TF_STMTS_ALL" "$ARCHIVO_TPL_STMTS" "$LIST_CPS_PATH" 
-elif [[ "${IS_ONLY_DDL}" == "true" ]]; then
-  echo "... Skip DML (IS_ONLY_DDL=true)"
+  load_file_stmts_all "$YAML_FILES_DML_PATH" "$TF_VAR_flink_credentials" "$ARCHIVO_TF_STMTS_ALL" "$ARCHIVO_TPL_STMTS" "$LIST_CPS_PATH"
 else
-  echo "... Warning DML: path o yamls no exiten en $YAML_FILES_DML_PATH. Fin."
+  echo "... Warning DML: path o yamls no existen en $YAML_FILES_DML_PATH. Fin."
+fi
+if [[ -n "${STOP_STATEMENT_NAME:-}" && "${STOP_DML_HIT}" -ne 1 ]]; then
+  echo "ERROR: stop_statement '${STOP_STATEMENT_NAME}' no coincide con ningún DML managed de ${YAML_FILES_DML_PATH}" >&2
+  exit 1
 fi
 #
 echo "FIN - LOAD STATEMENTS, CPS"

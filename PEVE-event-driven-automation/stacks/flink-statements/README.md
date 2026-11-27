@@ -7,15 +7,7 @@ Statements y RBAC por codegen:
 
 Los tpl están en `resources/template/`. Esos `.tf` no van al repo.
 
-## `IS_ONLY_DDL`
-
-| Valor | Qué genera |
-|---|---|
-| omitido / vacío | DDL y DML (local, `tf.sh`) |
-| `true` | solo DDL — credenciales `VAR_confluent_flink_api_key` / `_secret`. Sin backend: el marcador `once` no sobrevive al job |
-| `false` | DML + marcadores DDL `apply: once` (entran a `tf-flink-stmts.tfstate`) |
-
-El CI de v2 hace **dos pases** (`true` luego `false`). En local no hace falta.
+Un apply genera **DDL y DML** (ciclo v1: `apply` + `stopped`). RBAC va en un plan aparte (otro blob). El GHA no tiene `IS_ONLY_DDL`. Input opcional `stop_statement`: `statement-name` de un DML managed → ese apply lo deja `stopped=true` (el YAML no se reescribe; el próximo run sin el input usa el `stopped` del YAML).
 
 ## `properties` y versionado
 
@@ -39,7 +31,7 @@ El codegen las mete en `properties` junto a `sql.current-catalog` / `sql.current
 | `ignore` | nada (comentario). Plan: destroy si estaba managed |
 | `once` | `terraform_data` + `scripts/apply-once.sh` (REST). No se re-crea si CCloud purgó el job |
 
-`once` no hace falta pasarlo a `ignore` a los 30 días si el marcador ya está en el state de DML. `apply: ignore` si el ALTER ya tiene más de 30 días **y** nunca hubo pase DML (CCloud purgó el job; el primer persist reenviaría el SQL). Un DML streaming con `stopped` tiene que ser `managed`.
+`once` queda en el mismo blob que el DML (`tf-flink-stmts.tfstate`); no hace falta pasarlo a `ignore` a los 30 días. Un DML streaming con `stopped` tiene que ser `managed`.
 
 ## Provider (un solo archivo)
 
@@ -49,13 +41,10 @@ En el runner, **reemplazar** ese archivo; no crear `provider.tf`:
 
 ```bash
 # desde stacks/flink-statements
-./../../scripts/ci/select-flink-provider.sh a   # DML / apply con state
-./../../scripts/ci/select-flink-provider.sh b   # DDL sin backend (IS_ONLY_DDL=true)
+./../../scripts/ci/select-flink-provider.sh a   # RBAC y statements (backend Azure)
 ```
 
-El GHA de v2 todavía hace `cp … provider.tf` porque su workdir commitea `provider.tf`. Cuando el `-chdir` sea este stack, usa el script de arriba.
-
-`provider-a` = backend Azure. `provider-b` = sin backend. Los dos llevan `cloud_api_key` (data de pool/SA).
+`provider-a` = backend Azure. `provider-b` quedó de un pase DDL sin state; el GHA ya no lo usa.
 
 State DES: `tf-flink-stm-dev` / `dev/{CODAPP}/ccloud-flink/{pipeline}/tf-flink-rbacs-stmts.tfstate`.
 

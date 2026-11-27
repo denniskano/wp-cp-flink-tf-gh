@@ -71,7 +71,6 @@ else
   GEN_STMT="${ROOT}/scripts/gen_stmt_flink_dinamic.sh"
   CREDS_JSON='{"SA_AZC_DES_APPV_CDPEVEFL_01/AK_AZC_DES_APPV_FLINK_CDPEVEFL_01":{"key":"k","secret":"s"},"SA_AZC_DES_APPV_PEVEMQFL_02/AK_AZC_DES_APPV_FLINK_PEVEMQFL_01":{"key":"k","secret":"s"},"SA_AZC_DES_PEVE_PEVEMQFL_03/AK_AZC_DES_PEVE_FLINK_PEVEMQFL_01":{"key":"k","secret":"s"},"SA_AZC_DES_PEVE_CDPEVEFL_04/AK_AZC_DES_PEVE_FLINK_CDPEVEFL_01":{"key":"k","secret":"s"}}'
   CREDS_B64="$(printf '%s' "${CREDS_JSON}" | base64)"
-  unset IS_ONLY_DDL
   (
     cd "${ROOT}"
     "${GEN_STMT}" \
@@ -98,11 +97,13 @@ else
   grep -q 'statement-dml-insert-internal-from-input-compra' "${OUT}/stmt_flink.tf" \
     || fail "DML real de compras-04 ausente"
   grep -q 'rowtime' "${OUT}/stmt_flink.tf" || fail "envsubst se comió \$rowtime del YAML PEVE"
+  grep -q 'rest_endpoint = var.flink_private_rest_endpoint' "${OUT}/stmt_flink.tf" \
+    || fail "rest_endpoint debe ser solo el Private Link (sin REST público)"
   ok "codegen stmt properties + once + ignore"
 
-  echo "== codegen gen_stmt IS_ONLY_DDL=false (once en state DML) =="
-  OUT_DML="$(mktemp -d)"
-  export IS_ONLY_DDL=false
+  echo "== codegen STOP_STATEMENT_NAME (un DML stopped) =="
+  OUT_STOP="$(mktemp -d)"
+  export STOP_STATEMENT_NAME="statement-dml-insert-internal-from-input-compra"
   (
     cd "${ROOT}"
     "${GEN_STMT}" \
@@ -113,43 +114,13 @@ else
       "${CREDS_B64}" \
       "${STMT}" \
       "DES" \
-      "${OUT_DML}"
-  ) || fail "codegen stmt IS_ONLY_DDL=false"
-  grep -q 'terraform_data.once_statement-ddl-alter-headers-once\|resource "terraform_data" "once_statement-ddl-alter-headers-once"' \
-    "${OUT_DML}/stmt_flink.tf" || fail "pase DML no persistió el marcador once"
-  if grep -q 'statement_statement-ddl-create-azc-peve-poc-input-compra' "${OUT_DML}/stmt_flink.tf"; then
-    fail "pase DML no debe generar DDL managed"
-  fi
-  grep -q 'statement-dml-insert-internal-v2' "${OUT_DML}/stmt_flink.tf" || fail "pase DML sin DML"
-  ok "codegen stmt IS_ONLY_DDL=false persistió once"
-
-  echo "== codegen gen_stmt IS_ONLY_DDL=true (solo DDL) =="
-  OUT_DDL="$(mktemp -d)"
-  export IS_ONLY_DDL=true
-  (
-    cd "${ROOT}"
-    "${GEN_STMT}" \
-      "11111111-1111-1111-1111-111111111111" \
-      "env-xxxxx" \
-      "bcp_desa" \
-      "AZURE_EU2_DESA_KAFKA01" \
-      "${CREDS_B64}" \
-      "${STMT}" \
-      "DES" \
-      "${OUT_DDL}"
-  ) || fail "codegen stmt IS_ONLY_DDL=true"
-  grep -q 'resource "terraform_data" "once_statement-ddl-alter-headers-once"' \
-    "${OUT_DDL}/stmt_flink.tf" || fail "pase DDL sin marcador once"
-  grep -q 'statement-ddl-create-azc-peve-poc-input-compra' "${OUT_DDL}/stmt_flink.tf" \
-    || fail "pase DDL sin CREATE managed"
-  if grep -q 'statement-dml-insert-internal' "${OUT_DDL}/stmt_flink.tf"; then
-    fail "pase DDL no debe generar DML"
-  fi
-  grep -q 'rest_endpoint = var.flink_private_rest_endpoint' "${OUT_DDL}/stmt_flink.tf" \
-    || fail "rest_endpoint debe ser solo el Private Link (sin REST público)"
-  ok "codegen stmt IS_ONLY_DDL=true solo DDL"
-  unset IS_ONLY_DDL
-  rm -rf "${OUT_DML}" "${OUT_DDL}"
+      "${OUT_STOP}"
+  ) || fail "codegen stop_statement"
+  grep -q 'tobool("true")' "${OUT_STOP}/stmt_flink.tf" \
+    || fail "stop_statement no forzó stopped=true"
+  unset STOP_STATEMENT_NAME
+  rm -rf "${OUT_STOP}"
+  ok "codegen STOP_STATEMENT_NAME"
 fi
 
 echo "tests/flink-statements: OK"

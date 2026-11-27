@@ -18,11 +18,11 @@ on:
         description: 'Nombre de Pipeline flink para desplegar.'
         required: true
         type: string
-      IS_ONLY_DDL:
-        type: boolean
-        description: "Permitir solo DDL"
+      stop_statement:
+        description: 'statement-name de un DML a dejar stopped=true. Vacío = no tocar.'
         required: false
-        default: false
+        type: string
+        default: ''
 #
 run-name: >
    ${{ github.event.inputs.CODAPP }} ${{ github.workflow }} [${{ github.event.inputs.action }}]
@@ -51,6 +51,7 @@ env:
   API_KEY_FLINK: AK_AZC_DES_PEVE_FLINK_STATEMEN_01
   ENVIRONMENT: DES
   ENVIRONMENT_HV: dev     #dev/cert/prod
+  STOP_STATEMENT_NAME: ${{ github.event.inputs.stop_statement }}
   REVERSION_FLAG: ${{ github.event.inputs.reversion }}
   REVERSION_COMMIT: ${{ github.event.inputs.reversion_commit }}
   BRANCH_AUTOMATION: automation-v3-flink-stream-processing
@@ -394,49 +395,6 @@ jobs:
             | base64 -w0
             )"
           echo "TF_VAR_flink_credentials=$json" >> "$GITHUB_ENV"
-#--------------------------------------------------------------------------------------------
-#----  DDL ----
-#--------------------------------------------------------------------------------------------
-      - name: Generate stmts_flink.tf files DDL
-        shell: bash
-        env:
-          VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
-          VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
-          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
-        run: |
-          script_name=gen_stmt_flink_dinamic.sh
-          chmod +x ./scripts/$script_name
-          ./scripts/$script_name \
-            "${{ env.ORGANIZATION_ID }}" \
-            "${{ env.ENVIRONMENT_ID }}" \
-            "${{ env.CATALOG_NAME }}" \
-            "${{ env.CLUSTER_NAME }}" \
-            "${{ env.TF_VAR_flink_credentials }}" \
-            "${{ env.TF_VAR_statements_dir }}/statement" \
-            "${{ env.ENVIRONMENT }}" \
-            "${{ env.TERRAFORM_WORKDIR }}"
-#
-      - name: Terraform Init - DDL - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
-        run: |
-          ../../scripts/ci/select-flink-provider.sh b
-          terraform init
-        env:
-          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
-          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
-
-      - name: Terraform Plan - DDL - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
-        run: terraform plan
-#        if: github.event.inputs.action != 'destroy'
-        env:
-          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
-          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
-          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
-#          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
-
 
 #---------------------------------------------------------------------------------------------------
 # RBAC
@@ -459,7 +417,6 @@ jobs:
             ls -liah .
 
       - name: Generate rbac_flink.tf files
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         shell: bash
         env:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
@@ -480,7 +437,6 @@ jobs:
 #
 #
       - name: Terraform Init - RBAC - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: |
           terraform init \
@@ -494,7 +450,6 @@ jobs:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
 #
       - name: Terraform Plan - RBAC - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: terraform plan
 #        if: github.event.inputs.action != 'destroy'
@@ -511,7 +466,6 @@ jobs:
 #
 #-------- CLEAN 2
       - name: Cleam *** 2 ***
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         shell: bash
         run: |
@@ -527,13 +481,11 @@ jobs:
             ls -liah .
 
 #PASO C - DML
-      - name: Generate stmts_flink.tf files *** DML ***
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+      - name: Generate stmts_flink.tf files (DDL + DML)
         shell: bash
         env:
           VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
           VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
-          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
         run: |
           script_name=gen_stmt_flink_dinamic.sh
           chmod +x ./scripts/$script_name
@@ -548,7 +500,6 @@ jobs:
             "${{ env.TERRAFORM_WORKDIR }}"
 #
       - name: Terraform Init - DML - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: |
           terraform init \
@@ -562,7 +513,6 @@ jobs:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
 #
       - name: Terraform Plan - DML - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: terraform plan
 #        if: github.event.inputs.action != 'destroy'
@@ -809,48 +759,6 @@ jobs:
           echo "TF_VAR_flink_credentials=$json" >> "$GITHUB_ENV"
 
 
-#--------------------------------------------------------------------------------------------
-#----  DDL ----
-#--------------------------------------------------------------------------------------------
-      - name: Generate stmts_flink.tf files DDL
-        shell: bash
-        env:
-          VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
-          VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
-          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
-        run: |
-          script_name=gen_stmt_flink_dinamic.sh
-          chmod +x ./scripts/$script_name
-          ./scripts/$script_name \
-            "${{ env.ORGANIZATION_ID }}" \
-            "${{ env.ENVIRONMENT_ID }}" \
-            "${{ env.CATALOG_NAME }}" \
-            "${{ env.CLUSTER_NAME }}" \
-            "${{ env.TF_VAR_flink_credentials }}" \
-            "${{ env.TF_VAR_statements_dir }}/statement" \
-            "${{ env.ENVIRONMENT }}" \
-            "${{ env.TERRAFORM_WORKDIR }}"
-#
-      - name: Terraform Init - DDL - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
-        run: |
-          ../../scripts/ci/select-flink-provider.sh b
-          terraform init
-        env:
-          ARM_ACCESS_KEY: ${{ env.PEVE_GHA_ARM_ACCESS_KEY }}
-#          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
-#
-      - name: Terraform Apply - DDL - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'true' }}
-        working-directory: ${{ env.TERRAFORM_WORKDIR }}
-        run: terraform apply -auto-approve 
-#        if: github.event.inputs.action != 'destroy'
-        env:
-          TF_VAR_flink_private_rest_endpoint: ${{ env.FLINK_PRIVATE_REST_ENDPOINT }}
-          TF_VAR_confluent_cloud_api_key: ${{ env.CONFLUENT_CLOUD_API_KEY }}
-          TF_VAR_confluent_cloud_api_secret: ${{ env.CONFLUENT_CLOUD_API_SECRET }}
-#          HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
 
 #---------------------------------------------------------------------------------------------------
 # RBAC
@@ -874,7 +782,6 @@ jobs:
 
   #PASO B - RBACS
       - name: Generate rbac_flink.tf files
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         shell: bash
         env:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
@@ -895,7 +802,6 @@ jobs:
 #
 #
       - name: Terraform Init - RBAC - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: |
           terraform init \
@@ -909,7 +815,6 @@ jobs:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
 #
       - name: Terraform Apply - RBAC - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: terraform apply -auto-approve 
 #        if: github.event.inputs.action != 'destroy'
@@ -926,7 +831,6 @@ jobs:
 #
 #-------- CLEAN 2
       - name: Cleam *** 2 ***
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         shell: bash
         run: |
@@ -942,13 +846,11 @@ jobs:
             ls -liah .
 
   #PASO C - DML
-      - name: Generate stmts_flink.tf files  *** DML ***
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
+      - name: Generate stmts_flink.tf files (DDL + DML)
         shell: bash
         env:
           VAR_confluent_flink_api_key: ${{ env.CONFLUENT_FLINK_API_KEY }}
           VAR_confluent_flink_api_secret: ${{ env.CONFLUENT_FLINK_API_SECRET }}
-          IS_ONLY_DDL: ${{ github.event.inputs.IS_ONLY_DDL }}
         run: |
           script_name=gen_stmt_flink_dinamic.sh
           chmod +x ./scripts/$script_name
@@ -963,7 +865,6 @@ jobs:
             "${{ env.TERRAFORM_WORKDIR }}"
   #
       - name: Terraform Init - DML - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: |
           terraform init \
@@ -977,7 +878,6 @@ jobs:
           HV_PEVE_SECRETS: ${{ toJson(steps.get-secrets-hv.outputs) }}
   #
       - name: Terraform Apply - DML - ${{ env.TERRAFORM_WORKDIR }}
-        if: ${{ github.event.inputs.IS_ONLY_DDL == 'false' }}
         working-directory: ${{ env.TERRAFORM_WORKDIR }}
         run: terraform apply -auto-approve 
 #        if: github.event.inputs.action != 'destroy'

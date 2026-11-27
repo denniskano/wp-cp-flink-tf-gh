@@ -41,8 +41,7 @@ scripts/gen_cp_flink_dinamic.sh          → stacks/flink-compute-pool/cp_flink.
 scripts/gen_rbac_flink_dinamic.sh        → rbac_flink.tf + data_sa_flink.tf
 scripts/gen_stmt_flink_dinamic.sh        → stmt_flink.tf + data_cp_flink.tf
                                         # properties, apply managed|ignore|once, catalog/cluster en el SQL
-                                        # IS_ONLY_DDL=false también emite DDL apply:once (marcador en state DML)
-                                        # rest: solo var.flink_private_rest_endpoint (Private Link; sin REST público)
+                                        # un apply: DDL + DML (como v1). rest: solo Private Link
 ```
 
 Los tres scripts son los de v2. Buscan `./resources/template` desde el cwd; por eso el workflow copia `iac/resources` → `./resources`. `gen_rbac` necesita `CC_SR_PROPERTIES_ID`, `CC_SR_PROPERTIES` y `HV_PEVE_SECRETS`.
