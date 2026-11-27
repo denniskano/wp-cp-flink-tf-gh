@@ -19,7 +19,7 @@ on:
         required: true
         type: string
       stop_statement:
-        description: 'statement-name de un DML a dejar stopped=true. Vacío = no tocar.'
+        description: 'Uno o más statement-name DML (separados por coma) a dejar stopped=true. Vacío = no tocar.'
         required: false
         type: string
         default: ''

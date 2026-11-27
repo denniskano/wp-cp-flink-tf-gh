@@ -7,7 +7,7 @@ Statements y RBAC por codegen:
 
 Los tpl están en `resources/template/`. Esos `.tf` no van al repo.
 
-Un apply genera **DDL y DML** (ciclo v1: `apply` + `stopped`). RBAC va en un plan aparte (otro blob). El GHA no tiene `IS_ONLY_DDL`. Input opcional `stop_statement`: `statement-name` de un DML managed → ese apply lo deja `stopped=true` (el YAML no se reescribe; el próximo run sin el input usa el `stopped` del YAML).
+Un apply genera **DDL y DML** (ciclo v1: `apply` + `stopped`). RBAC va en un plan aparte (otro blob). El GHA no tiene `IS_ONLY_DDL`. Input opcional `stop_statement`: uno o más `statement-name` DML managed, separados por coma → ese apply los deja `stopped=true` (el YAML no se reescribe; el próximo run sin el input usa el `stopped` del YAML). Si un nombre no existe o no es DML managed, el codegen falla.
 
 ## `properties` y versionado
 

@@ -44,6 +44,27 @@ require_var() {
   fi
 }
 
+# STOP_STATEMENT_NAME: uno o más statement-name DML (coma / ; / espacio / salto).
+# El YAML no se reescribe; solo este apply fuerza stopped=true.
+STOP_STATEMENT_NAMES=()
+if [[ -n "${STOP_STATEMENT_NAME:-}" ]]; then
+  _stop_raw=$(printf '%s' "${STOP_STATEMENT_NAME}" | tr ',;\n' '   ')
+  # shellcheck disable=SC2206
+  STOP_STATEMENT_NAMES=( ${_stop_raw} )
+  unset _stop_raw
+fi
+STOP_DML_HIT_LIST=""
+
+want_stop_statement() {
+  local name="$1"
+  local n
+  [[ ${#STOP_STATEMENT_NAMES[@]} -eq 0 ]] && return 1
+  for n in "${STOP_STATEMENT_NAMES[@]}"; do
+    [[ "$n" == "$name" ]] && return 0
+  done
+  return 1
+}
+
 # apply: omitido/managed | ignore | once  (igual que flink-v1)
 yaml_apply() {
   local f="$1"
@@ -120,15 +141,15 @@ load_file_stmts_all(){
       echo "ERROR: apply debe ser managed, ignore o once (o omitirse). $stmt: apply=$APPLY" >&2
       exit 1
     fi
-    if [[ -n "${STOP_STATEMENT_NAME:-}" && "${STATEMENT_NAME}" == "${STOP_STATEMENT_NAME}" && "${stmts_path}" == "${YAML_FILES_DML_PATH}" ]]; then
+    if want_stop_statement "${STATEMENT_NAME}" && [[ "${stmts_path}" == "${YAML_FILES_DML_PATH}" ]]; then
       if [[ "${APPLY}" != "managed" ]]; then
         rm -f "$tmp"
         echo "ERROR: stop_statement ${STATEMENT_NAME} debe ser un DML managed (apply=${APPLY})" >&2
         exit 1
       fi
       export STOPPED="true"
-      STOP_DML_HIT=1
-      echo "... Action: ${STATEMENT_NAME} → stopped=true (solo este DML)"
+      STOP_DML_HIT_LIST="${STOP_DML_HIT_LIST} ${STATEMENT_NAME}"
+      echo "... Action: ${STATEMENT_NAME} → stopped=true (override stop_statement)"
     fi
     if [[ -n "$only_apply" && "$APPLY" != "$only_apply" ]]; then
       rm -f "$tmp"
@@ -302,16 +323,25 @@ if [[ -s "$ARCHIVO_TF_STMTS_ALL" ]]; then
 fi
 #
 resultado=$(validate_path_yamls $YAML_FILES_DML_PATH)
-STOP_DML_HIT=0
+STOP_DML_HIT_LIST=""
 if [[ $resultado == true ]]; then
   echo "... ... Procesar DMLs with $DEPENDS_ON_BLOCK"
   load_file_stmts_all "$YAML_FILES_DML_PATH" "$TF_VAR_flink_credentials" "$ARCHIVO_TF_STMTS_ALL" "$ARCHIVO_TPL_STMTS" "$LIST_CPS_PATH"
 else
   echo "... Warning DML: path o yamls no existen en $YAML_FILES_DML_PATH. Fin."
 fi
-if [[ -n "${STOP_STATEMENT_NAME:-}" && "${STOP_DML_HIT}" -ne 1 ]]; then
-  echo "ERROR: stop_statement '${STOP_STATEMENT_NAME}' no coincide con ningún DML managed de ${YAML_FILES_DML_PATH}" >&2
-  exit 1
+if [[ ${#STOP_STATEMENT_NAMES[@]} -gt 0 ]]; then
+  missing=()
+  for n in "${STOP_STATEMENT_NAMES[@]}"; do
+    case " ${STOP_DML_HIT_LIST} " in
+      *" ${n} "*) ;;
+      *) missing+=("$n") ;;
+    esac
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "ERROR: stop_statement no coincide con DML managed de ${YAML_FILES_DML_PATH}: ${missing[*]}" >&2
+    exit 1
+  fi
 fi
 #
 echo "FIN - LOAD STATEMENTS, CPS"

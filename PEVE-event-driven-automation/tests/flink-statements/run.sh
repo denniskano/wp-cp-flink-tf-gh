@@ -101,6 +101,18 @@ else
     || fail "rest_endpoint debe ser solo el Private Link (sin REST público)"
   ok "codegen stmt properties + once + ignore"
 
+  stmt_stopped() {
+    local file="$1" name="$2" expect="$3"
+    awk -v n="$name" -v e="$expect" '
+      index($0, "resource \"confluent_flink_statement\" \"statement_" n "\"") { p=1 }
+      p && /stopped[[:space:]]*=/ {
+        if (index($0, "tobool(\"" e "\")") > 0) ok=1
+      }
+      p && $0 == "}" { p=0 }
+      END { exit ok ? 0 : 1 }
+    ' "$file"
+  }
+
   echo "== codegen STOP_STATEMENT_NAME (un DML stopped) =="
   OUT_STOP="$(mktemp -d)"
   export STOP_STATEMENT_NAME="statement-dml-insert-internal-from-input-compra"
@@ -116,11 +128,43 @@ else
       "DES" \
       "${OUT_STOP}"
   ) || fail "codegen stop_statement"
-  grep -q 'tobool("true")' "${OUT_STOP}/stmt_flink.tf" \
+  stmt_stopped "${OUT_STOP}/stmt_flink.tf" \
+    "statement-dml-insert-internal-from-input-compra" "true" \
     || fail "stop_statement no forzó stopped=true"
+  stmt_stopped "${OUT_STOP}/stmt_flink.tf" \
+    "statement-dml-insert-input-compra-loop" "false" \
+    || fail "stop_statement no debe tocar otros DML"
   unset STOP_STATEMENT_NAME
   rm -rf "${OUT_STOP}"
   ok "codegen STOP_STATEMENT_NAME"
+
+  echo "== codegen STOP_STATEMENT_NAME (varios DML, coma) =="
+  OUT_STOP="$(mktemp -d)"
+  export STOP_STATEMENT_NAME="statement-dml-insert-internal-from-input-compra, statement-dml-insert-input-compra-loop"
+  (
+    cd "${ROOT}"
+    "${GEN_STMT}" \
+      "11111111-1111-1111-1111-111111111111" \
+      "env-xxxxx" \
+      "bcp_desa" \
+      "AZURE_EU2_DESA_KAFKA01" \
+      "${CREDS_B64}" \
+      "${STMT}" \
+      "DES" \
+      "${OUT_STOP}"
+  ) || fail "codegen stop_statement lista"
+  stmt_stopped "${OUT_STOP}/stmt_flink.tf" \
+    "statement-dml-insert-internal-from-input-compra" "true" \
+    || fail "lista: falta stop del primer DML"
+  stmt_stopped "${OUT_STOP}/stmt_flink.tf" \
+    "statement-dml-insert-input-compra-loop" "true" \
+    || fail "lista: falta stop del segundo DML"
+  stmt_stopped "${OUT_STOP}/stmt_flink.tf" \
+    "statement-dml-insert-load-input-compra" "false" \
+    || fail "lista: no debe tocar DML no listado"
+  unset STOP_STATEMENT_NAME
+  rm -rf "${OUT_STOP}"
+  ok "codegen STOP_STATEMENT_NAME lista"
 fi
 
 echo "tests/flink-statements: OK"
