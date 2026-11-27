@@ -55,6 +55,9 @@ else
   ) || fail "codegen rbac"
   [[ -f "${OUT}/rbac_flink.tf" ]] || fail "no se escribió rbac_flink.tf"
   [[ -f "${OUT}/data_sa_flink.tf" ]] || fail "no se escribió data_sa_flink.tf"
+  [[ -f "${OUT}/data_cp_flink.tf" ]] || fail "no se escribió data_cp_flink.tf (pools del YAML RBAC)"
+  grep -q 'data "confluent_flink_compute_pool"' "${OUT}/data_cp_flink.tf" \
+    || fail "RBAC sin data.confluent_flink_compute_pool"
   grep -q 'FlinkDeveloper' "${OUT}/rbac_flink.tf" || fail "FlinkDeveloper ausente"
   grep -q 'SA_AZC_DES_PEVE_CDPEVEFL_04' "${OUT}/rbac_flink.tf" \
     || fail "SA de compras-04 ausente en rbac"

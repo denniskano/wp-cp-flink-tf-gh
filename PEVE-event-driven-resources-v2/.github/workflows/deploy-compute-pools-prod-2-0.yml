@@ -201,6 +201,7 @@ jobs:
       - name: Link IAC scripts y templates
         run: |
           ln -sfn "$(pwd)/iac/scripts" ./scripts
+          chmod -R a+x iac/scripts
           rm -rf ./resources/template
           cp -a iac/resources/template ./resources/template
           echo "✅ IAC scripts → ./scripts, templates → ./resources/template"
@@ -365,6 +366,7 @@ jobs:
       - name: Link IAC scripts y templates
         run: |
           ln -sfn "$(pwd)/iac/scripts" ./scripts
+          chmod -R a+x iac/scripts
           rm -rf ./resources/template
           cp -a iac/resources/template ./resources/template
           echo "✅ IAC scripts → ./scripts, templates → ./resources/template"

@@ -31,6 +31,13 @@ ARCHIVO_TF_SA=$(basename "${ARCHIVO_TPL_SA%.*}")
 rm -f $ARCHIVO_TF_SA    ; touch $ARCHIVO_TF_SA
 echo "ARCHIVO_TF_SA   : ${ARCHIVO_TF_SA}"
 #
+ARCHIVO_DATA_TPL_CP="${AUTOMATION_DIRNAME}/template/data_cp_flink.tf.tpl"
+ARCHIVO_DATA_TF_CP=$(basename "${ARCHIVO_DATA_TPL_CP%.*}")
+rm -f $ARCHIVO_DATA_TF_CP ; touch $ARCHIVO_DATA_TF_CP
+LIST_CPS_PATH="./local_data_cp_rbac.txt"
+rm -f "$LIST_CPS_PATH" ; touch "$LIST_CPS_PATH"
+echo "ARCHIVO_DATA_TF_CP : ${ARCHIVO_DATA_TF_CP}"
+#
 #
 #
 #Valida numero de yamls
@@ -74,6 +81,7 @@ EOF
       echo "... ... ... LOCAL_RESOURCE_NAME: $LOCAL_RESOURCE_NAME"
       if [[ "$RESOURCE_TYPE" == "compute-pool" ]]; then
         export RESOURCE_NAME="\${data.confluent_flink_compute_pool.cp_$LOCAL_RESOURCE_NAME.id}"
+        echo "$LOCAL_RESOURCE_NAME" >> "$LIST_CPS_PATH"
       else
         export RESOURCE_NAME=$LOCAL_RESOURCE_NAME
       fi
@@ -127,11 +135,23 @@ EOF
   echo "... Fin Principal"
 done
 #
+echo "...INI - LOAD DATA COMPUTE-POOL (RBAC)"
+sort -u "$LIST_CPS_PATH" | while IFS= read -r cp; do
+  [[ -n "${cp}" ]] || continue
+  export COMPUTE_POOL="$cp"
+  cat <<EOF >> "$ARCHIVO_DATA_TF_CP"
+$(envsubst < $ARCHIVO_DATA_TPL_CP)
+EOF
+done
+rm -f "$LIST_CPS_PATH"
+mv $ARCHIVO_DATA_TF_CP $RELATIVE_SUBPATH_TERRAFORM
 mv $ARCHIVO_TF_SA $RELATIVE_SUBPATH_TERRAFORM
 mv $ARCHIVO_TF_RBAC $RELATIVE_SUBPATH_TERRAFORM
 #
 echo "********** contenido de archivo: $ARCHIVO_TF_SA *******"
 cat $RELATIVE_SUBPATH_TERRAFORM/$ARCHIVO_TF_SA
+echo "********** contenido de archivo: $ARCHIVO_DATA_TF_CP *******"
+cat $RELATIVE_SUBPATH_TERRAFORM/$ARCHIVO_DATA_TF_CP
 echo "********** contenido de archivo: $ARCHIVO_TF_RBAC *******"
 cat $RELATIVE_SUBPATH_TERRAFORM/$ARCHIVO_TF_RBAC
 #
@@ -146,7 +166,7 @@ echo "properties_name: $properties_name"
 echo "${CC_SR_PROPERTIES}" > ./cc_sr_properties.json
 echo "Imprimir contenido del archivo cc_sr_properties.json"
 cat cc_sr_properties.json
-tree
+command -v tree >/dev/null && tree || true
 
 sr_properties=$(jq -r ".${properties_name}.sr_properties" cc_sr_properties.json)
 
