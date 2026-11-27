@@ -9,7 +9,7 @@ resource "terraform_data" "once_${STATEMENT_NAME}" {
 ${STATEMENT}
 SQL
     pool_id    = data.confluent_flink_compute_pool.cp_${COMPUTE_POOL}.id
-    rest       = coalesce(nullif(var.flink_private_rest_endpoint, ""), data.confluent_flink_region.data_flink_region.rest_endpoint)
+    rest       = var.flink_private_rest_endpoint
     org_id     = "${ORGANIZATION_ID}"
     env_id     = "${ENVIRONMENT_ID}"
     principal  = data.confluent_service_account.sa_${PRINCIPAL}.id

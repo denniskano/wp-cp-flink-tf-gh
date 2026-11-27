@@ -9,8 +9,8 @@ variable "confluent_cloud_api_secret" {
 }
 
 variable "flink_private_rest_endpoint" {
-  type    = string
-  default = null
+  description = "REST Flink por Private Link. Obligatorio; no hay fallback público."
+  type        = string
 }
 
 variable "sr_id" {

@@ -145,8 +145,8 @@ else
   if grep -q 'statement-dml-insert-internal' "${OUT_DDL}/stmt_flink.tf"; then
     fail "pase DDL no debe generar DML"
   fi
-  grep -q 'coalesce(nullif(var.flink_private_rest_endpoint' "${OUT_DDL}/stmt_flink.tf" \
-    || fail "rest_endpoint sin fallback coalesce"
+  grep -q 'rest_endpoint = var.flink_private_rest_endpoint' "${OUT_DDL}/stmt_flink.tf" \
+    || fail "rest_endpoint debe ser solo el Private Link (sin REST público)"
   ok "codegen stmt IS_ONLY_DDL=true solo DDL"
   unset IS_ONLY_DDL
   rm -rf "${OUT_DML}" "${OUT_DDL}"

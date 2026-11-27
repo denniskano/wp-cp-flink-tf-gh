@@ -9,7 +9,7 @@ resource "confluent_flink_statement" "statement_${STATEMENT_NAME}" {
     ${VAR_FLINK_APIKEY}
     ${VAR_FLINK_APISECRET}
   }
-  rest_endpoint = coalesce(nullif(var.flink_private_rest_endpoint, ""), data.confluent_flink_region.data_flink_region.rest_endpoint)
+  rest_endpoint = var.flink_private_rest_endpoint
 
   properties = {
 ${PROPERTIES_BLOCK}
