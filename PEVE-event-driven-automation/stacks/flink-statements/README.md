@@ -9,6 +9,8 @@ Templates en `resources/template/`.
 
 Un apply arma DDL y DML (campo `apply` + `stopped` del YAML). RBAC es otro plan / otro blob.
 
+DDL corre con `SERVICE_ACCOUNT` del Action (`SA_AZC_*_PEVE_FLK_01`): keys y `principal`. El `service-account` del YAML de DDL se ignora. DML usa el SA del YAML.
+
 `stop_statement` en el Action: uno o más `statement-name` DML `managed`, separados por coma. Ese apply los deja `stopped=true` sin tocar el YAML. El siguiente run sin el input usa el `stopped` del YAML. Si el nombre no existe o no es DML managed, el codegen falla.
 
 ## `properties` y versionado

@@ -18,6 +18,7 @@ RELATIVE_SUBPATH_TERRAFORM=$8
 : "${PATH_HV_APP:=}"
 : "${VAR_confluent_flink_api_key:=}"
 : "${VAR_confluent_flink_api_secret:=}"
+: "${SERVICE_ACCOUNT:=}"
 echo "FLINK_PRIVATE_REST_ENDPOINT:$FLINK_PRIVATE_REST_ENDPOINT"
 echo "PATH_HV_APP=$PATH_HV_APP; para validar si se pueden usar variables de entorno en estos script anidados"
 #
@@ -161,8 +162,6 @@ load_file_stmts_all(){
       rm -f "$tmp"
       continue
     fi
-    export APIKEY_KEY=$(get_value_from_input "$flink_credentials" "$PRINCIPAL/$APIKEY" "key")
-    export APIKEY_SECRET=$(get_value_from_input "$flink_credentials" "$PRINCIPAL/$APIKEY" "secret")
     export STATEMENT="$(awk '
     /^statement:[[:space:]]*\|[[:space:]]*$/ {inblock=1; next}
     inblock && /^[^[:space:]]/ {exit}
@@ -178,31 +177,34 @@ load_file_stmts_all(){
     PROPERTIES_BLOCK="$(yaml_properties_hcl "$tmp")"
     echo "STATEMENT_NAME: $STATEMENT_NAME"
     echo "COMPUTE_POOL: $COMPUTE_POOL"
-    echo "APIKEY_KEY: $APIKEY_KEY"
-    #echo "APIKEY_SECRET: $APIKEY_SECRET"
-    #Validate
     require_var $COMPUTE_POOL "no se encontró flink-compute-pool en $stmt"
-    require_var $APIKEY_KEY "Sin credenciales para: $PRINCIPAL/$APIKEY"
-    require_var $APIKEY_SECRET "Sin credenciales para: $PRINCIPAL/$APIKEY"
-    #push --> file
-      echo "is_resultado_yaml_ddl= $is_resultado_yaml_ddl"
-    if [  $is_resultado_yaml_ddl == true ] ; then
+    echo "is_resultado_yaml_ddl= $is_resultado_yaml_ddl"
+    if [[ "${is_resultado_yaml_ddl}" == "true" ]]; then
+      if [[ -z "${SERVICE_ACCOUNT}" ]]; then
+        echo "ERROR: DDL requiere SERVICE_ACCOUNT (SA de plataforma, ej. SA_AZC_DES_PEVE_FLK_01)" >&2
+        exit 1
+      fi
+      echo "... DDL principal=${SERVICE_ACCOUNT} (no el SA del YAML: ${PRINCIPAL})"
+      export PRINCIPAL="${SERVICE_ACCOUNT}"
       echo "********* Credentials DDL ********* "
       export VAR_FLINK_APIKEY="key    = \"${VAR_confluent_flink_api_key}\""
       export VAR_FLINK_APISECRET="secret = \"${VAR_confluent_flink_api_secret}\""
+      export ONCE_API_KEY="${VAR_confluent_flink_api_key:-}"
+      export ONCE_API_SECRET="${VAR_confluent_flink_api_secret:-}"
     else
+      export APIKEY_KEY=$(get_value_from_input "$flink_credentials" "$PRINCIPAL/$APIKEY" "key")
+      export APIKEY_SECRET=$(get_value_from_input "$flink_credentials" "$PRINCIPAL/$APIKEY" "secret")
+      echo "APIKEY_KEY: $APIKEY_KEY"
+      require_var $APIKEY_KEY "Sin credenciales para: $PRINCIPAL/$APIKEY"
+      require_var $APIKEY_SECRET "Sin credenciales para: $PRINCIPAL/$APIKEY"
       echo "********* Credentials DML ********* "
       export VAR_FLINK_APIKEY="key    = \"$APIKEY_KEY\""
       export VAR_FLINK_APISECRET="secret = \"${APIKEY_SECRET}\""
+      export ONCE_API_KEY="$APIKEY_KEY"
+      export ONCE_API_SECRET="$APIKEY_SECRET"
     fi
 
     if [[ "$APPLY" == "once" ]]; then
-      export ONCE_API_KEY="$APIKEY_KEY"
-      export ONCE_API_SECRET="$APIKEY_SECRET"
-      if [[ "${is_resultado_yaml_ddl}" == "true" ]]; then
-        export ONCE_API_KEY="${VAR_confluent_flink_api_key:-}"
-        export ONCE_API_SECRET="${VAR_confluent_flink_api_secret:-}"
-      fi
       echo "... apply: once → terraform_data.once_${STATEMENT_NAME}"
       cat <<EOF >> "$tf_stmt_final"
 $(envsubst < "${AUTOMATION_DIRNAME}/template/stmt_flink_once.tf.tpl")

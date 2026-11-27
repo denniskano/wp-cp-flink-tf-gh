@@ -69,6 +69,9 @@ if ! command -v envsubst >/dev/null || ! command -v jq >/dev/null; then
   echo "⏭️  envsubst/jq no instalados; se omite prueba de gen_stmt"
 else
   GEN_STMT="${ROOT}/scripts/gen_stmt_flink_dinamic.sh"
+  export SERVICE_ACCOUNT="SA_AZC_DES_PEVE_FLK_01"
+  export VAR_confluent_flink_api_key="k-ddl"
+  export VAR_confluent_flink_api_secret="s-ddl"
   CREDS_JSON='{"SA_AZC_DES_APPV_CDPEVEFL_01/AK_AZC_DES_APPV_FLINK_CDPEVEFL_01":{"key":"k","secret":"s"},"SA_AZC_DES_APPV_PEVEMQFL_02/AK_AZC_DES_APPV_FLINK_PEVEMQFL_01":{"key":"k","secret":"s"},"SA_AZC_DES_PEVE_PEVEMQFL_03/AK_AZC_DES_PEVE_FLINK_PEVEMQFL_01":{"key":"k","secret":"s"},"SA_AZC_DES_PEVE_CDPEVEFL_04/AK_AZC_DES_PEVE_FLINK_CDPEVEFL_01":{"key":"k","secret":"s"}}'
   CREDS_B64="$(printf '%s' "${CREDS_JSON}" | base64)"
   (
@@ -99,6 +102,13 @@ else
   grep -q 'rowtime' "${OUT}/stmt_flink.tf" || fail "envsubst se comió \$rowtime del YAML PEVE"
   grep -q 'rest_endpoint = var.flink_private_rest_endpoint' "${OUT}/stmt_flink.tf" \
     || fail "rest_endpoint debe ser solo el Private Link (sin REST público)"
+  grep -q 'data.confluent_service_account.sa_SA_AZC_DES_PEVE_FLK_01.id' "${OUT}/stmt_flink.tf" \
+    || fail "DDL debe usar principal SERVICE_ACCOUNT (FLK_01)"
+  if grep -A2 'once_statement-ddl-alter-headers-once' "${OUT}/stmt_flink.tf" | grep -q 'sa_SA_AZC_DES_APPV_CDPEVEFL_01'; then
+    fail "DDL once no debe usar el SA del YAML"
+  fi
+  grep -q 'sa_SA_AZC_DES_PEVE_PEVEMQFL_03.id' "${OUT}/stmt_flink.tf" \
+    || fail "DML debe seguir usando el SA del YAML"
   ok "codegen stmt properties + once + ignore"
 
   stmt_stopped() {
