@@ -6,7 +6,7 @@ Cada carpeta en `stacks/` es una raíz Terraform (backend Azure). No se aplican 
 |---|---|---|---|---|
 | kafka-connect | módulo `ccloud-connectors` | use-case | kafka-connect-resources-v1 | deploy-kafka-connect, -cert, -prod |
 | flink-compute-pool | `gen_cp_flink_dinamic.sh` | CODAPP | stream-processing-resources-v2 | deploy-compute-pools-desa-2-0 |
-| flink-statements | `gen_rbac` + `gen_stmt` (`properties`, `apply` managed/ignore/once) | pipeline | stream-processing-resources-v2 | deploy-flink-statements-desa-2-0 |
+| flink-statements | `gen_rbac` + `gen_stmt` (`apply` + `stopped`; dos blobs) | pipeline | stream-processing-resources-v2 | deploy-flink-statements-{desa,cert,prod}-2-0 |
 | eda-core | `generate_topic` / `schema_registry` / `rbac` + `terraform_task.sh` | CODAPP + env | event-driven-resources-v3 | peve-resources-desa |
 | connect-plugins | módulo `ccloud-connect-smt` | CODAPP + env | kafka-connect-resources-v1 (`smt.yaml`) | deploy-connect-plugins |
 | flink-artifacts | pendiente | CODAPP | — (JAR) | — |
